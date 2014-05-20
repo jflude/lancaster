@@ -21,3 +21,5 @@ server
 # Editor files
 *~
 *.bak
+*.swo
+*.swp
