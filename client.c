@@ -5,16 +5,27 @@
 #include "receiver.h"
 #include "yield.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
-int main()
+int main(int argc, char* argv[])
 {
 	receiver_handle recv;
 	time_t t = time(NULL);
 	long tcp_c = 0, mcast_c = 0;
 	status st = OK;
+	const char* tcp_addr;
+	int tcp_port;
 
-	if (FAILED(receiver_create(&recv, Q_CAPACITY, HB_RECV_PERIOD, TCP_ADDR, TCP_PORT)))
+	if (argc != 3) {
+		fprintf(stderr, "Syntax: %s [tcp address] [tcp port]\n", argv[0]);
+		return 1;
+	}
+
+	tcp_addr = argv[1];
+	tcp_port = atoi(argv[2]);
+
+	if (FAILED(receiver_create(&recv, Q_CAPACITY, HB_RECV_PERIOD, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (receiver_is_running(recv)) {

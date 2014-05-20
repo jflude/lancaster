@@ -17,16 +17,24 @@ int main(int argc, char* argv[])
 	long tcp_c = 0, mcast_c = 0;
 	status st = OK;
 	int i, mask;
+	const char* mcast_addr, *tcp_addr;
+	int mcast_port, tcp_port;
 
-	if (argc != 2) {
-		fprintf(stderr, "Syntax: %s [numeric speed]\n", argv[0]);
+	if (argc != 6) {
+		fprintf(stderr, "Syntax: %s [numeric speed] [mcast address] [mcast port] [tcp address] [tcp port]\n", argv[0]);
 		return 1;
 	}
 
 	mask = (1 << atoi(argv[1])) - 1;
 
+	mcast_addr = argv[2];
+	mcast_port = atoi(argv[3]);
+
+	tcp_addr = argv[4];
+	tcp_port = atoi(argv[5]);
+
 	if (FAILED(storage_create(&store, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_SEND_PERIOD, MCAST_ADDR, MCAST_PORT, 1, TCP_ADDR, TCP_PORT)))
+		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_SEND_PERIOD, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (sender_is_running(sender))

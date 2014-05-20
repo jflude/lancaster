@@ -344,6 +344,7 @@ client.o: /usr/include/_G_config.h /usr/include/wchar.h
 client.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
 client.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
 client.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+client.o: /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/sys/types.h
 client.o: /usr/include/linux/time.h /usr/include/linux/types.h
 client.o: /usr/include/x86_64-linux-gnu/asm/types.h
 client.o: /usr/include/asm-generic/types.h
@@ -353,6 +354,13 @@ client.o: /usr/include/asm-generic/bitsperlong.h
 client.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 client.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 client.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+client.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
+client.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
+client.o: /usr/include/x86_64-linux-gnu/sys/select.h
+client.o: /usr/include/x86_64-linux-gnu/bits/select.h
+client.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
+client.o: /usr/include/x86_64-linux-gnu/bits/time.h
+client.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h
 server.o: datum.h error.h sender.h storage.h spin.h barrier.h yield.h
 server.o: status.h /usr/include/linux/stddef.h /usr/include/stdio.h
 server.o: /usr/include/features.h

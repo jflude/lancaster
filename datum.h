@@ -15,18 +15,11 @@ struct datum_t
 	int ask_qty;
 };
 
-#define TCP_ADDR "10.2.2.152"
-#define TCP_PORT 23266
-
-#define MCAST_ADDR "227.1.1.34"
-#define MCAST_PORT 56134
-
+#define MAX_ID 1000000
 #define Q_CAPACITY 131072
 
 #define HB_SEND_PERIOD 10
 #define HB_RECV_PERIOD 20
-
-#define MAX_ID 1000000
 
 #ifdef __cplusplus
 }
