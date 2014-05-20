@@ -538,29 +538,26 @@ status sender_stop(sender_handle send)
 	return FAILED(st) ? st : st2;
 }
 
-long sender_get_tcp_gap_count(sender_handle send)
+static long sender_get_stat(sender_handle me, long* pval)
 {
 	long n;
-	SPIN_LOCK(&send->stats.lock);
-	n = send->stats.tcp_gap_count;
-	SPIN_UNLOCK(&send->stats.lock);
+	SPIN_LOCK(&me->stats.lock);
+	n = *pval;
+	SPIN_UNLOCK(&me->stats.lock);
 	return n;
+}
+
+long sender_get_tcp_gap_count(sender_handle send)
+{
+	return sender_get_stat(send, &send->stats.tcp_gap_count);
 }
 
 long sender_get_tcp_bytes_sent(sender_handle send)
 {
-	long n;
-	SPIN_LOCK(&send->stats.lock);
-	n = send->stats.tcp_bytes_sent;
-	SPIN_UNLOCK(&send->stats.lock);
-	return n;
+	return sender_get_stat(send, &send->stats.tcp_bytes_sent);
 }
 
 long sender_get_mcast_bytes_sent(sender_handle send)
 {
-	long n;
-	SPIN_LOCK(&send->stats.lock);
-	n = send->stats.mcast_bytes_sent;
-	SPIN_UNLOCK(&send->stats.lock);
-	return n;
+	return sender_get_stat(send, &send->stats.mcast_bytes_sent);
 }

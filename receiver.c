@@ -363,29 +363,26 @@ status receiver_stop(receiver_handle recv)
 	return FAILED(st) ? st : st2;
 }
 
-long receiver_get_tcp_gap_count(receiver_handle recv)
+static long receiver_get_stat(receiver_handle me, long* pval)
 {
 	long n;
-	SPIN_LOCK(&recv->stats.lock);
-	n = recv->stats.tcp_gap_count;
-	SPIN_UNLOCK(&recv->stats.lock);
+	SPIN_LOCK(&me->stats.lock);
+	n = *pval;
+	SPIN_UNLOCK(&me->stats.lock);
 	return n;
+}
+
+long receiver_get_tcp_gap_count(receiver_handle recv)
+{
+	return receiver_get_stat(recv, &recv->stats.tcp_gap_count);
 }
 
 long receiver_get_tcp_bytes_recv(receiver_handle recv)
 {
-	long n;
-	SPIN_LOCK(&recv->stats.lock);
-	n = recv->stats.tcp_bytes_recv;
-	SPIN_UNLOCK(&recv->stats.lock);
-	return n;
+	return receiver_get_stat(recv, &recv->stats.tcp_bytes_recv);
 }
 
 long receiver_get_mcast_bytes_recv(receiver_handle recv)
 {
-	long n;
-	SPIN_LOCK(&recv->stats.lock);
-	n = recv->stats.mcast_bytes_recv;
-	SPIN_UNLOCK(&recv->stats.lock);
-	return n;
+	return receiver_get_stat(recv, &recv->stats.mcast_bytes_recv);
 }
