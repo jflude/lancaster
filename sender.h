@@ -12,9 +12,9 @@ extern "C" {
 struct sender_t;
 typedef struct sender_t* sender_handle;
 
-	status sender_create(sender_handle* psend, storage_handle store, unsigned q_capacity, int hb_secs,
-						 const char* mcast_addr, int mcast_port, int mcast_ttl,
-						 const char* tcp_addr, int tcp_port);
+status sender_create(sender_handle* psend, storage_handle store, unsigned q_capacity, int hb_secs,
+					 const char* mcast_addr, int mcast_port, int mcast_ttl,
+					 const char* tcp_addr, int tcp_port);
 void sender_destroy(sender_handle* psend);
 
 status sender_record_changed(sender_handle send, record_handle rec);

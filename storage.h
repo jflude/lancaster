@@ -27,19 +27,18 @@ typedef status (*storage_iterate_func)(record_handle, void*);
 struct storage_seq_range_t { long low; long high; };
 
 status storage_create(storage_handle* pstore, int base_id, int max_id, size_t val_size);
-status storage_setup(storage_handle* pstore, void* memory, int base_id, int max_id, size_t val_size);
 void storage_destroy(storage_handle* pstore);
 
-size_t storage_calc_record_size(size_t val_size);
 void* storage_get_memory(storage_handle store);
-void storage_zero(storage_handle store);
-
 int storage_get_base_id(storage_handle store);
 int storage_get_max_id(storage_handle store);
+size_t storage_get_record_size(storage_handle store);
 size_t storage_get_val_size(storage_handle store);
+size_t storage_get_val_offset();
 
 status storage_lookup(storage_handle store, int id, record_handle* prec);
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn, record_handle prev, void* param);
+void storage_zero(storage_handle store);
 
 int record_get_id(record_handle rec);
 void* record_get_val(record_handle rec);

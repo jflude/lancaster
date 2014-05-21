@@ -18,8 +18,7 @@ struct datum_t
 #define MAX_ID 1000000
 #define Q_CAPACITY 131072
 
-#define HB_SEND_PERIOD 10
-#define HB_RECV_PERIOD 20
+#define HB_PERIOD 10
 
 #ifdef __cplusplus
 }

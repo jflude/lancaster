@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 	tcp_port = atoi(argv[5]);
 
 	if (FAILED(storage_create(&store, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_SEND_PERIOD, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_PERIOD, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (sender_is_running(sender))
@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 				goto finish;
 
 			/* RECORD_LOCK(rec), change something in *rec, RECORD_UNLOCK(rec) */
-
+/*
 		loop:
 			st = sender_record_changed(sender, rec);
 			if (st == BLOCKED) {
@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
 				goto loop;
 			} else if (FAILED(st))
 				goto finish;
-
+*/
 			t2 = time(NULL);
 			if (t2 != t) {
 				long tcp_c2 = sender_get_tcp_bytes_sent(sender);

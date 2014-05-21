@@ -116,21 +116,6 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 	return st;
 }
 
-static status sender_mcast_on_heartbeat(sender_handle me, size_t pkt_size)
-{
-	status st;
-	long hb_seq = -1;
-	char* pad = alloca(pkt_size);
-
-	memset(pad, 0, pkt_size);
-
-	if (FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq))) ||
-		FAILED(st = accum_store(me->mcast_accum, pad, pkt_size)))
-		return st;
-
-	return sender_accum_write(me);
-}
-
 static void* sender_mcast_proc(thread_handle thr)
 {
 	sender_handle me = thread_get_param(thr);
@@ -146,11 +131,10 @@ static void* sender_mcast_proc(thread_handle thr)
 				st = sender_accum_write(me);
 				if (FAILED(st))
 					break;
-			}
-
-			if ((time(NULL) - me->last_mcast_send) >= me->heartbeat) {
-				st = sender_mcast_on_heartbeat(me, val_size + sizeof(int));
-				if (FAILED(st))
+			} else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat) {
+				long hb_seq = -1;
+				if (FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq))) ||
+					FAILED(st = sender_accum_write(me)))
 					break;
 
 				continue;
@@ -398,11 +382,9 @@ static status sender_tcp_check_heartbeat_proc(poll_handle poller, sock_handle so
 		return OK;
 
 	*req_param->send_seq = -1;
-	*req_param->send_id = 0;
-	memset(req_param->send_buf, 0, req_param->val_size);
 
 	req_param->next_send = req_param->send_buf;
-	req_param->remain_send = req_param->pkt_size;
+	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->sending_hb = TRUE;
 
 	return poll_set_event(poller, sock, POLLOUT);
@@ -461,10 +443,10 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 	(*psend)->heartbeat = hb_secs;
 	(*psend)->last_mcast_send = time(NULL);
 
-	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n",
+	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port,
 								  storage_get_base_id(store), storage_get_max_id(store),
-								  storage_get_val_size(store));
+								  storage_get_val_size(store), (*psend)->heartbeat);
 
 	if ((*psend)->hello_len < 0) {
 		error_errno("sprintf");

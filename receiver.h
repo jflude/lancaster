@@ -12,7 +12,7 @@ extern "C" {
 struct receiver_t;
 typedef struct receiver_t* receiver_handle;
 
-status receiver_create(receiver_handle* precv, unsigned q_capacity, int hb_secs, const char* tcp_addr, int tcp_port);
+status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* tcp_addr, int tcp_port);
 void receiver_destroy(receiver_handle* precv);
 
 storage_handle receiver_get_storage(receiver_handle recv);

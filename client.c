@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[1];
 	tcp_port = atoi(argv[2]);
 
-	if (FAILED(receiver_create(&recv, Q_CAPACITY, HB_RECV_PERIOD, tcp_addr, tcp_port)))
+	if (FAILED(receiver_create(&recv, Q_CAPACITY, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (receiver_is_running(recv)) {

@@ -18,51 +18,16 @@ struct storage_t
 	size_t val_size;
 	int base_id;
 	int max_id;
-	boolean owns_array;
 };
 
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->record_size))
 
 status storage_create(storage_handle* pstore, int base_id, int max_id, size_t val_size)
 {
-	status st;
-	void* memory;
-	if (!pstore || base_id < 0 || max_id < (base_id + 1) || val_size == 0) {
-		error_invalid_arg("storage_create");
-		return FAIL;
-	}
-
-	memory = xmalloc(storage_calc_record_size(val_size) * (max_id - base_id));
-	if (!memory)
-		return NO_MEMORY;
-
-	st = storage_setup(pstore, memory, base_id, max_id, val_size);
-	if (FAILED(st))
-		xfree(memory);
-	else
-		(*pstore)->owns_array = TRUE;
-
-	return st;
-}
-
-void storage_destroy(storage_handle* pstore)
-{
-	if (!pstore || !*pstore)
-		return;
-
-	if ((*pstore)->owns_array)
-		xfree((*pstore)->array);
-
-	xfree(*pstore);
-	*pstore = NULL;
-}
-
-status storage_setup(storage_handle* pstore, void* memory, int base_id, int max_id, size_t val_size)
-{
 	int i;
 	record_handle rec;
-	if (!pstore || base_id < 0 || max_id < (base_id + 1) || val_size == 0 || !memory || ((long) memory & 7) != 0) {
-		error_invalid_arg("storage_setup");
+	if (!pstore || base_id < 0 || max_id < (base_id + 1) || val_size == 0) {
+		error_invalid_arg("storage_create");
 		return FAIL;
 	}
 
@@ -73,13 +38,15 @@ status storage_setup(storage_handle* pstore, void* memory, int base_id, int max_
 	(*pstore)->base_id = base_id;
 	(*pstore)->max_id = max_id;
 	(*pstore)->val_size = val_size;
-	(*pstore)->record_size = storage_calc_record_size(val_size);
+	(*pstore)->record_size = sizeof(struct record_t) - 8 + ((val_size + 7) & ~7);
 
-	(*pstore)->array = rec = memory;
+	(*pstore)->array = rec = xcalloc(max_id - base_id, (*pstore)->record_size);
+	if (!rec) {
+		storage_destroy(pstore);
+		return NO_MEMORY;
+	}
+
 	(*pstore)->limit = RECORD_ADDR(*pstore, rec, max_id - base_id);
-	(*pstore)->owns_array = FALSE;
-
-	storage_zero(*pstore);
 
 	for (i = base_id; i < max_id; ++i) {
 		SPIN_CREATE(&rec->lock);
@@ -90,19 +57,19 @@ status storage_setup(storage_handle* pstore, void* memory, int base_id, int max_
 	return OK;
 }
 
-size_t storage_calc_record_size(size_t val_size)
+void storage_destroy(storage_handle* pstore)
 {
-	return sizeof(struct record_t) - 8 + ((val_size + 7) & ~7);
+	if (!pstore || !*pstore)
+		return;
+
+	xfree((*pstore)->array);
+	xfree(*pstore);
+	*pstore = NULL;
 }
 
 void* storage_get_memory(storage_handle store)
 {
 	return store->array;
-}
-
-void storage_zero(storage_handle store)
-{
-	memset(store->array, 0, store->record_size * (store->max_id - store->base_id));
 }
 
 int storage_get_base_id(storage_handle store)
@@ -115,9 +82,19 @@ int storage_get_max_id(storage_handle store)
 	return store->max_id;
 }
 
+size_t storage_get_record_size(storage_handle store)
+{
+	return store->record_size;
+}
+
 size_t storage_get_val_size(storage_handle store)
 {
 	return store->val_size;
+}
+
+size_t storage_get_val_offset()
+{
+	return offsetof(struct record_t, val);
 }
 
 status storage_lookup(storage_handle store, int id, record_handle* prec)
@@ -151,6 +128,11 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 	}
 
 	return st;
+}
+
+void storage_zero(storage_handle store)
+{
+	memset(store->array, 0, store->record_size * (store->max_id - store->base_id));
 }
 
 int record_get_id(record_handle rec)
