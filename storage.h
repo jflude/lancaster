@@ -29,6 +29,10 @@ struct storage_seq_range_t { long low; long high; };
 status storage_create(storage_handle* pstore, int base_id, int max_id, size_t val_size);
 void storage_destroy(storage_handle* pstore);
 
+status storage_setup(storage_handle* pstore, void* memory, int base_id, int max_id, size_t val_size);
+size_t storage_calc_record_size(size_t val_size);
+void storage_zero(storage_handle store);
+
 int storage_get_base_id(storage_handle store);
 int storage_get_max_id(storage_handle store);
 size_t storage_get_val_size(storage_handle store);
