@@ -95,6 +95,11 @@ size_t storage_calc_record_size(size_t val_size)
 	return sizeof(struct record_t) - 8 + ((val_size + 7) & ~7);
 }
 
+void* storage_get_memory(storage_handle store)
+{
+	return store->array;
+}
+
 void storage_zero(storage_handle store)
 {
 	memset(store->array, 0, store->record_size * (store->max_id - store->base_id));
