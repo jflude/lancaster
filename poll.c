@@ -146,13 +146,12 @@ status poll_process(poll_handle poller, poll_proc proc, void* param)
 status poll_process_events(poll_handle poller, poll_proc proc, void* param)
 {
 	int i;
-	for (i = poller->free_slot - 1; i >= 0; --i) {
+	for (i = poller->free_slot - 1; i >= 0; --i)
 		if (poller->fds[i].revents) {
 			status st = proc(poller, poller->socks[i], &poller->fds[i].revents, param);
 			if (FAILED(st))
 				return st;
 		}
-	}
 
 	return OK;
 }

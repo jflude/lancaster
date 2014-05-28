@@ -2,7 +2,7 @@
 #include "error.h"
 #include <ctype.h>
 
-status dump(const void* p, size_t sz, FILE* f)
+status fdump(const void* p, size_t sz, FILE* f)
 {
 	const char* q = p;
 	size_t n = 0;
@@ -62,4 +62,9 @@ status dump(const void* p, size_t sz, FILE* f)
 	}
 
 	return OK;
+}
+
+status dump(const void* p, size_t sz)
+{
+	return fdump(p, sz, stderr);
 }

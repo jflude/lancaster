@@ -102,16 +102,15 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 	}
 
 	RECORD_LOCK(rec);
-	record_set_seq(rec, me->next_seq);
 	id = record_get_id(rec);
-		
-	st = accum_store(me->mcast_accum, &id, sizeof(id));
-	if (FAILED(st)) {
+
+	if (FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id))) ||
+		FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), val_size))) {
 		RECORD_UNLOCK(rec);
 		return st;
 	}
 
-	st = accum_store(me->mcast_accum, record_get_val(rec), val_size);
+	record_set_seq(rec, me->next_seq);
 	RECORD_UNLOCK(rec);
 	return st;
 }
@@ -179,11 +178,8 @@ static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
 	struct sender_tcp_req_param_t* req_param;
 
 	status st = sock_accept(sock, &accepted);
-	if (FAILED(st))
-		return st;
-
-	st = sock_write(accepted, me->hello_str, me->hello_len);
-	if (FAILED(st))
+	if (FAILED(st = sock_accept(sock, &accepted)) ||
+		FAILED(st = sock_write(accepted, me->hello_str, me->hello_len)))
 		return st;
 
 	req_param = XMALLOC(struct sender_tcp_req_param_t);
@@ -425,6 +421,7 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 					 const char* mcast_addr, int mcast_port, int mcast_ttl,
 					 const char* tcp_addr, int tcp_port)
 {
+	status st;
 	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0 || q_capacity == 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
@@ -454,19 +451,19 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 		return FAIL;
 	}
 
-	if (FAILED(circ_create(&(*psend)->changed_q, q_capacity)) ||
-		FAILED(accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_USEC)) ||
-		FAILED(sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
-		FAILED(sock_mcast_bind((*psend)->mcast_sock)) ||
-		FAILED(sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
-		FAILED(sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
-		FAILED(sock_listen((*psend)->listen_sock, 5)) ||
-		FAILED(poll_create(&(*psend)->poller, 10)) ||
-		FAILED(poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(thread_create(&(*psend)->tcp_thr, sender_tcp_proc, (void*) *psend)) ||
-		FAILED(thread_create(&(*psend)->mcast_thr, sender_mcast_proc, (void*) *psend))) {
+	if (FAILED(st = circ_create(&(*psend)->changed_q, q_capacity)) ||
+		FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_USEC)) ||
+		FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
+		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
+		FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
+		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
+		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
+		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
+		FAILED(st = thread_create(&(*psend)->tcp_thr, sender_tcp_proc, (void*) *psend)) ||
+		FAILED(st = thread_create(&(*psend)->mcast_thr, sender_mcast_proc, (void*) *psend))) {
 		sender_destroy(psend);
-		return FAIL;
+		return st;
 	}
 
 	return OK;

@@ -38,8 +38,7 @@ void error_errno(const char* func)
 
 void error_heartbeat(const char* func)
 {
-	error_code = ETIMEDOUT;
-	sprintf(error_desc, "%s: timed out\n", func);
+	error_capture(func, ETIMEDOUT);
 }
 
 void error_invalid_arg(const char* func)

@@ -176,10 +176,9 @@ status table_iterate(table_handle tab, table_iterate_func iter_fn)
 		for (c = tab->array[i]; c; c = c->next) {
 			st = iter_fn(c->key, c->val);
 			if (FAILED(st) || !st)
-				goto quit;
+				return st;
 		}
 	}
 
-quit:
 	return st;
 }

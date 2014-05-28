@@ -229,11 +229,7 @@ static void* receiver_tcp_proc(thread_handle thr)
 			continue;
 
 		st = receiver_tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
-		if (FAILED(st) || !st)
-			break;
-
-		st = storage_lookup(me->store, *id, &rec);
-		if (FAILED(st))
+		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))
 			break;
 
 		RECORD_LOCK(rec);
