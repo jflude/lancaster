@@ -24,8 +24,8 @@ status thread_create(thread_handle* pthr, thread_proc proc, void* param)
 	if (!*pthr)
 		return NO_MEMORY;
 
-	(*pthr)->param = param;
 	(*pthr)->stopping = (*pthr)->running = FALSE;
+	(*pthr)->param = param;
 
 	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) proc, (void*) *pthr);
 	if (e) {

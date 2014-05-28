@@ -65,9 +65,10 @@ static status sender_accum_write(sender_handle me)
 {
 	const void* data;
 	size_t sz;
-	status st;
-
-	if (!accum_get_batched(me->mcast_accum, &data, &sz))
+	status st = accum_get_batched(me->mcast_accum, &data, &sz);
+	if (FAILED(st))
+		return st;
+	else if (!st);
 		return OK;
 
 	st = sock_sendto(me->mcast_sock, data, sz);

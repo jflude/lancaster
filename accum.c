@@ -48,9 +48,7 @@ boolean accum_is_empty(accum_handle acc)
 
 status accum_is_stale(accum_handle acc)
 {
-	long elapsed;
 	struct timeval tv;
-
 	if (acc->max_age <= 0 || acc->insert_time.tv_sec == NO_TIME)
 		return FALSE;
 
@@ -59,8 +57,7 @@ status accum_is_stale(accum_handle acc)
 		return FAIL;
 	}
 
-	elapsed = 1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec;
-	return elapsed >= acc->max_age;
+	return acc->max_age < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
 }
 
 size_t accum_get_avail(accum_handle acc)
@@ -70,7 +67,7 @@ size_t accum_get_avail(accum_handle acc)
 
 status accum_store(accum_handle acc, const void* data, size_t size)
 {
-	if (size > acc->capacity) {
+	if (!data || size == 0 || size > acc->capacity) {
 		error_invalid_arg("accum_store");
 		return FAIL;
 	}
@@ -89,9 +86,15 @@ status accum_store(accum_handle acc, const void* data, size_t size)
 	return TRUE;
 }
 
-boolean accum_get_batched(accum_handle acc, const void** pdata, size_t* psize)
+status accum_get_batched(accum_handle acc, const void** pdata, size_t* psize)
 {
-	size_t used = acc->next_free - acc->buf;
+	size_t used;
+	if (!pdata || !psize) {
+		error_invalid_arg("accum_get_batched");
+		return FAIL;
+	}
+
+	used = acc->next_free - acc->buf;
 	if (used == 0)
 		return FALSE;
 

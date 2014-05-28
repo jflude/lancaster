@@ -18,8 +18,7 @@ struct table_t
 	table_destroy_func dtor_fn;
 };
 
-status table_create(table_handle* ptab, size_t sz,
-					table_hash_func h_fn, table_equality_func eq_fn, table_destroy_func dtor_fn)
+status table_create(table_handle* ptab, size_t sz, table_hash_func h_fn, table_equality_func eq_fn, table_destroy_func dtor_fn)
 {
 	if (!ptab || sz == 0) {
 		error_invalid_arg("table_create");

@@ -9,7 +9,7 @@ struct dict_t
 	table_handle id2sym;
 };
 
-static int dict_sym2id_hash_func(table_key key)
+static int dict_sym2id_hash_fn(table_key key)
 {
 	const char* p = key;
 	int c, h = 5381;
@@ -20,12 +20,12 @@ static int dict_sym2id_hash_func(table_key key)
 	return h;
 }
 
-static boolean dict_sym2id_eq_func(table_key key1, table_key key2)
+static boolean dict_sym2id_eq_fn(table_key key1, table_key key2)
 {
 	return strcmp(key1, key2) == 0;
 }
 
-static void dict_sym2id_dtor_func(table_key key, table_value val)
+static void dict_sym2id_dtor_fn(table_key key, table_value val)
 {
 	xfree(key);
 }
@@ -33,7 +33,7 @@ static void dict_sym2id_dtor_func(table_key key, table_value val)
 status dict_create(dict_handle* pdict, size_t sym2id_sz, size_t id2sym_sz)
 {
 	status st;
-	if (!pdict || sym2id_sz == 0 || id2sym_sz) {
+	if (!pdict || sym2id_sz == 0 || id2sym_sz == 0) {
 		error_invalid_arg("dict_create");
 		return FAIL;
 	}
@@ -44,7 +44,7 @@ status dict_create(dict_handle* pdict, size_t sym2id_sz, size_t id2sym_sz)
 
 	BZERO(*pdict);
 
-	if (FAILED(st = table_create(&(*pdict)->sym2id, sym2id_sz, dict_sym2id_hash_func, dict_sym2id_eq_func, dict_sym2id_dtor_func)) ||
+	if (FAILED(st = table_create(&(*pdict)->sym2id, sym2id_sz, dict_sym2id_hash_fn, dict_sym2id_eq_fn, dict_sym2id_dtor_fn)) ||
 		FAILED(st = table_create(&(*pdict)->id2sym, id2sym_sz, NULL, NULL, NULL))) {
 		dict_destroy(pdict);
 		return st;

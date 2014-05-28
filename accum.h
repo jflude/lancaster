@@ -21,7 +21,7 @@ status accum_is_stale(accum_handle acc);
 size_t accum_get_avail(accum_handle acc);
 
 status accum_store(accum_handle acc, const void* data, size_t size);
-boolean accum_get_batched(accum_handle acc, const void** pdata, size_t* psize);
+status accum_get_batched(accum_handle acc, const void** pdata, size_t* psize);
 void accum_clear(accum_handle acc);
 
 #ifdef __cplusplus

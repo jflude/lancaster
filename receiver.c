@@ -46,15 +46,21 @@ static void receiver_circ_insert(thread_handle thr, circ_handle queue, record_ha
 	}
 }
 
-static void receiver_copy_queue(receiver_handle me)
+static status receiver_copy_queue(receiver_handle me)
 {
+	status st = OK;
 	while (!thread_is_stopping(me->mcast_thr)) {
 		record_handle rec;
-		if (circ_remove(me->tcp_q, (void**) &rec) == BLOCKED)
+		st = circ_remove(me->tcp_q, (void**) &rec);
+		if (st == BLOCKED)
+			return OK;
+		else if (FAILED(st))
 			break;
 
 		receiver_circ_insert(me->mcast_thr, me->changed_q, rec);
 	}
+
+	return st;
 }
 
 static void* receiver_mcast_proc(thread_handle thr)
@@ -70,8 +76,8 @@ static void* receiver_mcast_proc(thread_handle thr)
 
 		st = sock_recvfrom(me->mcast_sock, buf, sizeof(buf));
 		if (st == BLOCKED) {
-			st = OK;
-			receiver_copy_queue(me);
+			if (FAILED(st = receiver_copy_queue(me)))
+				break;
 
 			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat) {
 				error_heartbeat("receiver_mcast_proc");
@@ -147,7 +153,9 @@ static void* receiver_mcast_proc(thread_handle thr)
 		}
 
 		me->next_seq++;
-		receiver_copy_queue(me);
+
+		if (FAILED(st = receiver_copy_queue(me)))
+			break;
 	}
 
 finish:

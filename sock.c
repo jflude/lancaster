@@ -161,11 +161,6 @@ status sock_mcast_bind(sock_handle sock)
 status sock_mcast_set_ttl(sock_handle sock, int ttl)
 {
 	char val = ttl;
-	if (ttl < 0 || ttl > 255) {
-		error_invalid_arg("sock_mcast_ttl");
-		return FAIL;
-	}
-
 	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
 		error_errno("setsockopt");
 		return FAIL;
@@ -191,12 +186,17 @@ status sock_listen(sock_handle sock, int backlog)
 
 status sock_accept(sock_handle sock, sock_handle* new_sock)
 {
-	socklen_t sz = sizeof(struct sockaddr_in);
 	struct sock_t accpt;
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+
+	if (!new_sock) {
+		error_invalid_arg("sock_accept");
+		return FAIL;
+	}
 
 	BZERO(&accpt);
 loop:
-	accpt.fd = accept(sock->fd, (struct sockaddr*) &accpt.addr, &sz);
+	accpt.fd = accept(sock->fd, (struct sockaddr*) &accpt.addr, &addrlen);
 	if (accpt.fd == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -247,6 +247,11 @@ status sock_connect(sock_handle sock)
 
 status sock_get_dest_address(sock_handle sock, char* dest, size_t sz)
 {
+	if (!dest || sz == 0) {
+		error_invalid_arg("sock_get_dest_address");
+		return FAIL;
+	}
+
 	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, dest, sz)) {
 		error_errno("inet_ntop");
 		return FAIL;
@@ -258,6 +263,11 @@ status sock_get_dest_address(sock_handle sock, char* dest, size_t sz)
 status sock_write(sock_handle sock, const void* data, size_t sz)
 {
 	ssize_t count;
+	if (!data || sz == 0) {
+		error_invalid_arg("sock_write");
+		return FAIL;
+	}
+
 loop:
 	count = write(sock->fd, data, sz);
 	if (count == -1) {
@@ -286,6 +296,11 @@ loop:
 status sock_read(sock_handle sock, void* data, size_t sz)
 {
 	ssize_t count;
+	if (!data || sz == 0) {
+		error_invalid_arg("sock_read");
+		return FAIL;
+	}
+
 loop:
 	count = read(sock->fd, data, sz);
 	if (count == -1) {
@@ -319,6 +334,11 @@ loop:
 status sock_sendto(sock_handle sock, const void* data, size_t sz)
 {
 	ssize_t count;
+	if (!data || sz == 0) {
+		error_invalid_arg("sock_sendto");
+		return FAIL;
+	}
+
 loop:
 	count = sendto(sock->fd, data, sz, 0, (struct sockaddr*) &sock->addr, sizeof(sock->addr));
 	if (count == -1) {
@@ -348,6 +368,12 @@ status sock_recvfrom(sock_handle sock, void* data, size_t sz)
 {
 	ssize_t count;
 	socklen_t addrlen = sizeof(sock->addr);
+
+	if (!data || sz == 0) {
+		error_invalid_arg("sock_recvfrom");
+		return FAIL;
+	}
+
 loop:
 	count = recvfrom(sock->fd, data, sz, 0, (struct sockaddr*) &sock->addr, &addrlen);
 	if (count == -1) {

@@ -7,6 +7,11 @@ status fdump(const void* p, size_t sz, FILE* f)
 	const char* q = p;
 	size_t n = 0;
 
+	if (!p || sz == 0 || !f) {
+		error_invalid_arg("fdump");
+		return FAIL;
+	}
+
 	while (n < sz) {
 		int i;
 		fprintf(f, "%08lX | ", (unsigned long) (q + n));

@@ -53,6 +53,11 @@ status circ_insert(circ_handle circ, void* val)
 
 status circ_remove(circ_handle circ, void** pval)
 {
+	if (!pval) {
+		error_invalid_arg("circ_remove");
+		return FAIL;
+	}
+
 	if (circ->write_to == circ->read_from)
 		return BLOCKED;
 
