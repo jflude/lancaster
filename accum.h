@@ -18,6 +18,7 @@ void accum_destroy(accum_handle* pacc);
 
 boolean accum_is_empty(accum_handle acc);
 status accum_is_stale(accum_handle acc);
+boolean accum_is_conflated(accum_handle acc, int id);
 size_t accum_get_avail(accum_handle acc);
 
 status accum_store(accum_handle acc, const void* data, size_t size);

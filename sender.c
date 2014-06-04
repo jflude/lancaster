@@ -90,8 +90,11 @@ static status sender_accum_write(sender_handle me)
 static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t val_size)
 {
 	status st;
-	int id;
-	if (accum_get_avail(me->mcast_accum) < (val_size + sizeof(int)) || accum_is_stale(me->mcast_accum)) {
+	int id = record_get_id(rec);
+	size_t rec_size = val_size + sizeof(id);
+
+	if ((accum_get_avail(me->mcast_accum) < rec_size && (!me->conflate_pkt || !accum_is_conflated(me->mcast_accum, id))) ||
+		accum_is_stale(me->mcast_accum)) {
 		st = sender_accum_write(me);
 		if (FAILED(st))
 			return st;
@@ -104,8 +107,6 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 	}
 
 	RECORD_LOCK(rec);
-	id = record_get_id(rec);
-
 	if (me->conflate_pkt) {
 		if (FAILED(st = accum_conflate(me->mcast_accum, record_get_val(rec), val_size, id))) {
 			RECORD_UNLOCK(rec);

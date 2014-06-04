@@ -81,6 +81,16 @@ status accum_is_stale(accum_handle acc)
 	return acc->max_age < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
 }
 
+boolean accum_is_conflated(accum_handle acc, int id)
+{
+	struct conflater_t* p;
+	for (p = acc->conf_index; p < acc->conf_free; ++p)
+		if (p->id == id)
+			return TRUE;
+
+	return FALSE;
+}
+
 size_t accum_get_avail(accum_handle acc)
 {
 	return acc->capacity - (acc->next_free - acc->buf);
