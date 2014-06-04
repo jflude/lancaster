@@ -41,8 +41,12 @@ reallyclean: clean
 # DO NOT DELETE
 
 accum.o: accum.h status.h /usr/include/linux/stddef.h error.h xalloc.h
-accum.o: /usr/include/linux/string.h /usr/include/x86_64-linux-gnu/sys/time.h
-accum.o: /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h
+accum.o: /usr/include/linux/string.h /usr/include/linux/errno.h
+accum.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+accum.o: /usr/include/asm-generic/errno.h
+accum.o: /usr/include/asm-generic/errno-base.h
+accum.o: /usr/include/x86_64-linux-gnu/sys/time.h /usr/include/features.h
+accum.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 accum.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 accum.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 accum.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h

@@ -1,6 +1,7 @@
 #include "accum.h"
 #include "error.h"
 #include "xalloc.h"
+#include <errno.h>
 #include <sys/time.h>
 
 #define NO_TIME ((time_t) -1)
@@ -120,8 +121,14 @@ status accum_conflate(accum_handle acc, const void* data, size_t size, int id)
 			return TRUE;
 		}
 
-	if (size > (acc->capacity - (acc->next_free - acc->buf)) || acc->conf_free == (acc->conf_index + acc->conf_capacity))
+	if ((size + sizeof(id)) > (acc->capacity - (acc->next_free - acc->buf)))
 		return FALSE;
+
+	if (acc->conf_free == (acc->conf_index + acc->conf_capacity)) {
+		errno = EBADSLT;
+		error_errno("accum_conflate");
+		return FAIL;
+	}
 
 	p = acc->conf_free++;
 	p->id = id;
