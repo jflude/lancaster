@@ -38,6 +38,7 @@ struct sender_t
 	long min_store_seq;
 	time_t last_mcast_send;
 	int heartbeat;
+	boolean conflate_pkt;
 	size_t hello_len;
 	char hello_str[128];
 	struct sender_stats_t stats;
@@ -68,7 +69,7 @@ static status sender_accum_write(sender_handle me)
 	status st = accum_get_batched(me->mcast_accum, &data, &sz);
 	if (FAILED(st))
 		return st;
-	else if (!st);
+	else if (!st)
 		return OK;
 
 	st = sock_sendto(me->mcast_sock, data, sz);
@@ -105,8 +106,13 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 	RECORD_LOCK(rec);
 	id = record_get_id(rec);
 
-	if (FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id))) ||
-		FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), val_size))) {
+	if (me->conflate_pkt) {
+		if (FAILED(st = accum_conflate(me->mcast_accum, record_get_val(rec), val_size, id))) {
+			RECORD_UNLOCK(rec);
+			return st;
+		}
+	} else if (FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id))) ||
+			   FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), val_size))) {
 		RECORD_UNLOCK(rec);
 		return st;
 	}
@@ -177,8 +183,8 @@ static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
 {
 	sock_handle accepted;
 	struct sender_tcp_req_param_t* req_param;
+	status st;
 
-	status st = sock_accept(sock, &accepted);
 	if (FAILED(st = sock_accept(sock, &accepted)) ||
 		FAILED(st = sock_write(accepted, me->hello_str, me->hello_len)))
 		return st;
@@ -225,8 +231,8 @@ static status sender_tcp_on_hup(sender_handle me, sock_handle sock)
 
 static status sender_tcp_on_write_remaining(struct sender_tcp_req_param_t* req_param)
 {
-	status st = OK;
 	size_t sent_sz = 0;
+	status st = OK;
 
 	while (req_param->remain_send > 0) {
 		st = sock_sendto(req_param->sock, req_param->next_send, req_param->remain_send);
@@ -418,11 +424,12 @@ static void* sender_tcp_proc(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status sender_create(sender_handle* psend, storage_handle store, unsigned q_capacity, int hb_secs,
+status sender_create(sender_handle* psend, storage_handle store, unsigned q_capacity, int hb_secs, boolean conflate_packet,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl,
 					 const char* tcp_addr, int tcp_port)
 {
 	status st;
+	size_t conf_capacity;
 	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0 || q_capacity == 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
@@ -441,6 +448,9 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 	(*psend)->heartbeat = hb_secs;
 	(*psend)->last_mcast_send = time(NULL);
 
+	(*psend)->conflate_pkt = conflate_packet;
+	conf_capacity = (conflate_packet ? ((MTU_BYTES - sizeof(long)) / (storage_get_val_size(store) + sizeof(int))) : 0);
+
 	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port,
 								  storage_get_base_id(store), storage_get_max_id(store),
@@ -453,7 +463,7 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 	}
 
 	if (FAILED(st = circ_create(&(*psend)->changed_q, q_capacity)) ||
-		FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_USEC)) ||
+		FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_USEC, conf_capacity)) ||
 		FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||

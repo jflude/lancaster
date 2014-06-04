@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 	time_t t = time(NULL);
 	long tcp_c = 0, mcast_c = 0;
 	status st = OK;
-	int i, mask;
+	int i, j = 0, mask;
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
 
@@ -34,27 +34,44 @@ int main(int argc, char* argv[])
 	tcp_port = atoi(argv[5]);
 
 	if (FAILED(storage_create(&store, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_PERIOD, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (sender_is_running(sender))
 		for (i = 0; i < MAX_ID; ++i) {
 			record_handle rec;
+			struct datum_t* d;
 			time_t t2;
 
 			if (FAILED(storage_lookup(store, i, &rec)))
 				goto finish;
 
-			/* RECORD_LOCK(rec), change something in *rec, RECORD_UNLOCK(rec) */
-/*
-		loop:
+			d = record_get_val(rec);
+
+			RECORD_LOCK(rec);
+			d->bid_qty = ++j;
+			RECORD_UNLOCK(rec);
+
+		loop1:
 			st = sender_record_changed(sender, rec);
 			if (st == BLOCKED) {
 				yield();
-				goto loop;
+				goto loop1;
 			} else if (FAILED(st))
 				goto finish;
-*/
+
+			RECORD_LOCK(rec);
+			d->bid_qty = ++j;
+			RECORD_UNLOCK(rec);
+
+		loop2:
+			st = sender_record_changed(sender, rec);
+			if (st == BLOCKED) {
+				yield();
+				goto loop2;
+			} else if (FAILED(st))
+				goto finish;
+
 			t2 = time(NULL);
 			if (t2 != t) {
 				long tcp_c2 = sender_get_tcp_bytes_sent(sender);

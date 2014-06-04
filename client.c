@@ -30,6 +30,8 @@ int main(int argc, char* argv[])
 
 	while (receiver_is_running(recv)) {
 		record_handle rec;
+		struct datum_t* d;
+		int v;
 		time_t t2;
 
 		st = receiver_record_changed(recv, &rec);
@@ -57,7 +59,14 @@ int main(int argc, char* argv[])
 		} else if (FAILED(st))
 			break;
 
-		/* RECORD_LOCK(rec), do something with updated *rec, RECORD_UNLOCK(rec) */
+		d = record_get_val(rec);
+
+		RECORD_LOCK(rec);
+		v = d->bid_qty;
+		RECORD_UNLOCK(rec);
+
+		if ((v & 1) == 1)
+			printf("\n%d\n", v);
 	}
 
 	putchar('\n');

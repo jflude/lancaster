@@ -5,16 +5,25 @@
 
 #define NO_TIME ((time_t) -1)
 
+struct conflater_t
+{
+	int id;
+	void* slot;
+};
+
 struct accum_t
 {
 	size_t capacity;
 	long max_age;
 	struct timeval insert_time;
+	size_t conf_capacity;
+	struct conflater_t* conf_index;
+	struct conflater_t* conf_free;
 	char* next_free;
 	char buf[1];
 };
 
-status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec)
+status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec, size_t conflater_capacity)
 {
 	if (!pacc || capacity == 0 || max_age_usec < 0) {
 		error_invalid_arg("accum_create");
@@ -24,6 +33,16 @@ status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec)
 	*pacc = xmalloc(sizeof(struct accum_t) + capacity - 1);
 	if (!*pacc)
 		return NO_MEMORY;
+
+	(*pacc)->conf_capacity = conflater_capacity;
+	if (conflater_capacity > 0) {
+		(*pacc)->conf_free = (*pacc)->conf_index = xcalloc(conflater_capacity, sizeof(struct conflater_t));
+		if (!(*pacc)->conf_index) {
+			accum_destroy(pacc);
+			return NO_MEMORY;
+		}
+	} else
+		(*pacc)->conf_index = NULL;
 
 	(*pacc)->capacity = capacity;
 	(*pacc)->max_age = max_age_usec;
@@ -37,6 +56,7 @@ void accum_destroy(accum_handle* pacc)
 	if (!pacc || !*pacc)
 		return;
 
+	xfree((*pacc)->conf_index);
 	xfree(*pacc);
 	*pacc = NULL;
 }
@@ -86,6 +106,39 @@ status accum_store(accum_handle acc, const void* data, size_t size)
 	return TRUE;
 }
 
+status accum_conflate(accum_handle acc, const void* data, size_t size, int id)
+{
+	struct conflater_t* p;
+	if (!data || size == 0 || size > acc->capacity || acc->conf_capacity == 0) {
+		error_invalid_arg("accum_conflate");
+		return FAIL;
+	}
+
+	for (p = acc->conf_index; p < acc->conf_free; ++p)
+		if (p->id == id) {
+			memcpy(p->slot, data, size);
+			return TRUE;
+		}
+
+	if (size > (acc->capacity - (acc->next_free - acc->buf)) || acc->conf_free == (acc->conf_index + acc->conf_capacity))
+		return FALSE;
+
+	p = acc->conf_free++;
+	p->id = id;
+	p->slot = acc->next_free + sizeof(id);
+
+	*((int*) acc->next_free) = id;
+	memcpy(p->slot, data, size);
+	acc->next_free += size + sizeof(id);
+
+	if (acc->insert_time.tv_sec == NO_TIME && gettimeofday(&acc->insert_time, NULL) == -1) {
+		error_errno("gettimeofday");
+		return FAIL;
+	}
+
+	return TRUE;
+}
+
 status accum_get_batched(accum_handle acc, const void** pdata, size_t* psize)
 {
 	size_t used;
@@ -107,4 +160,6 @@ void accum_clear(accum_handle acc)
 {
 	acc->next_free = acc->buf;
 	acc->insert_time.tv_sec = NO_TIME;
+
+	acc->conf_free = acc->conf_index;
 }
