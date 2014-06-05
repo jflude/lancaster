@@ -26,13 +26,14 @@ struct receiver_t
 	thread_handle tcp_thr;
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
-	circ_handle changed_q;
+	circ_handle mcast_q;
 	circ_handle tcp_q;
 	storage_handle store;
 	long next_seq;
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
-	int heartbeat;
+	spin_lock_t queue_lock;
+	int heartbeat_secs;
 	struct receiver_stats_t stats;
 };
 
@@ -44,23 +45,6 @@ static void receiver_circ_insert(thread_handle thr, circ_handle queue, record_ha
 
 		yield();
 	}
-}
-
-static status receiver_copy_queue(receiver_handle me)
-{
-	status st = OK;
-	while (!thread_is_stopping(me->mcast_thr)) {
-		record_handle rec;
-		st = circ_remove(me->tcp_q, (void**) &rec);
-		if (st == BLOCKED)
-			return OK;
-		else if (FAILED(st))
-			break;
-
-		receiver_circ_insert(me->mcast_thr, me->changed_q, rec);
-	}
-
-	return st;
 }
 
 static void* receiver_mcast_proc(thread_handle thr)
@@ -76,10 +60,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 
 		st = sock_recvfrom(me->mcast_sock, buf, sizeof(buf));
 		if (st == BLOCKED) {
-			if (FAILED(st = receiver_copy_queue(me)))
-				break;
-
-			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat) {
+			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_secs) {
 				error_heartbeat("receiver_mcast_proc");
 				st = HEARTBEAT;
 				break;
@@ -120,7 +101,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 			record_set_seq(rec, *recv_seq);
 			RECORD_UNLOCK(rec);
 
-			receiver_circ_insert(me->mcast_thr, me->changed_q, rec);
+			receiver_circ_insert(me->mcast_thr, me->mcast_q, rec);
 		}
 
 		if (*recv_seq > me->next_seq) {
@@ -153,9 +134,6 @@ static void* receiver_mcast_proc(thread_handle thr)
 		}
 
 		me->next_seq++;
-
-		if (FAILED(st = receiver_copy_queue(me)))
-			break;
 	}
 
 finish:
@@ -193,7 +171,7 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 		st = sock_read(me->tcp_sock, buf, sz);
 		if (st == BLOCKED) {
 			st = OK;
-			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat) {
+			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_secs) {
 				error_heartbeat("receiver_tcp_proc");
 				st = HEARTBEAT;
 				break;
@@ -302,13 +280,15 @@ status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* 
 		return BAD_PROTOCOL;
 	}
 
+	SPIN_CREATE(&(*precv)->queue_lock);
 	SPIN_CREATE(&(*precv)->stats.lock);
+
 	(*precv)->next_seq = 1;
-	(*precv)->heartbeat = 2 * hb_secs + 1;
+	(*precv)->heartbeat_secs = 2 * hb_secs + 1;
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
 	if (FAILED(st = storage_create(&(*precv)->store, base_id, max_id, val_size)) ||
-		FAILED(st = circ_create(&(*precv)->changed_q, q_capacity)) ||
+		FAILED(st = circ_create(&(*precv)->mcast_q, q_capacity)) ||
 		FAILED(st = circ_create(&(*precv)->tcp_q, q_capacity)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
@@ -335,7 +315,7 @@ void receiver_destroy(receiver_handle* precv)
 	sock_destroy(&(*precv)->mcast_sock);
 	sock_destroy(&(*precv)->tcp_sock);
 	circ_destroy(&(*precv)->tcp_q);
-	circ_destroy(&(*precv)->changed_q);
+	circ_destroy(&(*precv)->mcast_q);
 	storage_destroy(&(*precv)->store);
 
 	error_restore_last();
@@ -351,7 +331,19 @@ storage_handle receiver_get_storage(receiver_handle recv)
 
 status receiver_record_changed(receiver_handle recv, record_handle* prec)
 {
-	return circ_remove(recv->changed_q, (void**) prec);
+	status st;
+	if (!prec) {
+		error_invalid_arg("receiver_record_changed");
+		return FAIL;
+	}
+
+	SPIN_LOCK(&recv->queue_lock);
+	st = circ_remove(recv->tcp_q, (void**) prec);
+	if (st == BLOCKED)
+		st = circ_remove(recv->mcast_q, (void**) prec);
+
+	SPIN_UNLOCK(&recv->queue_lock);
+	return st;
 }
 
 boolean receiver_is_running(receiver_handle recv)

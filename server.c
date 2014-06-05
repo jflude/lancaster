@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 	tcp_port = atoi(argv[5]);
 
 	if (FAILED(storage_create(&store, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, Q_CAPACITY, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	while (sender_is_running(sender))
@@ -52,24 +52,14 @@ int main(int argc, char* argv[])
 			d->bid_qty = ++j;
 			RECORD_UNLOCK(rec);
 
-		loop1:
-			st = sender_record_changed(sender, rec);
-			if (st == BLOCKED) {
-				yield();
-				goto loop1;
-			} else if (FAILED(st))
+			if (FAILED(st = sender_record_changed(sender, rec)))
 				goto finish;
 
 			RECORD_LOCK(rec);
 			d->bid_qty = ++j;
 			RECORD_UNLOCK(rec);
 
-		loop2:
-			st = sender_record_changed(sender, rec);
-			if (st == BLOCKED) {
-				yield();
-				goto loop2;
-			} else if (FAILED(st))
+			if (FAILED(st = sender_record_changed(sender, rec)))
 				goto finish;
 
 			t2 = time(NULL);
@@ -91,6 +81,9 @@ int main(int argc, char* argv[])
 
 			if ((i & mask) == 0)
 				usleep(1);
+
+			if (j > 1000000000)
+				goto finish;
 		}
 
 finish:

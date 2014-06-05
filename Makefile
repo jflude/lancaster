@@ -170,8 +170,8 @@ receiver.o: /usr/include/asm-generic/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 receiver.o: /usr/include/asm-generic/sockios.h
 sender.o: sender.h storage.h spin.h barrier.h yield.h status.h
-sender.o: /usr/include/linux/stddef.h accum.h circ.h error.h poll.h sock.h
-sender.o: thread.h xalloc.h /usr/include/linux/string.h /usr/include/alloca.h
+sender.o: /usr/include/linux/stddef.h accum.h error.h poll.h sock.h thread.h
+sender.o: xalloc.h /usr/include/linux/string.h /usr/include/alloca.h
 sender.o: /usr/include/features.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h

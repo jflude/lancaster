@@ -1,6 +1,5 @@
 #include "sender.h"
 #include "accum.h"
-#include "circ.h"
 #include "error.h"
 #include "poll.h"
 #include "spin.h"
@@ -14,7 +13,7 @@
 #include <time.h>
 #include <sys/socket.h>
 
-#define MAX_AGE_USEC 10000
+#define MAX_AGE_MILLISEC 10
 
 struct sender_stats_t
 {
@@ -26,22 +25,22 @@ struct sender_stats_t
 
 struct sender_t
 {
-	thread_handle mcast_thr;
 	thread_handle tcp_thr;
 	sock_handle mcast_sock;
 	sock_handle listen_sock;
 	poll_handle poller;
-	circ_handle changed_q;
 	accum_handle mcast_accum;
 	storage_handle store;
+	size_t val_size;
 	long next_seq;
 	long min_store_seq;
 	time_t last_mcast_send;
-	int heartbeat;
 	boolean conflate_pkt;
+	spin_lock_t mcast_lock;
+	int heartbeat_secs;
+	struct sender_stats_t stats;
 	size_t hello_len;
 	char hello_str[128];
-	struct sender_stats_t stats;
 };
 
 struct sender_tcp_req_param_t
@@ -87,14 +86,18 @@ static status sender_accum_write(sender_handle me)
 	return st;
 }
 
-static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t val_size)
+static boolean sender_mcast_should_write_now(sender_handle me, int id)
+{
+	boolean is_full = (accum_get_avail(me->mcast_accum) < (me->val_size + sizeof(id)));
+	boolean not_conflated = (!me->conflate_pkt || !accum_is_conflated(me->mcast_accum, id));
+	return (is_full && not_conflated) || accum_is_stale(me->mcast_accum);
+}
+
+static status sender_mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st;
 	int id = record_get_id(rec);
-	size_t rec_size = val_size + sizeof(id);
-
-	if ((accum_get_avail(me->mcast_accum) < rec_size && (!me->conflate_pkt || !accum_is_conflated(me->mcast_accum, id))) ||
-		accum_is_stale(me->mcast_accum)) {
+	if (sender_mcast_should_write_now(me, id)) {
 		st = sender_accum_write(me);
 		if (FAILED(st))
 			return st;
@@ -108,12 +111,12 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 
 	RECORD_LOCK(rec);
 	if (me->conflate_pkt) {
-		if (FAILED(st = accum_conflate(me->mcast_accum, record_get_val(rec), val_size, id))) {
+		if (FAILED(st = accum_conflate(me->mcast_accum, record_get_val(rec), me->val_size, id))) {
 			RECORD_UNLOCK(rec);
 			return st;
 		}
 	} else if (FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id))) ||
-			   FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), val_size))) {
+			   FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), me->val_size))) {
 		RECORD_UNLOCK(rec);
 		return st;
 	}
@@ -121,48 +124,6 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, size_t 
 	record_set_seq(rec, me->next_seq);
 	RECORD_UNLOCK(rec);
 	return st;
-}
-
-static void* sender_mcast_proc(thread_handle thr)
-{
-	sender_handle me = thread_get_param(thr);
-	size_t val_size = storage_get_val_size(me->store);
-	status st = OK, st2;
-
-	while (!thread_is_stopping(thr)) {
-		record_handle rec;
-		st = circ_remove(me->changed_q, (void**) &rec);
-		if (st == BLOCKED) {
-			st = OK;
-			if (accum_is_stale(me->mcast_accum)) {
-				st = sender_accum_write(me);
-				if (FAILED(st))
-					break;
-			} else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat) {
-				long hb_seq = -1;
-				if (FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq))) ||
-					FAILED(st = sender_accum_write(me)))
-					break;
-
-				continue;
-			}
-
-			yield();
-			continue;
-		} else if (FAILED(st))
-			break;
-
-		st = sender_mcast_on_write(me, rec, val_size);
-		if (FAILED(st))
-			break;
-	}
-
-	st2 = sock_close(me->mcast_sock);
-	if (!FAILED(st))
-		st = st2;
-
-	thread_has_stopped(thr);
-	return (void*) (long) st;
 }
 
 static status sender_tcp_close_proc(poll_handle poller, sock_handle sock, short* events, void* param)
@@ -377,18 +338,36 @@ static status sender_tcp_event_proc(poll_handle poller, sock_handle sock, short*
 	return OK;
 }
 
+static status sender_mcast_check_stale_or_heartbeat(sender_handle me)
+{
+	status st = OK;
+	if (SPIN_TRY_LOCK(&me->mcast_lock)) {
+		if (accum_is_stale(me->mcast_accum))
+			st = sender_accum_write(me);
+		else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
+			long hb_seq = -1;
+			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq))))
+				st = sender_accum_write(me);
+		}
+
+		SPIN_UNLOCK(&me->mcast_lock);
+	}
+
+	return st;
+}
+
 static status sender_tcp_check_heartbeat_proc(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	sender_handle me = param;
 	struct sender_tcp_req_param_t* req_param = sock_get_property(sock);
 
-	if (sock == me->listen_sock || (time(NULL) - req_param->last_tcp_send) < me->heartbeat)
+	if (sock == me->listen_sock || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
 		return OK;
 
 	*req_param->send_seq = -1;
 
-	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = sizeof(*req_param->send_seq);
+	req_param->next_send = req_param->send_buf;
 	req_param->sending_hb = TRUE;
 
 	return poll_set_event(poller, sock, POLLOUT);
@@ -400,22 +379,24 @@ static void* sender_tcp_proc(thread_handle thr)
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		st = poll_events(me->poller, 10);
-		if (FAILED(st))
+		if (FAILED(st = sender_mcast_check_stale_or_heartbeat(me)) ||
+			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)))
 			break;
 
 		if (st == 0) {
-			st = poll_process(me->poller, sender_tcp_check_heartbeat_proc, (void*) me);
-			if (FAILED(st))
+			if (FAILED(st = poll_process(me->poller, sender_tcp_check_heartbeat_proc, (void*) me)))
 				break;
 
 			continue;
 		}
 
-		st = poll_process_events(me->poller, sender_tcp_event_proc, (void*) me);
-		if (FAILED(st))
+		if (FAILED(st = poll_process_events(me->poller, sender_tcp_event_proc, (void*) me)))
 			break;
 	}
+
+	st2 = poll_remove(me->poller, me->listen_sock);
+	if (!FAILED(st))
+		st = st2;
 
 	st2 = poll_process(me->poller, sender_tcp_close_proc, NULL);
 	if (!FAILED(st))
@@ -425,13 +406,13 @@ static void* sender_tcp_proc(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status sender_create(sender_handle* psend, storage_handle store, unsigned q_capacity, int hb_secs, boolean conflate_packet,
+status sender_create(sender_handle* psend, storage_handle store, int hb_secs, boolean conflate_packet,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl,
 					 const char* tcp_addr, int tcp_port)
 {
 	status st;
 	size_t conf_capacity;
-	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0 || q_capacity == 0) {
+	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
 	}
@@ -442,11 +423,14 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 
 	BZERO(*psend);
 
+	SPIN_CREATE(&(*psend)->mcast_lock);
 	SPIN_CREATE(&(*psend)->stats.lock);
+
 	(*psend)->store = store;
+	(*psend)->val_size = storage_get_val_size(store);
 	(*psend)->next_seq = 1;
 	(*psend)->min_store_seq = 0;
-	(*psend)->heartbeat = hb_secs;
+	(*psend)->heartbeat_secs = hb_secs;
 	(*psend)->last_mcast_send = time(NULL);
 
 	(*psend)->conflate_pkt = conflate_packet;
@@ -455,7 +439,7 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port,
 								  storage_get_base_id(store), storage_get_max_id(store),
-								  storage_get_val_size(store), (*psend)->heartbeat);
+								  storage_get_val_size(store), (*psend)->heartbeat_secs);
 
 	if ((*psend)->hello_len < 0) {
 		error_errno("sprintf");
@@ -463,8 +447,7 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 		return FAIL;
 	}
 
-	if (FAILED(st = circ_create(&(*psend)->changed_q, q_capacity)) ||
-		FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_USEC, conf_capacity)) ||
+	if (FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_MILLISEC * 1000, conf_capacity)) ||
 		FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
@@ -472,8 +455,7 @@ status sender_create(sender_handle* psend, storage_handle store, unsigned q_capa
 		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(st = thread_create(&(*psend)->tcp_thr, sender_tcp_proc, (void*) *psend)) ||
-		FAILED(st = thread_create(&(*psend)->mcast_thr, sender_mcast_proc, (void*) *psend))) {
+		FAILED(st = thread_create(&(*psend)->tcp_thr, sender_tcp_proc, (void*) *psend))) {
 		sender_destroy(psend);
 		return st;
 	}
@@ -488,12 +470,10 @@ void sender_destroy(sender_handle* psend)
 
 	error_save_last();
 
-	thread_destroy(&(*psend)->mcast_thr);
 	thread_destroy(&(*psend)->tcp_thr);
 	sock_destroy(&(*psend)->listen_sock);
 	sock_destroy(&(*psend)->mcast_sock);
 	poll_destroy(&(*psend)->poller);
-	circ_destroy(&(*psend)->changed_q);
 	accum_destroy(&(*psend)->mcast_accum);
 
 	error_restore_last();
@@ -504,29 +484,30 @@ void sender_destroy(sender_handle* psend)
 
 status sender_record_changed(sender_handle send, record_handle rec)
 {
-	return circ_insert(send->changed_q, rec);
+	status st;
+	SPIN_LOCK(&send->mcast_lock);
+	st = sender_mcast_on_write(send, rec);
+	SPIN_UNLOCK(&send->mcast_lock);
+	return st;
 }
 
 boolean sender_is_running(sender_handle send)
 {
-	return (send->tcp_thr && thread_is_running(send->tcp_thr)) && (send->mcast_thr && thread_is_running(send->mcast_thr));
+	return send->tcp_thr && thread_is_running(send->tcp_thr);
 }
 
 status sender_stop(sender_handle send)
 {
-	void* p1;
-	status st = thread_stop(send->mcast_thr, &p1);
-
-	void* p2;
-	status st2 = thread_stop(send->tcp_thr, &p2);
-
+	void* p;
+	status st2, st = thread_stop(send->tcp_thr, &p);
 	if (!FAILED(st))
-		st = (long) p1;
+		st = (long) p;
 
-	if (!FAILED(st2))
-		st2 = (long) p2;
+	st2 = sock_close(send->mcast_sock);
+	if (!FAILED(st))
+		st = st2;
 
-	return FAILED(st) ? st : st2;
+	return st;
 }
 
 static long sender_get_stat(sender_handle me, long* pval)
