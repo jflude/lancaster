@@ -97,10 +97,11 @@ static void* receiver_mcast_proc(thread_handle thr)
 				goto finish;
 
 			RECORD_LOCK(rec);
+
 			memcpy(record_get_val(rec), id + 1, val_size);
 			record_set_seq(rec, *recv_seq);
-			RECORD_UNLOCK(rec);
 
+			RECORD_UNLOCK(rec);
 			receiver_circ_insert(me->mcast_thr, me->mcast_q, rec);
 		}
 
@@ -219,6 +220,7 @@ static void* receiver_tcp_proc(thread_handle thr)
 			break;
 
 		RECORD_LOCK(rec);
+
 		if (*recv_seq <= record_get_seq(rec)) {
 			RECORD_UNLOCK(rec);
 			continue;
@@ -226,8 +228,8 @@ static void* receiver_tcp_proc(thread_handle thr)
 
 		memcpy(record_get_val(rec), id + 1, val_size);
 		record_set_seq(rec, *recv_seq);
-		RECORD_UNLOCK(rec);
 
+		RECORD_UNLOCK(rec);
 		receiver_circ_insert(me->tcp_thr, me->tcp_q, rec);
 	}
 

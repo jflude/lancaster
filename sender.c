@@ -86,42 +86,36 @@ static status sender_accum_write(sender_handle me)
 	return st;
 }
 
-static boolean sender_mcast_should_write_now(sender_handle me, int id)
-{
-	boolean is_full = (accum_get_avail(me->mcast_accum) < (me->val_size + sizeof(id)));
-	boolean not_conflated = (!me->conflate_pkt || !accum_is_conflated(me->mcast_accum, id));
-	return (is_full && not_conflated) || accum_is_stale(me->mcast_accum);
-}
-
 static status sender_mcast_on_write(sender_handle me, record_handle rec)
 {
-	status st;
+	status st = OK;
+	void* stored_at;
 	int id = record_get_id(rec);
-	if (sender_mcast_should_write_now(me, id)) {
+
+	if (((accum_get_avail(me->mcast_accum) < (me->val_size + sizeof(id))) &&
+		    (!me->conflate_pkt || record_get_seq(rec) != me->next_seq)) ||
+		accum_is_stale(me->mcast_accum)) {
 		st = sender_accum_write(me);
 		if (FAILED(st))
 			return st;
 	}
 
 	if (accum_is_empty(me->mcast_accum)) {
-		st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq));
+		st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL);
 		if (FAILED(st))
 			return st;
 	}
 
 	RECORD_LOCK(rec);
-	if (me->conflate_pkt) {
-		if (FAILED(st = accum_conflate(me->mcast_accum, record_get_val(rec), me->val_size, id))) {
-			RECORD_UNLOCK(rec);
-			return st;
-		}
-	} else if (FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id))) ||
-			   FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), me->val_size))) {
-		RECORD_UNLOCK(rec);
-		return st;
+
+	if (me->conflate_pkt && record_get_seq(rec) == me->next_seq)
+		memcpy(record_get_confl(rec), record_get_val(rec), me->val_size);
+	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
+			 !FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), me->val_size, &stored_at))) {
+		record_set_confl(rec, stored_at);
+		record_set_seq(rec, me->next_seq);
 	}
 
-	record_set_seq(rec, me->next_seq);
 	RECORD_UNLOCK(rec);
 	return st;
 }
@@ -223,6 +217,7 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 	status st;
 
 	RECORD_LOCK(rec);
+
 	*req_param->send_seq = record_get_seq(rec);
 
 	if (*req_param->send_seq < req_param->min_store_seq_seen)
@@ -235,6 +230,7 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 
 	*req_param->send_id = record_get_id(rec);
 	memcpy(req_param->send_id + 1, record_get_val(rec), req_param->val_size);
+
 	RECORD_UNLOCK(rec);
 
 	req_param->curr_rec = rec;
@@ -346,7 +342,7 @@ static status sender_mcast_check_stale_or_heartbeat(sender_handle me)
 			st = sender_accum_write(me);
 		else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
 			long hb_seq = -1;
-			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq))))
+			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)))
 				st = sender_accum_write(me);
 		}
 
@@ -411,7 +407,6 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 					 const char* tcp_addr, int tcp_port)
 {
 	status st;
-	size_t conf_capacity;
 	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
@@ -432,9 +427,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 	(*psend)->min_store_seq = 0;
 	(*psend)->heartbeat_secs = hb_secs;
 	(*psend)->last_mcast_send = time(NULL);
-
 	(*psend)->conflate_pkt = conflate_packet;
-	conf_capacity = (conflate_packet ? ((MTU_BYTES - sizeof(long)) / (storage_get_val_size(store) + sizeof(int))) : 0);
 
 	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port,
@@ -447,7 +440,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return FAIL;
 	}
 
-	if (FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_MILLISEC * 1000, conf_capacity)) ||
+	if (FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_MILLISEC * 1000)) ||
 		FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||

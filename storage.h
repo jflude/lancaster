@@ -46,6 +46,9 @@ void* record_get_val(record_handle rec);
 long record_get_seq(record_handle rec);
 void record_set_seq(record_handle rec, long seq);
 
+void* record_get_confl(record_handle rec);
+void record_set_confl(record_handle rec, void* confl);
+
 #ifdef __cplusplus
 }
 #endif

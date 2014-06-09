@@ -7,6 +7,7 @@ struct record_t
 	spin_lock_t lock;
 	int id;
 	long seq;
+	void* confl;
 	char val[1];
 };
 
@@ -153,4 +154,14 @@ long record_get_seq(record_handle rec)
 void record_set_seq(record_handle rec, long seq)
 {
 	rec->seq = seq;
+}
+
+void* record_get_confl(record_handle rec)
+{
+	return rec->confl;
+}
+
+void record_set_confl(record_handle rec, void* confl)
+{
+	rec->confl = confl;
 }
