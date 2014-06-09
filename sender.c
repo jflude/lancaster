@@ -112,8 +112,9 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 		memcpy(record_get_confl(rec), record_get_val(rec), me->val_size);
 	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
 			 !FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), me->val_size, &stored_at))) {
-		record_set_confl(rec, stored_at);
 		record_set_seq(rec, me->next_seq);
+		if (me->conflate_pkt)
+			record_set_confl(rec, stored_at);
 	}
 
 	RECORD_UNLOCK(rec);
