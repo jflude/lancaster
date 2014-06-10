@@ -3,6 +3,8 @@
 #ifndef YIELD_H
 #define YIELD_H
 
+#define CPU_PAUSE(x) __asm__ __volatile__("pause" ::: "memory")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
