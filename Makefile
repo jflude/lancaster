@@ -396,6 +396,3 @@ server.o: /usr/include/x86_64-linux-gnu/bits/select.h
 server.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 server.o: /usr/include/x86_64-linux-gnu/bits/time.h
 server.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h
-server.o: /usr/include/linux/unistd.h
-server.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
-server.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h

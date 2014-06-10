@@ -107,7 +107,6 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 	}
 
 	RECORD_LOCK(rec);
-
 	if (me->conflate_pkt && record_get_seq(rec) == me->next_seq)
 		memcpy(record_get_confl(rec), record_get_val(rec), me->val_size);
 	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
@@ -218,7 +217,6 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 	status st;
 
 	RECORD_LOCK(rec);
-
 	*req_param->send_seq = record_get_seq(rec);
 
 	if (*req_param->send_seq < req_param->min_store_seq_seen)
@@ -231,7 +229,6 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 
 	*req_param->send_id = record_get_id(rec);
 	memcpy(req_param->send_id + 1, record_get_val(rec), req_param->val_size);
-
 	RECORD_UNLOCK(rec);
 
 	req_param->curr_rec = rec;
@@ -292,7 +289,7 @@ static status sender_tcp_on_read(sender_handle me, sock_handle sock)
 		if (st == CLOSED || st == TIMEDOUT)
 			return sender_tcp_on_hup(me, sock);
 		else if (st == BLOCKED) {
-			yield();
+			snooze();
 			continue;
 		} else if (FAILED(st))
 			return st;

@@ -37,16 +37,6 @@ struct receiver_t
 	struct receiver_stats_t stats;
 };
 
-static void receiver_circ_insert(thread_handle thr, circ_handle queue, record_handle rec)
-{
-	while (!thread_is_stopping(thr)) {
-		if (circ_insert(queue, rec) != BLOCKED)
-			break;
-
-		yield();
-	}
-}
-
 static void* receiver_mcast_proc(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
@@ -66,7 +56,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 				break;
 			}
 
-			yield();
+			snooze();
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -97,12 +87,12 @@ static void* receiver_mcast_proc(thread_handle thr)
 				goto finish;
 
 			RECORD_LOCK(rec);
-
 			memcpy(record_get_val(rec), id + 1, val_size);
 			record_set_seq(rec, *recv_seq);
-
 			RECORD_UNLOCK(rec);
-			receiver_circ_insert(me->mcast_thr, me->mcast_q, rec);
+
+			while (!thread_is_stopping(thr) && circ_insert(me->mcast_q, rec) == BLOCKED)
+				yield();
 		}
 
 		if (*recv_seq > me->next_seq) {
@@ -120,7 +110,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 				st = sock_write(me->tcp_sock, p, sz);
 				if (st == BLOCKED) {
 					st = OK;
-					yield();
+					snooze();
 					continue;
 				} else if (FAILED(st))
 					goto finish;
@@ -178,7 +168,7 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 				break;
 			}
 
-			yield();
+			snooze();
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -220,7 +210,6 @@ static void* receiver_tcp_proc(thread_handle thr)
 			break;
 
 		RECORD_LOCK(rec);
-
 		if (*recv_seq <= record_get_seq(rec)) {
 			RECORD_UNLOCK(rec);
 			continue;
@@ -228,9 +217,10 @@ static void* receiver_tcp_proc(thread_handle thr)
 
 		memcpy(record_get_val(rec), id + 1, val_size);
 		record_set_seq(rec, *recv_seq);
-
 		RECORD_UNLOCK(rec);
-		receiver_circ_insert(me->tcp_thr, me->tcp_q, rec);
+
+		while (!thread_is_stopping(thr) && circ_insert(me->tcp_q, rec) == BLOCKED)
+			yield();
 	}
 
 	st2 = sock_close(me->tcp_sock);

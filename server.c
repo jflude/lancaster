@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 int main(int argc, char* argv[])
 {
@@ -80,7 +79,7 @@ int main(int argc, char* argv[])
 			}
 
 			if ((i & mask) == 0)
-				usleep(1);
+				snooze();
 
 			if (j > 1000000000)
 				goto finish;

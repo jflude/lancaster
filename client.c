@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
 
 		st = receiver_record_changed(recv, &rec);
 		if (st == BLOCKED) {
-			yield();
+			snooze();
 
 			t2 = time(NULL);
 			if (t2 != t) {

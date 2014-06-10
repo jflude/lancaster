@@ -21,7 +21,7 @@ typedef volatile int spin_lock_t;
 		int n = 0; \
 		while (!SPIN_TRY_LOCK(p)) \
 			if ((++n & 8191) != 0) \
-				CPU_PAUSE(); \
+				CPU_RELAX(); \
 			else \
 				yield(); \
 	} while (0)
