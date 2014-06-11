@@ -49,7 +49,6 @@ struct sender_tcp_req_param_t
 	sock_handle sock;
 	size_t val_size;
 	size_t pkt_size;
-	struct storage_seq_range_t range;
 	char* send_buf;
 	long* send_seq;
 	int* send_id;
@@ -57,6 +56,7 @@ struct sender_tcp_req_param_t
 	size_t remain_send;
 	record_handle curr_rec;
 	long min_store_seq_seen;
+	struct storage_seq_range_t range;
 	time_t last_tcp_send;
 	boolean sending_hb;
 };
@@ -201,11 +201,11 @@ static status sender_tcp_on_write_remaining(struct sender_tcp_req_param_t* req_p
 	}
 
 	if (sent_sz > 0) {
-		req_param->last_tcp_send = time(NULL);
-
 		SPIN_LOCK(&req_param->me->stats.lock);
 		req_param->me->stats.tcp_bytes_sent += sent_sz;
 		SPIN_UNLOCK(&req_param->me->stats.lock);
+
+		req_param->last_tcp_send = time(NULL);
 	}
 
 	return st;
@@ -273,7 +273,6 @@ static status sender_tcp_on_write(sender_handle me, sock_handle sock)
 	}
 
 	return st;
-
 }
 
 static status sender_tcp_on_read(sender_handle me, sock_handle sock)

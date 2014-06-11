@@ -16,6 +16,7 @@ int main(int argc, char* argv[])
 	status st = OK;
 	const char* tcp_addr;
 	int tcp_port;
+	const char* version;
 
 	if (argc != 3) {
 		fprintf(stderr, "Syntax: %s [tcp address] [tcp port]\n", argv[0]);
@@ -28,30 +29,19 @@ int main(int argc, char* argv[])
 	if (FAILED(receiver_create(&recv, Q_CAPACITY, tcp_addr, tcp_port)))
 		error_report_fatal();
 
-	fprintf(stderr, "data size = %lu bytes\n", storage_get_val_size(receiver_get_storage(recv)) + sizeof(int));
+#ifdef NDEBUG
+	version = "RELEASE";
+#else
+	version = "DEBUG";
+#endif
+
+	fprintf(stderr, "data size: %lu bytes (%s build)\n", storage_get_val_size(receiver_get_storage(recv)) + sizeof(int), version);
 
 	while (receiver_is_running(recv)) {
 		record_handle rec;
 		struct datum_t* d;
+		time_t t2;
 		int v;
-
-		time_t t2 = time(NULL);
-		if (t2 != t) {
-			long tcp_c2 = receiver_get_tcp_bytes_recv(recv);
-			long mcast_c2 = receiver_get_mcast_bytes_recv(recv);
-
-			fprintf(stderr, "QUEUED: %u GAPS: %ld TCP: %ld bytes/sec MCAST: %ld bytes/sec          \r",
-					receiver_get_queue_count(recv),
-					receiver_get_tcp_gap_count(recv),
-					(tcp_c2 - tcp_c) / (t2 - t),
-					(mcast_c2 - mcast_c) / (t2 - t));
-
-			t = t2;
-			tcp_c = tcp_c2;
-			mcast_c = mcast_c2;
-
-			fflush(stderr);
-		}
 
 		st = receiver_record_changed(recv, &rec);
 		if (st == BLOCKED) {
@@ -66,9 +56,25 @@ int main(int argc, char* argv[])
 		v = d->bid_qty;
 		RECORD_UNLOCK(rec);
 
-		if ((v & 1) == 1)
-			printf("\n%d\n", v);
+		(void) v;
 
+		t2 = time(NULL);
+		if (t2 != t) {
+			long tcp_c2 = receiver_get_tcp_bytes_recv(recv);
+			long mcast_c2 = receiver_get_mcast_bytes_recv(recv);
+
+			fprintf(stderr, "GAPS: %ld TCP: %ld bytes/sec MCAST: %ld bytes/sec QUEUED: %u          \r",
+					receiver_get_tcp_gap_count(recv),
+					(tcp_c2 - tcp_c) / (t2 - t),
+					(mcast_c2 - mcast_c) / (t2 - t),
+					receiver_get_queue_count(recv));
+
+			t = t2;
+			tcp_c = tcp_c2;
+			mcast_c = mcast_c2;
+
+			fflush(stderr);
+		}
 	}
 
 	putchar('\n');

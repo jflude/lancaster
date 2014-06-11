@@ -139,15 +139,6 @@ finish:
 	return (void*) (long) st;
 }
 
-static void receiver_incr_tcp_bytes_recv(receiver_handle me, size_t n)
-{
-	if (n > 0) {
-		SPIN_LOCK(&me->stats.lock);
-		me->stats.tcp_bytes_recv += n;
-		SPIN_UNLOCK(&me->stats.lock);
-	}
-}
-
 static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 {
 	receiver_handle me = thread_get_param(thr);
@@ -181,7 +172,12 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 		st = TRUE;
 	}
 
-	receiver_incr_tcp_bytes_recv(me, bytes_in);
+	if (bytes_in > 0) {
+		SPIN_LOCK(&me->stats.lock);
+		me->stats.tcp_bytes_recv += bytes_in;
+		SPIN_UNLOCK(&me->stats.lock);
+	}
+
 	me->last_tcp_recv = time(NULL);
 	return st;
 }

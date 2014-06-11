@@ -38,7 +38,7 @@ depend:
 clean:
 	rm -f cachester.a client client.o server server.o $(OBJS)
 
-reallyclean: clean
+distclean: clean
 	rm -f *~ *.bak
 
 # DO NOT DELETE
@@ -369,7 +369,7 @@ client.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 client.o: /usr/include/x86_64-linux-gnu/bits/time.h
 client.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h
 server.o: datum.h error.h sender.h storage.h spin.h barrier.h yield.h
-server.o: status.h /usr/include/linux/stddef.h /usr/include/stdio.h
+server.o: status.h /usr/include/linux/stddef.h twist.h /usr/include/stdio.h
 server.o: /usr/include/features.h
 server.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 server.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
