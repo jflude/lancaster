@@ -174,18 +174,17 @@ receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 receiver.o: /usr/include/asm-generic/sockios.h
 sender.o: sender.h storage.h spin.h barrier.h yield.h status.h
 sender.o: /usr/include/linux/stddef.h accum.h error.h poll.h sock.h thread.h
-sender.o: xalloc.h /usr/include/linux/string.h /usr/include/alloca.h
-sender.o: /usr/include/features.h
+sender.o: xalloc.h /usr/include/linux/string.h /usr/include/linux/errno.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+sender.o: /usr/include/asm-generic/errno.h
+sender.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h
+sender.o: /usr/include/stdio.h /usr/include/features.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 sender.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 sender.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
-sender.o: /usr/include/linux/errno.h
-sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
-sender.o: /usr/include/asm-generic/errno.h
-sender.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h
-sender.o: /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/types.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h
 sender.o: /usr/include/_G_config.h /usr/include/wchar.h
 sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h

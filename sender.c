@@ -5,7 +5,6 @@
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
-#include <alloca.h>
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
