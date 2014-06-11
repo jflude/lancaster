@@ -91,8 +91,9 @@ static void* receiver_mcast_proc(thread_handle thr)
 			record_set_seq(rec, *recv_seq);
 			RECORD_UNLOCK(rec);
 
-			while (!thread_is_stopping(thr) && circ_insert(me->mcast_q, rec) == BLOCKED)
-				yield();
+			if (me->mcast_q)
+				while (!thread_is_stopping(thr) && circ_insert(me->mcast_q, rec) == BLOCKED)
+					yield();
 		}
 
 		if (*recv_seq > me->next_seq) {
@@ -219,8 +220,9 @@ static void* receiver_tcp_proc(thread_handle thr)
 		record_set_seq(rec, *recv_seq);
 		RECORD_UNLOCK(rec);
 
-		while (!thread_is_stopping(thr) && circ_insert(me->tcp_q, rec) == BLOCKED)
-			yield();
+		if (me->tcp_q)
+			while (!thread_is_stopping(thr) && circ_insert(me->tcp_q, rec) == BLOCKED)
+				yield();
 	}
 
 	st2 = sock_close(me->tcp_sock);
@@ -240,7 +242,7 @@ status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* 
 	size_t val_size;
 	status st;
 
-	if (!precv || !tcp_addr || tcp_port < 0 || q_capacity == 0) {
+	if (!precv || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("receiver_create");
 		return FAIL;
 	}
@@ -280,8 +282,8 @@ status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* 
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
 	if (FAILED(st = storage_create(&(*precv)->store, base_id, max_id, val_size)) ||
-		FAILED(st = circ_create(&(*precv)->mcast_q, q_capacity)) ||
-		FAILED(st = circ_create(&(*precv)->tcp_q, q_capacity)) ||
+		(q_capacity > 0 && (FAILED(st = circ_create(&(*precv)->mcast_q, q_capacity)) ||
+							FAILED(st = circ_create(&(*precv)->tcp_q, q_capacity)))) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
@@ -326,6 +328,12 @@ status receiver_record_changed(receiver_handle recv, record_handle* prec)
 	status st;
 	if (!prec) {
 		error_invalid_arg("receiver_record_changed");
+		return FAIL;
+	}
+
+	if (!recv->mcast_q) {
+		errno = EPERM;
+		error_errno("receiver_record_changed");
 		return FAIL;
 	}
 
