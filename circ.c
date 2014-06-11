@@ -1,11 +1,12 @@
 #include "circ.h"
+#include "barrier.h"
 #include "error.h"
 #include "xalloc.h"
 #include "yield.h"
 
 struct circ_t
 {
-	unsigned capacity;
+	unsigned mask;
 	unsigned read_from;
 	unsigned write_to;
 	void* buf[1];
@@ -18,11 +19,13 @@ status circ_create(circ_handle* pcirc, unsigned capacity)
 		return FAIL;
 	}
 
-	*pcirc = xmalloc(sizeof(struct circ_t) + (capacity - 1) * sizeof(void*));
+	--capacity;
+
+	*pcirc = xmalloc(sizeof(struct circ_t) + capacity * sizeof(void*));
 	if (!*pcirc)
 		return NO_MEMORY;
 
-	(*pcirc)->capacity = capacity;
+	(*pcirc)->mask = capacity;
 	(*pcirc)->read_from = (*pcirc)->write_to = 0;
 	return OK;
 }
@@ -36,18 +39,19 @@ void circ_destroy(circ_handle* pcirc)
 	*pcirc = NULL;
 }
 
-unsigned circ_size(circ_handle circ)
+unsigned circ_get_count(circ_handle circ)
 {
 	return circ->write_to - circ->read_from;
 }
 
 status circ_insert(circ_handle circ, void* val)
 {
-	if ((circ->write_to - circ->read_from) == circ->capacity)
+	if ((circ->write_to - circ->read_from) == (circ->mask + 1))
 		return BLOCKED;
 
-	circ->buf[circ->write_to & (circ->capacity - 1)] = val;
+	circ->buf[circ->write_to & circ->mask] = val;
 	++circ->write_to;
+	COMPILER_BARRIER();
 	return OK;
 }
 
@@ -61,7 +65,7 @@ status circ_remove(circ_handle circ, void** pval)
 	if (circ->write_to == circ->read_from)
 		return BLOCKED;
 
-	*pval = circ->buf[circ->read_from & (circ->capacity - 1)];
+	*pval = circ->buf[circ->read_from & circ->mask];
 	++circ->read_from;
 	return OK;
 }

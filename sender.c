@@ -494,6 +494,10 @@ status sender_stop(sender_handle send)
 	if (!FAILED(st))
 		st = (long) p;
 
+	st2 = sock_close(send->listen_sock);
+	if (!FAILED(st))
+		st = st2;
+
 	st2 = sock_close(send->mcast_sock);
 	if (!FAILED(st))
 		st = st2;

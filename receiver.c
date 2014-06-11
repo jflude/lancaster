@@ -346,6 +346,11 @@ status receiver_record_changed(receiver_handle recv, record_handle* prec)
 	return st;
 }
 
+unsigned receiver_get_queue_count(receiver_handle recv)
+{
+	return recv->mcast_q ? (circ_get_count(recv->mcast_q) + circ_get_count(recv->tcp_q)) : 0;
+}
+
 boolean receiver_is_running(receiver_handle recv)
 {
 	return (recv->tcp_thr && thread_is_running(recv->tcp_thr)) && (recv->mcast_thr && thread_is_running(recv->mcast_thr));

@@ -16,7 +16,7 @@ struct datum_t
 };
 
 #define MAX_ID 1000000
-#define Q_CAPACITY 131072
+#define Q_CAPACITY 4096
 
 #define HB_PERIOD 10
 

@@ -65,8 +65,8 @@ accum.o: /usr/include/x86_64-linux-gnu/bits/time.h
 accum.o: /usr/include/x86_64-linux-gnu/sys/select.h
 accum.o: /usr/include/x86_64-linux-gnu/bits/select.h
 accum.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
-circ.o: circ.h status.h error.h xalloc.h /usr/include/linux/stddef.h
-circ.o: /usr/include/linux/string.h yield.h
+circ.o: circ.h status.h barrier.h error.h xalloc.h
+circ.o: /usr/include/linux/stddef.h /usr/include/linux/string.h yield.h
 dump.o: dump.h status.h /usr/include/stdio.h /usr/include/features.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 dump.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
