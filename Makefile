@@ -22,6 +22,9 @@ OBJS = $(SRCS:.c=.o)
 
 all: client server
 
+release: CFLAGS += -DNDEBUG -O3
+release: all
+
 client: cachester.a
 
 server: cachester.a
