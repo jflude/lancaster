@@ -38,7 +38,7 @@ size_t storage_get_val_offset();
 
 status storage_lookup(storage_handle store, int id, record_handle* prec);
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn, record_handle prev, void* param);
-void storage_zero(storage_handle store);
+void storage_reset(storage_handle store);
 
 int record_get_id(record_handle rec);
 void* record_get_val(record_handle rec);
