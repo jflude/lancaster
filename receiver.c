@@ -1,5 +1,4 @@
 #include "receiver.h"
-#include "circ.h"
 #include "error.h"
 #include "sock.h"
 #include "spin.h"
@@ -26,13 +25,10 @@ struct receiver_t
 	thread_handle tcp_thr;
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
-	circ_handle mcast_q;
-	circ_handle tcp_q;
 	storage_handle store;
 	long next_seq;
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
-	spin_lock_t queue_lock;
 	int heartbeat_secs;
 	struct receiver_stats_t stats;
 };
@@ -40,7 +36,7 @@ struct receiver_t
 static void* receiver_mcast_proc(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
-	size_t val_size = storage_get_val_size(me->store);
+	size_t val_size = storage_get_value_size(me->store);
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
@@ -82,18 +78,16 @@ static void* receiver_mcast_proc(thread_handle thr)
 			record_handle rec;
 			int* id = (int*) p;
 
-			st = storage_lookup(me->store, *id, &rec);
-			if (FAILED(st))
+			if (FAILED(st = storage_lookup(me->store, *id, &rec)))
 				goto finish;
 
 			RECORD_LOCK(rec);
-			memcpy(record_get_val(rec), id + 1, val_size);
-			record_set_seq(rec, *recv_seq);
+			memcpy(record_get_value(rec), id + 1, val_size);
+			record_set_sequence(rec, *recv_seq);
 			RECORD_UNLOCK(rec);
 
-			if (me->mcast_q)
-				while (!thread_is_stopping(thr) && circ_insert(me->mcast_q, rec) == BLOCKED)
-					yield();
+			if (FAILED(st = storage_write_queue(me->store, *id)))
+				goto finish;
 		}
 
 		if (*recv_seq > me->next_seq) {
@@ -185,7 +179,7 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 static void* receiver_tcp_proc(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
-	size_t val_size = storage_get_val_size(me->store);
+	size_t val_size = storage_get_value_size(me->store);
 	size_t pkt_size = sizeof(long) + sizeof(int) + val_size;
 	char* buf = alloca(pkt_size);
 
@@ -207,18 +201,17 @@ static void* receiver_tcp_proc(thread_handle thr)
 			break;
 
 		RECORD_LOCK(rec);
-		if (*recv_seq <= record_get_seq(rec)) {
+		if (*recv_seq <= record_get_sequence(rec)) {
 			RECORD_UNLOCK(rec);
 			continue;
 		}
 
-		memcpy(record_get_val(rec), id + 1, val_size);
-		record_set_seq(rec, *recv_seq);
+		memcpy(record_get_value(rec), id + 1, val_size);
+		record_set_sequence(rec, *recv_seq);
 		RECORD_UNLOCK(rec);
 
-		if (me->tcp_q)
-			while (!thread_is_stopping(thr) && circ_insert(me->tcp_q, rec) == BLOCKED)
-				yield();
+		if (FAILED(st = storage_write_queue(me->store, *id)))
+			break;
 	}
 
 	st2 = sock_close(me->tcp_sock);
@@ -231,7 +224,7 @@ static void* receiver_tcp_proc(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* tcp_addr, int tcp_port)
+status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
 	int proto_ver, mcast_port, base_id, max_id, hb_secs;
@@ -270,16 +263,13 @@ status receiver_create(receiver_handle* precv, unsigned q_capacity, const char* 
 		return BAD_PROTOCOL;
 	}
 
-	SPIN_CREATE(&(*precv)->queue_lock);
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
 	(*precv)->heartbeat_secs = 2 * hb_secs + 1;
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
-	if (FAILED(st = storage_create(&(*precv)->store, base_id, max_id, val_size)) ||
-		(q_capacity > 0 && (FAILED(st = circ_create(&(*precv)->mcast_q, q_capacity)) ||
-							FAILED(st = circ_create(&(*precv)->tcp_q, q_capacity)))) ||
+	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, q_capacity, base_id, max_id, val_size)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
@@ -304,8 +294,6 @@ void receiver_destroy(receiver_handle* precv)
 	thread_destroy(&(*precv)->tcp_thr);
 	sock_destroy(&(*precv)->mcast_sock);
 	sock_destroy(&(*precv)->tcp_sock);
-	circ_destroy(&(*precv)->tcp_q);
-	circ_destroy(&(*precv)->mcast_q);
 	storage_destroy(&(*precv)->store);
 
 	error_restore_last();
@@ -317,34 +305,6 @@ void receiver_destroy(receiver_handle* precv)
 storage_handle receiver_get_storage(receiver_handle recv)
 {
 	return recv->store;
-}
-
-status receiver_record_changed(receiver_handle recv, record_handle* prec)
-{
-	status st;
-	if (!prec) {
-		error_invalid_arg("receiver_record_changed");
-		return FAIL;
-	}
-
-	if (!recv->mcast_q) {
-		errno = EPERM;
-		error_errno("receiver_record_changed");
-		return FAIL;
-	}
-
-	SPIN_LOCK(&recv->queue_lock);
-	st = circ_remove(recv->tcp_q, (void**) prec);
-	if (st == BLOCKED)
-		st = circ_remove(recv->mcast_q, (void**) prec);
-
-	SPIN_UNLOCK(&recv->queue_lock);
-	return st;
-}
-
-unsigned receiver_get_queue_count(receiver_handle recv)
-{
-	return recv->mcast_q ? (circ_get_count(recv->mcast_q) + circ_get_count(recv->tcp_q)) : 0;
 }
 
 boolean receiver_is_running(receiver_handle recv)

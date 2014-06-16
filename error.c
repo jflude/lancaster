@@ -30,6 +30,7 @@ void error_eof(const char* func)
 	if (!func) {
 		error_invalid_arg("error_eof");
 		error_report_fatal();
+		return;
 	}
 
 	error_code = EOF;
@@ -41,6 +42,7 @@ void error_errno(const char* func)
 	if (!func) {
 		error_invalid_arg("error_errno");
 		error_report_fatal();
+		return;
 	}
 
 	error_capture(func, errno);
@@ -51,6 +53,7 @@ void error_heartbeat(const char* func)
 	if (!func) {
 		error_invalid_arg("error_heartbeat");
 		error_report_fatal();
+		return;
 	}
 
 	error_capture(func, ETIMEDOUT);
@@ -61,6 +64,7 @@ void error_invalid_arg(const char* func)
 	if (!func) {
 		error_invalid_arg("error_invalid_arg");
 		error_report_fatal();
+		return;
 	}
 
 	error_capture(func, EINVAL);
@@ -71,6 +75,7 @@ void error_unimplemented(const char* func)
 	if (!func) {
 		error_invalid_arg("error_unimplemented");
 		error_report_fatal();
+		return;
 	}
 
 	error_capture(func, ENOSYS);

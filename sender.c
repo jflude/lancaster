@@ -91,8 +91,8 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 	void* stored_at;
 	int id = record_get_id(rec);
 
-	if (((accum_get_avail(me->mcast_accum) < (me->val_size + sizeof(id))) &&
-		    (!me->conflate_pkt || record_get_seq(rec) != me->next_seq)) ||
+	if (((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(id))) &&
+		    (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
 		accum_is_stale(me->mcast_accum)) {
 		st = sender_accum_write(me);
 		if (FAILED(st))
@@ -106,13 +106,13 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 	}
 
 	RECORD_LOCK(rec);
-	if (me->conflate_pkt && record_get_seq(rec) == me->next_seq)
-		memcpy(record_get_confl(rec), record_get_val(rec), me->val_size);
+	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
+		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
-			 !FAILED(st = accum_store(me->mcast_accum, record_get_val(rec), me->val_size, &stored_at))) {
-		record_set_seq(rec, me->next_seq);
+			 !FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
+		record_set_sequence(rec, me->next_seq);
 		if (me->conflate_pkt)
-			record_set_confl(rec, stored_at);
+			record_set_conflated(rec, stored_at);
 	}
 
 	RECORD_UNLOCK(rec);
@@ -152,7 +152,7 @@ static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
 
 	BZERO(req_param);
 
-	req_param->val_size = storage_get_val_size(me->store);
+	req_param->val_size = storage_get_value_size(me->store);
 	req_param->pkt_size = sizeof(long) + sizeof(int) + req_param->val_size;
 
 	req_param->send_buf = xmalloc(req_param->pkt_size);
@@ -216,7 +216,7 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 	status st;
 
 	RECORD_LOCK(rec);
-	*req_param->send_seq = record_get_seq(rec);
+	*req_param->send_seq = record_get_sequence(rec);
 
 	if (*req_param->send_seq < req_param->min_store_seq_seen)
 		req_param->min_store_seq_seen = *req_param->send_seq;
@@ -227,7 +227,7 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 	}
 
 	*req_param->send_id = record_get_id(rec);
-	memcpy(req_param->send_id + 1, record_get_val(rec), req_param->val_size);
+	memcpy(req_param->send_id + 1, record_get_value(rec), req_param->val_size);
 	RECORD_UNLOCK(rec);
 
 	req_param->curr_rec = rec;
@@ -408,6 +408,12 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return FAIL;
 	}
 
+	if (!storage_is_segment_owner(store)) {
+		errno = EPERM;
+		error_errno("sender_create");
+		return FAIL;
+	}
+
 	*psend = XMALLOC(struct sender_t);
 	if (!*psend)
 		return NO_MEMORY;
@@ -418,7 +424,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 	SPIN_CREATE(&(*psend)->stats.lock);
 
 	(*psend)->store = store;
-	(*psend)->val_size = storage_get_val_size(store);
+	(*psend)->val_size = storage_get_value_size(store);
 	(*psend)->next_seq = 1;
 	(*psend)->min_store_seq = 0;
 	(*psend)->heartbeat_secs = hb_secs;
@@ -428,7 +434,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port,
 								  storage_get_base_id(store), storage_get_max_id(store),
-								  storage_get_val_size(store), (*psend)->heartbeat_secs);
+								  storage_get_value_size(store), (*psend)->heartbeat_secs);
 
 	if ((*psend)->hello_len < 0) {
 		error_errno("sprintf");
@@ -525,4 +531,9 @@ long sender_get_tcp_bytes_sent(sender_handle send)
 long sender_get_mcast_bytes_sent(sender_handle send)
 {
 	return sender_get_stat(send, &send->stats.mcast_bytes_sent);
+}
+
+int sender_get_subscriber_count(sender_handle send)
+{
+	return poll_get_count(send->poller) - 1;
 }

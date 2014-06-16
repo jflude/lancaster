@@ -6,7 +6,7 @@
 
 struct poll_t
 {
-	nfds_t size;
+	nfds_t count;
 	nfds_t free_slot;
 	struct pollfd* fds;
 	sock_handle* socks;
@@ -37,7 +37,7 @@ status poll_create(poll_handle* ppoller, int nsock)
 		return NO_MEMORY;
 	}
 
-	(*ppoller)->size = nsock;
+	(*ppoller)->count = nsock;
 	(*ppoller)->free_slot = 0;
 	return OK;
 }
@@ -53,13 +53,18 @@ void poll_destroy(poll_handle* ppoller)
 	*ppoller = NULL;
 }
 
+int poll_get_count(poll_handle poller)
+{
+	return poller->count;
+}
+
 status poll_add(poll_handle poller, sock_handle sock, short events)
 {
 	struct pollfd* fds;
-	if (poller->free_slot == poller->size) {
+	if (poller->free_slot == poller->count) {
 		struct pollfd* new_fds;
 		sock_handle* new_socks;
-		int n = 2 * poller->size;
+		int n = 2 * poller->count;
 
 		new_fds = xrealloc(poller->fds, n * sizeof(struct pollfd));
 		if (!new_fds)
@@ -72,7 +77,7 @@ status poll_add(poll_handle poller, sock_handle sock, short events)
 			return NO_MEMORY;
 
 		poller->socks = new_socks;
-		poller->size = n;
+		poller->count = n;
 	}
 
 	fds = &poller->fds[poller->free_slot];

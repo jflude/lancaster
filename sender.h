@@ -18,13 +18,13 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 void sender_destroy(sender_handle* psend);
 
 status sender_record_changed(sender_handle send, record_handle rec);
-
 boolean sender_is_running(sender_handle send);
 status sender_stop(sender_handle send);
 
 long sender_get_tcp_gap_count(sender_handle send);
 long sender_get_tcp_bytes_sent(sender_handle send);
 long sender_get_mcast_bytes_sent(sender_handle send);
+int sender_get_subscriber_count(sender_handle send);
 
 #ifdef __cplusplus
 }

@@ -18,6 +18,8 @@ typedef status (*poll_proc)(poll_handle, sock_handle, short*, void*);
 status poll_create(poll_handle* ppoller, int nsock);
 void poll_destroy(poll_handle* ppoller);
 
+int poll_get_count(poll_handle poller);
+
 status poll_add(poll_handle poller, sock_handle sock, short events);
 status poll_remove(poll_handle poller, sock_handle sock);
 status poll_set_event(poll_handle poller, sock_handle sock, short new_events);

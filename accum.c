@@ -61,7 +61,7 @@ status accum_is_stale(accum_handle acc)
 	return acc->max_age < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
 }
 
-size_t accum_get_avail(accum_handle acc)
+size_t accum_get_available(accum_handle acc)
 {
 	return acc->capacity - (acc->next_free - acc->buf);
 }
