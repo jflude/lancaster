@@ -13,10 +13,11 @@
 
 # Executables
 *.exe
-a.out
 *.app
-client
-server
+a.out
+publisher
+subscriber
+listener
 
 # Editor files
 *~
