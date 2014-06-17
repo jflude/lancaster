@@ -63,7 +63,9 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 
 	if (mmap_file) {
 		int fd;
-		size_t sz = seg_sz;
+		size_t page_sz = sysconf(_SC_PAGESIZE);
+		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
+
 	open_loop:
 		fd = open(mmap_file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 		if (fd == -1) {
@@ -75,21 +77,14 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 			return FAIL;
 		}
 
-		while (sz > 0) {
-			long zero = 0;
-			ssize_t count;
-		write_loop:
-			count = write(fd, &zero, sizeof(zero));
-			if (count == -1) {
-				if (errno == EINTR)
-					goto write_loop;
+	trunc_loop:
+		if (ftruncate(fd, seg_sz) == -1) {
+			if (errno == EINTR)
+				goto trunc_loop;
 
-				error_errno("write");
-				storage_destroy(pstore);
-				return FAIL;
-			}
-
-			sz -= count;
+			error_errno("ftruncate");
+			storage_destroy(pstore);
+			return FAIL;
 		}
 
 		(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -105,9 +100,6 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 			storage_destroy(pstore);
 			return FAIL;
 		}
-
-		(*pstore)->seg->mmap_size = seg_sz;
-		(*pstore)->seg->magic = MAGIC_NUMBER;
 	} else {
 		(*pstore)->seg = xmalloc(seg_sz);
 		if (!(*pstore)->seg) {
@@ -115,20 +107,26 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 			return NO_MEMORY;
 		}
 
-		memset((*pstore)->seg, 0, seg_sz);
+		seg_sz = 0;
 	}
 
-	(*pstore)->seg->q_mask = q_capacity - 1;
-	(*pstore)->seg->base_id = base_id;
-	(*pstore)->seg->max_id = max_id;
+	(*pstore)->seg->magic = MAGIC_NUMBER;
+	(*pstore)->seg->mmap_size = seg_sz;
 	(*pstore)->seg->hdr_size = hdr_sz;
 	(*pstore)->seg->rec_size = rec_sz;
 	(*pstore)->seg->val_size = val_size;
+	(*pstore)->seg->base_id = base_id;
+	(*pstore)->seg->max_id = max_id;
+	(*pstore)->seg->q_mask = q_capacity - 1;
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
 
 	storage_reset(*pstore);
+
+	if ((*pstore)->is_seg_owner && (*pstore)->seg->mmap_size > 0)
+		msync((*pstore)->seg, (*pstore)->seg->mmap_size, MS_SYNC);
+
 	return OK;
 }
 
