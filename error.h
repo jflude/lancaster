@@ -7,6 +7,10 @@
 extern "C" {
 #endif
 
+typedef void (*error_proc)(int error_code, const char* error_desc);
+
+error_proc error_set_proc(error_proc new_proc);
+
 int error_last_code(void);
 const char* error_last_desc(void);
 

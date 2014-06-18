@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+static error_proc error_custom_proc;
 static char error_desc[128], save_desc[128];
 static int error_code, save_code;
 static boolean save_used;
@@ -13,6 +14,16 @@ static void error_capture(const char* func, int code)
 {
 	error_code = code;
 	sprintf(error_desc, "%s: %s\n", func, strerror(code));
+
+	if (error_custom_proc)
+		error_custom_proc(code, func);
+}
+
+error_proc error_set_proc(error_proc new_proc)
+{
+	error_proc old_proc = error_custom_proc;
+	error_custom_proc = new_proc;
+	return old_proc;
 }
 
 int error_last_code(void)
@@ -35,6 +46,9 @@ void error_eof(const char* func)
 
 	error_code = EOF;
 	sprintf(error_desc, "%s: end of file\n", func);
+
+	if (error_custom_proc)
+		error_custom_proc(error_code, func);
 }
 
 void error_errno(const char* func)
