@@ -15,7 +15,7 @@ twist.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -pthread -D_POSIX_C_SOURCE=1 -D_BSD_SOURCE -g
+CFLAGS = -ansi -pedantic -Wall -pthread -fPIC -D_POSIX_C_SOURCE=1 -D_BSD_SOURCE -g
 LDFLAGS = -pthread
 DEPFLAGS = -I/usr/include/linux -I/usr/include/x86_64-linux-gnu -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 OBJS = $(SRCS:.c=.o)
