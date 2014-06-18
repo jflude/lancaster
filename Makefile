@@ -25,20 +25,20 @@ all: publisher subscriber listener
 release: CFLAGS += -DNDEBUG -O3
 release: all
 
-publisher: cachester.a
+publisher: libcachester.a
 
-subscriber: cachester.a
+subscriber: libcachester.a
 
-listener: cachester.a
+listener: libcachester.a
 
-cachester.a: $(OBJS)
-	ar -r cachester.a $(OBJS)
+libcachester.a: $(OBJS)
+	ar -r libcachester.a $(OBJS)
 
 depend:
 	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c listener.c
 
 clean:
-	rm -f cachester.a publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
+	rm -f libcachester.a publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
 
 distclean: clean
 	rm -f *~ *.bak
