@@ -57,11 +57,11 @@ static void* receiver_mcast_proc(thread_handle thr)
 		} else if (FAILED(st))
 			break;
 
+		me->last_mcast_recv = time(NULL);
+
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.mcast_bytes_recv += st;
 		SPIN_UNLOCK(&me->stats.lock);
-
-		me->last_mcast_recv = time(NULL);
 
 		if (st < sizeof(*recv_seq)) {
 			errno = EPROTO;
@@ -167,12 +167,13 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 	}
 
 	if (bytes_in > 0) {
+		me->last_tcp_recv = time(NULL);
+
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.tcp_bytes_recv += bytes_in;
 		SPIN_UNLOCK(&me->stats.lock);
 	}
 
-	me->last_tcp_recv = time(NULL);
 	return st;
 }
 
@@ -195,6 +196,9 @@ static void* receiver_tcp_proc(thread_handle thr)
 
 		if (*recv_seq == -1)
 			continue;
+
+		if (*recv_seq == -2)
+			break;
 
 		st = receiver_tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
 		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))

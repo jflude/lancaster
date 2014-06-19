@@ -5,6 +5,7 @@
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
+#include "yield.h"
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
@@ -132,6 +133,12 @@ static status sender_tcp_close_proc(poll_handle poller, sock_handle sock, short*
 	st = sock_close(sock);
 	sock_destroy(&sock);
 	return st;
+}
+
+static status sender_tcp_will_quit_proc(poll_handle poller, sock_handle sock, short* events, void* param)
+{
+	long quit_seq = -2;
+	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
 
 static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
@@ -389,6 +396,12 @@ static void* sender_tcp_proc(thread_handle thr)
 	st2 = poll_remove(me->poller, me->listen_sock);
 	if (!FAILED(st))
 		st = st2;
+
+	st2 = poll_process(me->poller, sender_tcp_will_quit_proc, NULL);
+	if (!FAILED(st))
+		st = st2;
+
+	slumber(1);
 
 	st2 = poll_process(me->poller, sender_tcp_close_proc, NULL);
 	if (!FAILED(st))
