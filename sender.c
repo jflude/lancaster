@@ -86,27 +86,25 @@ static status sender_accum_write(sender_handle me)
 	return st;
 }
 
-static status sender_mcast_on_write(sender_handle me, record_handle rec)
+static boolean sender_mcast_accum_is_full(sender_handle me, record_handle rec)
+{
+	return accum_get_available(me->mcast_accum) < (me->val_size + sizeof(int)) &&
+		(!me->conflate_pkt || record_get_sequence(rec) != me->next_seq);
+}
+
+static status sender_mcast_on_write(sender_handle me, record_handle rec, boolean flush)
 {
 	status st = OK;
 	void* stored_at;
-	int id = record_get_id(rec);
+	int id;
 
-	if (((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(id))) &&
-		    (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
-		accum_is_stale(me->mcast_accum)) {
-		st = sender_accum_write(me);
-		if (FAILED(st))
-			return st;
-	}
+	if (((sender_mcast_accum_is_full(me, rec) || accum_is_stale(me->mcast_accum)) && FAILED(st = sender_accum_write(me))) ||
+		(accum_is_empty(me->mcast_accum) && FAILED(st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL))))
+		return st;
 
-	if (accum_is_empty(me->mcast_accum)) {
-		st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL);
-		if (FAILED(st))
-			return st;
-	}
-
+	id = record_get_id(rec);
 	RECORD_LOCK(rec);
+
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
@@ -117,6 +115,9 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 	}
 
 	RECORD_UNLOCK(rec);
+	if (flush && !FAILED(st))
+		st = sender_accum_write(me);
+
 	return st;
 }
 
@@ -494,7 +495,16 @@ status sender_record_changed(sender_handle send, record_handle rec)
 {
 	status st;
 	SPIN_LOCK(&send->mcast_lock);
-	st = sender_mcast_on_write(send, rec);
+	st = sender_mcast_on_write(send, rec, FALSE);
+	SPIN_UNLOCK(&send->mcast_lock);
+	return st;
+}
+
+status sender_record_changed_flush(sender_handle send, record_handle rec)
+{
+	status st;
+	SPIN_LOCK(&send->mcast_lock);
+	st = sender_mcast_on_write(send, rec, TRUE);
 	SPIN_UNLOCK(&send->mcast_lock);
 	return st;
 }
