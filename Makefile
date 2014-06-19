@@ -407,9 +407,9 @@ publisher.o: /usr/include/x86_64-linux-gnu/bits/select.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/time.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-publisher.o: /usr/include/alloca.h
-subscriber.o: datum.h error.h receiver.h storage.h spin.h barrier.h yield.h
-subscriber.o: status.h /usr/include/linux/stddef.h /usr/include/stdio.h
+publisher.o: /usr/include/alloca.h /usr/include/linux/string.h
+subscriber.o: error.h receiver.h storage.h spin.h barrier.h yield.h status.h
+subscriber.o: /usr/include/linux/stddef.h /usr/include/stdio.h
 subscriber.o: /usr/include/features.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
@@ -441,7 +441,7 @@ subscriber.o: /usr/include/x86_64-linux-gnu/bits/select.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/time.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-subscriber.o: /usr/include/alloca.h
+subscriber.o: /usr/include/alloca.h /usr/include/linux/string.h
 listener.o: datum.h error.h storage.h spin.h barrier.h yield.h status.h
 listener.o: /usr/include/linux/stddef.h /usr/include/stdio.h
 listener.o: /usr/include/features.h

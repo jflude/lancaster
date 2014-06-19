@@ -15,9 +15,7 @@ struct datum_t
 	int ask_qty;
 };
 
-#define STORAGE_FILE "/tmp/cachester.store"
 #define MAX_ID 1000000
-#define Q_CAPACITY 4096
 #define HB_PERIOD 10
 
 #ifdef __cplusplus

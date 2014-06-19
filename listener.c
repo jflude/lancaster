@@ -5,14 +5,19 @@
 #include "storage.h"
 #include <stdio.h>
 
-int main(void)
+int main(int argc, char* argv[])
 {
 	storage_handle store;
 	unsigned q_capacity, old_head = 0;
 	int n = 0, x = 0;
 	char c = '.';
 
-	if (FAILED(storage_open(&store, STORAGE_FILE)))
+	if (argc != 2) {
+		fprintf(stderr, "Syntax: %s [storage file]\n", argv[0]);
+		return 1;
+	}
+
+	if (FAILED(storage_open(&store, argv[1])))
 		error_report_fatal();
 
 	q_capacity = storage_get_queue_capacity(store);
@@ -48,7 +53,7 @@ int main(void)
 			RECORD_UNLOCK(rec);
 
 			if (new_n != (n + 1) && c == '.')
-				c = '?';
+				c = '!';
 
 			n = new_n;
 		}
@@ -56,7 +61,8 @@ int main(void)
 		old_head = new_head;
 
 		if ((x++ & 1023) == 0) {
-			putc(c, stderr);
+			putchar(c);
+			fflush(stdout);
 			c = '.';
 		}
 	}
