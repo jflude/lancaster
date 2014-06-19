@@ -11,6 +11,9 @@
 #include <time.h>
 #include <sys/socket.h>
 
+#define HEARTBEAT_SEQ -1
+#define WILL_QUIT_SEQ -2
+
 struct receiver_stats_t
 {
 	spin_lock_t lock;
@@ -194,10 +197,10 @@ static void* receiver_tcp_proc(thread_handle thr)
 		if (FAILED(st) || !st)
 			break;
 
-		if (*recv_seq == -1)
+		if (*recv_seq == HEARTBEAT_SEQ)
 			continue;
 
-		if (*recv_seq == -2)
+		if (*recv_seq == WILL_QUIT_SEQ)
 			break;
 
 		st = receiver_tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));

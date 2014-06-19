@@ -13,6 +13,8 @@
 #include <time.h>
 #include <sys/socket.h>
 
+#define HEARTBEAT_SEQ -1
+#define WILL_QUIT_SEQ -2
 #define MAX_AGE_MILLISEC 10
 
 struct sender_stats_t
@@ -138,7 +140,7 @@ static status sender_tcp_close_proc(poll_handle poller, sock_handle sock, short*
 
 static status sender_tcp_will_quit_proc(poll_handle poller, sock_handle sock, short* events, void* param)
 {
-	long quit_seq = -2;
+	long quit_seq = WILL_QUIT_SEQ;
 	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
 
@@ -345,7 +347,7 @@ static status sender_mcast_check_stale_or_heartbeat(sender_handle me)
 		if (accum_is_stale(me->mcast_accum))
 			st = sender_accum_write(me);
 		else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
-			long hb_seq = -1;
+			long hb_seq = HEARTBEAT_SEQ;
 			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)))
 				st = sender_accum_write(me);
 		}
@@ -364,7 +366,7 @@ static status sender_tcp_check_heartbeat_proc(poll_handle poller, sock_handle so
 	if (sock == me->listen_sock || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
 		return OK;
 
-	*req_param->send_seq = -1;
+	*req_param->send_seq = HEARTBEAT_SEQ;
 
 	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->next_send = req_param->send_buf;
