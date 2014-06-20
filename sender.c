@@ -78,11 +78,11 @@ static status sender_accum_write(sender_handle me)
 		accum_clear(me->mcast_accum);
 		me->next_seq++;
 
+		me->last_mcast_send = time(NULL);
+
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.mcast_bytes_sent += sz;
 		SPIN_UNLOCK(&me->stats.lock);
-
-		me->last_mcast_send = time(NULL);
 	}
 
 	return st;
@@ -207,11 +207,11 @@ static status sender_tcp_on_write_remaining(struct sender_tcp_req_param_t* req_p
 	}
 
 	if (sent_sz > 0) {
+		req_param->last_tcp_send = time(NULL);
+
 		SPIN_LOCK(&req_param->me->stats.lock);
 		req_param->me->stats.tcp_bytes_sent += sent_sz;
 		SPIN_UNLOCK(&req_param->me->stats.lock);
-
-		req_param->last_tcp_send = time(NULL);
 	}
 
 	return st;
