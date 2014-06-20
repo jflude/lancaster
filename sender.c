@@ -94,7 +94,7 @@ static boolean sender_mcast_accum_is_full(sender_handle me, record_handle rec)
 		(!me->conflate_pkt || record_get_sequence(rec) != me->next_seq);
 }
 
-static status sender_mcast_on_write(sender_handle me, record_handle rec, boolean flush)
+static status sender_mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
 	void* stored_at;
@@ -117,9 +117,6 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec, boolean
 	}
 
 	RECORD_UNLOCK(rec);
-	if (flush && !FAILED(st))
-		st = sender_accum_write(me);
-
 	return st;
 }
 
@@ -497,16 +494,16 @@ status sender_record_changed(sender_handle send, record_handle rec)
 {
 	status st;
 	SPIN_LOCK(&send->mcast_lock);
-	st = sender_mcast_on_write(send, rec, FALSE);
+	st = sender_mcast_on_write(send, rec);
 	SPIN_UNLOCK(&send->mcast_lock);
 	return st;
 }
 
-status sender_record_changed_flush(sender_handle send, record_handle rec)
+status sender_flush(sender_handle send)
 {
 	status st;
 	SPIN_LOCK(&send->mcast_lock);
-	st = sender_mcast_on_write(send, rec, TRUE);
+	st = sender_accum_write(send);
 	SPIN_UNLOCK(&send->mcast_lock);
 	return st;
 }

@@ -18,7 +18,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 void sender_destroy(sender_handle* psend);
 
 status sender_record_changed(sender_handle send, record_handle rec);
-status sender_record_changed_flush(sender_handle send, record_handle rec);
+status sender_flush(sender_handle send);
 boolean sender_is_running(sender_handle send);
 status sender_stop(sender_handle send);
 
