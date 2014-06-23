@@ -412,11 +412,10 @@ static void* sender_tcp_proc(thread_handle thr)
 }
 
 status sender_create(sender_handle* psend, storage_handle store, int hb_secs, boolean conflate_packet,
-					 const char* mcast_addr, int mcast_port, int mcast_ttl,
-					 const char* tcp_addr, int tcp_port)
+					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
 {
 	status st;
-	if (!psend || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
+	if (!psend || !store || hb_secs <= 0 || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
 	}
@@ -493,6 +492,11 @@ void sender_destroy(sender_handle* psend)
 status sender_record_changed(sender_handle send, record_handle rec)
 {
 	status st;
+	if (!rec) {
+		error_invalid_arg("sender_record_changed");
+		return FAIL;
+	}
+
 	SPIN_LOCK(&send->mcast_lock);
 	st = sender_mcast_on_write(send, rec);
 	SPIN_UNLOCK(&send->mcast_lock);

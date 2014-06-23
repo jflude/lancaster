@@ -18,8 +18,8 @@ int main(int argc, char* argv[])
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
 	int verbose = 0;
-	time_t t1;
-	long tcp_c, mcast_c;
+	time_t t1 = time(NULL);
+	long tcp_c = 0, mcast_c = 0;
 
 	if (argc < 6 || argc > 7) {
 		fprintf(stderr, "Syntax: %s [-v|--verbose] [speed] [mcast address] [mcast port] [tcp address] [tcp port]\n", argv[0]);
@@ -29,9 +29,6 @@ int main(int argc, char* argv[])
 	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
 		verbose = 1;
 		i++;
-		t1 = time(NULL);
-		tcp_c = 0;
-		mcast_c = 0;
 	}
 
 	mask = (1 << atoi(argv[i++])) - 1;

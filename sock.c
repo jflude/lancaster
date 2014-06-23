@@ -20,7 +20,7 @@ struct sock_t
 
 status sock_create(sock_handle* psock, int type, const char* address, int port)
 {
-	if (!psock || !address) {
+	if (!psock || !address || port < 0) {
 		error_invalid_arg("sock_create");
 		return FAIL;
 	}

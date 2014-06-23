@@ -71,5 +71,5 @@ status fdump(const void* p, size_t sz, FILE* f)
 
 status dump(const void* p, size_t sz)
 {
-	return fdump(p, sz, stderr);
+	return fdump(p, sz, stdout);
 }

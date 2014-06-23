@@ -15,5 +15,5 @@ void snooze(void)
 void slumber(unsigned seconds)
 {
 	while ((seconds = sleep(seconds)) != 0)
-		;
+		/* empty */ ;
 }

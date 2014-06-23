@@ -17,8 +17,8 @@ int main(int argc, char* argv[])
 	int q_capacity;
 	int verbose = 0;
 	int i = 1;
-	time_t t1;
-	long tcp_c, mcast_c;
+	time_t t1 = time(NULL);
+	long tcp_c = 0, mcast_c = 0;
 
 	if (argc < 5 || argc > 6) {
 		fprintf(stderr, "Syntax: %s [-v|--verbose] [tcp address] [tcp port] [change queue size] [storage file]\n", argv[0]);
@@ -28,9 +28,6 @@ int main(int argc, char* argv[])
 	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
 		verbose = 1;
 		i++;
-		t1 = time(NULL);
-		tcp_c = 0;
-		mcast_c = 0;
 	}
 
 	tcp_addr = argv[i++];

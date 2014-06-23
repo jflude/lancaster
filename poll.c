@@ -61,6 +61,11 @@ int poll_get_count(poll_handle poller)
 status poll_add(poll_handle poller, sock_handle sock, short events)
 {
 	struct pollfd* fds;
+	if (!sock) {
+		error_invalid_arg("poll_add");
+		return FAIL;
+	}
+
 	if (poller->free_slot == poller->count) {
 		struct pollfd* new_fds;
 		sock_handle* new_socks;
@@ -94,6 +99,11 @@ status poll_add(poll_handle poller, sock_handle sock, short events)
 status poll_remove(poll_handle poller, sock_handle sock)
 {
 	int i;
+	if (!sock) {
+		error_invalid_arg("poll_remove");
+		return FAIL;
+	}
+
 	for (i = 0; i < poller->free_slot; ++i)
 		if (poller->socks[i] == sock) {
 			int j = poller->free_slot - 1;
@@ -112,6 +122,11 @@ status poll_remove(poll_handle poller, sock_handle sock)
 status poll_set_event(poll_handle poller, sock_handle sock, short new_events)
 {
 	int i;
+	if (!sock) {
+		error_invalid_arg("poll_set_event");
+		return FAIL;
+	}
+
 	for (i = 0; i < poller->free_slot; ++i)
 		if (poller->socks[i] == sock) {
 			poller->fds[i].events = new_events;

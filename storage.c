@@ -61,7 +61,15 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	hdr_sz = ALIGNED_SIZE(struct segment_t, DEFAULT_ALIGNMENT, change_q, q_capacity > 0 ? q_capacity : 1);
 	seg_sz = hdr_sz + rec_sz * (max_id - base_id);
 
-	if (mmap_file) {
+	if (!mmap_file) {
+		(*pstore)->seg = xmalloc(seg_sz);
+		if (!(*pstore)->seg) {
+			storage_destroy(pstore);
+			return NO_MEMORY;
+		}
+
+		seg_sz = 0;
+	} else {
 		int fd;
 		size_t page_sz = sysconf(_SC_PAGESIZE);
 		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
@@ -100,14 +108,6 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 			storage_destroy(pstore);
 			return FAIL;
 		}
-	} else {
-		(*pstore)->seg = xmalloc(seg_sz);
-		if (!(*pstore)->seg) {
-			storage_destroy(pstore);
-			return NO_MEMORY;
-		}
-
-		seg_sz = 0;
 	}
 
 	(*pstore)->seg->magic = MAGIC_NUMBER;
@@ -322,10 +322,10 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 		return FAIL;
 	}
 
-	if (!prev)
-		prev = store->array;
-	else
+	if (prev)
 		prev = RECORD_ADDR(store, prev, 1);
+	else
+		prev = store->array;
 
 	for (; prev < store->limit; prev = RECORD_ADDR(store, prev, 1)) {
 		st = iter_fn(prev, param);
