@@ -122,7 +122,7 @@ status dict_get_symbol(dict_handle dict, int id, const char** psymbol)
 		return FAIL;
 	}
 
-	if (dict->use_id2sym)
+	if (!dict->use_id2sym)
 		return FALSE;
 
 	return table_lookup(dict->id2sym, (table_key) (long) id, (void**) psymbol);
