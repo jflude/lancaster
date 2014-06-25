@@ -13,7 +13,7 @@ extern "C" {
 struct dict_t;
 typedef struct dict_t* dict_handle;
 
-status dict_create(dict_handle* pdict, size_t sym2id_sz, size_t id2sym_sz);
+status dict_create(dict_handle* pdict, size_t sz);
 void dict_destroy(dict_handle* pdict);
 
 status dict_assoc(dict_handle dict, const char* symbol, int id);

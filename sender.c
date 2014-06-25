@@ -45,7 +45,7 @@ struct sender_t
 	char hello_str[128];
 };
 
-struct sender_tcp_req_param_t
+struct tcp_req_param_t
 {
 	sender_handle me;
 	sock_handle sock;
@@ -63,7 +63,7 @@ struct sender_tcp_req_param_t
 	boolean sending_hb;
 };
 
-static status sender_accum_write(sender_handle me)
+static status write_accum(sender_handle me)
 {
 	const void* data;
 	size_t sz;
@@ -88,19 +88,19 @@ static status sender_accum_write(sender_handle me)
 	return st;
 }
 
-static boolean sender_mcast_accum_is_full(sender_handle me, record_handle rec)
+static boolean mcast_accum_is_full(sender_handle me, record_handle rec)
 {
 	return accum_get_available(me->mcast_accum) < (me->val_size + sizeof(int)) &&
 		(!me->conflate_pkt || record_get_sequence(rec) != me->next_seq);
 }
 
-static status sender_mcast_on_write(sender_handle me, record_handle rec)
+static status mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
 	void* stored_at;
 	int id;
 
-	if (((sender_mcast_accum_is_full(me, rec) || accum_is_stale(me->mcast_accum)) && FAILED(st = sender_accum_write(me))) ||
+	if (((mcast_accum_is_full(me, rec) || accum_is_stale(me->mcast_accum)) && FAILED(st = write_accum(me))) ||
 		(accum_is_empty(me->mcast_accum) && FAILED(st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL))))
 		return st;
 
@@ -120,9 +120,9 @@ static status sender_mcast_on_write(sender_handle me, record_handle rec)
 	return st;
 }
 
-static status sender_tcp_close_proc(poll_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_close_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
-	struct sender_tcp_req_param_t* req_param = sock_get_property(sock);
+	struct tcp_req_param_t* req_param = sock_get_property(sock);
 	status st;
 
 	if (req_param) {
@@ -135,23 +135,23 @@ static status sender_tcp_close_proc(poll_handle poller, sock_handle sock, short*
 	return st;
 }
 
-static status sender_tcp_will_quit_proc(poll_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_will_quit_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	long quit_seq = WILL_QUIT_SEQ;
 	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
 
-static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
+static status tcp_on_accept(sender_handle me, sock_handle sock)
 {
 	sock_handle accepted;
-	struct sender_tcp_req_param_t* req_param;
+	struct tcp_req_param_t* req_param;
 	status st;
 
 	if (FAILED(st = sock_accept(sock, &accepted)) ||
 		FAILED(st = sock_write(accepted, me->hello_str, me->hello_len)))
 		return st;
 
-	req_param = XMALLOC(struct sender_tcp_req_param_t);
+	req_param = XMALLOC(struct tcp_req_param_t);
 	if (!req_param) {
 		sock_destroy(&accepted);
 		return NO_MEMORY;
@@ -182,16 +182,16 @@ static status sender_tcp_on_accept(sender_handle me, sock_handle sock)
 	return poll_add(me->poller, accepted, POLLIN);
 }
 
-static status sender_tcp_on_hup(sender_handle me, sock_handle sock)
+static status tcp_on_hup(sender_handle me, sock_handle sock)
 {
 	status st = poll_remove(me->poller, sock);
 	if (FAILED(st))
 		return st;
 
-	return sender_tcp_close_proc(me->poller, sock, NULL, NULL);
+	return tcp_close_func(me->poller, sock, NULL, NULL);
 }
 
-static status sender_tcp_on_write_remaining(struct sender_tcp_req_param_t* req_param)
+static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
 {
 	size_t sent_sz = 0;
 	status st = OK;
@@ -217,9 +217,9 @@ static status sender_tcp_on_write_remaining(struct sender_tcp_req_param_t* req_p
 	return st;
 }
 
-static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
+static status tcp_on_write_iter_fn(record_handle rec, void* param)
 {
-	struct sender_tcp_req_param_t* req_param = param;
+	struct tcp_req_param_t* req_param = param;
 	status st;
 
 	RECORD_LOCK(rec);
@@ -241,21 +241,21 @@ static status sender_tcp_on_write_iter_func(record_handle rec, void* param)
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = req_param->pkt_size;
 
-	st = sender_tcp_on_write_remaining(req_param);
+	st = tcp_on_write_remaining(req_param);
 	return FAILED(st) ? st : TRUE;
 }
 
-static status sender_tcp_on_write(sender_handle me, sock_handle sock)
+static status tcp_on_write(sender_handle me, sock_handle sock)
 {
-	struct sender_tcp_req_param_t* req_param = sock_get_property(sock);
+	struct tcp_req_param_t* req_param = sock_get_property(sock);
 	status st;
 
 	if (req_param->remain_send > 0) {
-		st = sender_tcp_on_write_remaining(req_param);
+		st = tcp_on_write_remaining(req_param);
 		if (st == BLOCKED)
 			return OK;
 		else if (st == CLOSED || st == TIMEDOUT)
-			return sender_tcp_on_hup(me, sock);
+			return tcp_on_hup(me, sock);
 		else if (FAILED(st))
 			return st;
 	}
@@ -265,11 +265,11 @@ static status sender_tcp_on_write(sender_handle me, sock_handle sock)
 		return poll_set_event(me->poller, sock, POLLIN);
 	}
 
-	st = storage_iterate(me->store, sender_tcp_on_write_iter_func, req_param->curr_rec, req_param);
+	st = storage_iterate(me->store, tcp_on_write_iter_fn, req_param->curr_rec, req_param);
 	if (st == BLOCKED)
 		return OK;
 	else if (st == CLOSED || st == TIMEDOUT)
-		return sender_tcp_on_hup(me, sock);
+		return tcp_on_hup(me, sock);
 	else if (FAILED(st))
 		return st;
 	else if (st) {
@@ -281,9 +281,9 @@ static status sender_tcp_on_write(sender_handle me, sock_handle sock)
 	return st;
 }
 
-static status sender_tcp_on_read(sender_handle me, sock_handle sock)
+static status tcp_on_read(sender_handle me, sock_handle sock)
 {
-	struct sender_tcp_req_param_t* req_param = sock_get_property(sock);
+	struct tcp_req_param_t* req_param = sock_get_property(sock);
 	status st;
 
 	char* p = (void*) &req_param->range;
@@ -292,7 +292,7 @@ static status sender_tcp_on_read(sender_handle me, sock_handle sock)
 	while (sz > 0) {
 		st = sock_read(sock, p, sz);
 		if (st == CLOSED || st == TIMEDOUT)
-			return sender_tcp_on_hup(me, sock);
+			return tcp_on_hup(me, sock);
 		else if (st == BLOCKED) {
 			snooze();
 			continue;
@@ -309,7 +309,7 @@ static status sender_tcp_on_read(sender_handle me, sock_handle sock)
 
 	if (req_param->range.low >= req_param->range.high) {
 		errno = EPROTO;
-		error_errno("sender_tcp_on_read");
+		error_errno("tcp_on_read");
 		return BAD_PROTOCOL;
 	}
 
@@ -321,32 +321,32 @@ static status sender_tcp_on_read(sender_handle me, sock_handle sock)
 	return poll_set_event(me->poller, sock, POLLOUT);
 }
 
-static status sender_tcp_event_proc(poll_handle poller, sock_handle sock, short* revents, void* param)
+static status tcp_event_func(poll_handle poller, sock_handle sock, short* revents, void* param)
 {
 	sender_handle me = param;
 	if (sock == me->listen_sock)
-		return sender_tcp_on_accept(me, sock);
+		return tcp_on_accept(me, sock);
 
 	if (*revents & POLLHUP)
-		return sender_tcp_on_hup(me, sock);
+		return tcp_on_hup(me, sock);
 	else if (*revents & POLLIN)
-		return sender_tcp_on_read(me, sock);
+		return tcp_on_read(me, sock);
 	else if (*revents & POLLOUT)
-		return sender_tcp_on_write(me, sock);
+		return tcp_on_write(me, sock);
 
 	return OK;
 }
 
-static status sender_mcast_check_stale_or_heartbeat(sender_handle me)
+static status mcast_check_stale_or_heartbeat(sender_handle me)
 {
 	status st = OK;
 	if (SPIN_TRY_LOCK(&me->mcast_lock)) {
 		if (accum_is_stale(me->mcast_accum))
-			st = sender_accum_write(me);
+			st = write_accum(me);
 		else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
 			long hb_seq = HEARTBEAT_SEQ;
 			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)))
-				st = sender_accum_write(me);
+				st = write_accum(me);
 		}
 
 		SPIN_UNLOCK(&me->mcast_lock);
@@ -355,10 +355,10 @@ static status sender_mcast_check_stale_or_heartbeat(sender_handle me)
 	return st;
 }
 
-static status sender_tcp_check_heartbeat_proc(poll_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	sender_handle me = param;
-	struct sender_tcp_req_param_t* req_param = sock_get_property(sock);
+	struct tcp_req_param_t* req_param = sock_get_property(sock);
 
 	if (sock == me->listen_sock || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
 		return OK;
@@ -372,24 +372,24 @@ static status sender_tcp_check_heartbeat_proc(poll_handle poller, sock_handle so
 	return poll_set_event(poller, sock, POLLOUT);
 }
 
-static void* sender_tcp_proc(thread_handle thr)
+static void* tcp_func(thread_handle thr)
 {
 	sender_handle me = thread_get_param(thr);
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		if (FAILED(st = sender_mcast_check_stale_or_heartbeat(me)) ||
+		if (FAILED(st = mcast_check_stale_or_heartbeat(me)) ||
 			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)))
 			break;
 
 		if (st == 0) {
-			if (FAILED(st = poll_process(me->poller, sender_tcp_check_heartbeat_proc, (void*) me)))
+			if (FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, (void*) me)))
 				break;
 
 			continue;
 		}
 
-		if (FAILED(st = poll_process_events(me->poller, sender_tcp_event_proc, (void*) me)))
+		if (FAILED(st = poll_process_events(me->poller, tcp_event_func, (void*) me)))
 			break;
 	}
 
@@ -397,13 +397,13 @@ static void* sender_tcp_proc(thread_handle thr)
 	if (!FAILED(st))
 		st = st2;
 
-	st2 = poll_process(me->poller, sender_tcp_will_quit_proc, NULL);
+	st2 = poll_process(me->poller, tcp_will_quit_func, NULL);
 	if (!FAILED(st))
 		st = st2;
 
 	slumber(1);
 
-	st2 = poll_process(me->poller, sender_tcp_close_proc, NULL);
+	st2 = poll_process(me->poller, tcp_close_func, NULL);
 	if (!FAILED(st))
 		st = st2;
 
@@ -462,7 +462,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(st = thread_create(&(*psend)->tcp_thr, sender_tcp_proc, (void*) *psend))) {
+		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, (void*) *psend))) {
 		sender_destroy(psend);
 		return st;
 	}
@@ -498,7 +498,7 @@ status sender_record_changed(sender_handle send, record_handle rec)
 	}
 
 	SPIN_LOCK(&send->mcast_lock);
-	st = sender_mcast_on_write(send, rec);
+	st = mcast_on_write(send, rec);
 	SPIN_UNLOCK(&send->mcast_lock);
 	return st;
 }
@@ -507,7 +507,7 @@ status sender_flush(sender_handle send)
 {
 	status st;
 	SPIN_LOCK(&send->mcast_lock);
-	st = sender_accum_write(send);
+	st = write_accum(send);
 	SPIN_UNLOCK(&send->mcast_lock);
 	return st;
 }

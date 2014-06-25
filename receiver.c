@@ -36,7 +36,7 @@ struct receiver_t
 	struct receiver_stats_t stats;
 };
 
-static void* receiver_mcast_proc(thread_handle thr)
+static void* mcast_func(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
@@ -50,7 +50,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 		st = sock_recvfrom(me->mcast_sock, buf, sizeof(buf));
 		if (st == BLOCKED) {
 			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_secs) {
-				error_heartbeat("receiver_mcast_proc");
+				error_heartbeat("mcast_func");
 				st = HEARTBEAT;
 				break;
 			}
@@ -68,7 +68,7 @@ static void* receiver_mcast_proc(thread_handle thr)
 
 		if (st < sizeof(*recv_seq)) {
 			errno = EPROTO;
-			error_errno("receiver_mcast_proc");
+			error_errno("mcast_func");
 			st = BAD_PROTOCOL;
 			break;
 		}
@@ -136,7 +136,7 @@ finish:
 	return (void*) (long) st;
 }
 
-static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
+static status tcp_read(thread_handle thr, char* buf, size_t sz)
 {
 	receiver_handle me = thread_get_param(thr);
 	status st = TRUE;
@@ -152,7 +152,7 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 		if (st == BLOCKED) {
 			st = OK;
 			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_secs) {
-				error_heartbeat("receiver_tcp_proc");
+				error_heartbeat("tcp_func");
 				st = HEARTBEAT;
 				break;
 			}
@@ -180,7 +180,7 @@ static status receiver_tcp_read(thread_handle thr, char* buf, size_t sz)
 	return st;
 }
 
-static void* receiver_tcp_proc(thread_handle thr)
+static void* tcp_func(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
@@ -193,7 +193,7 @@ static void* receiver_tcp_proc(thread_handle thr)
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
-		st = receiver_tcp_read(thr, buf, sizeof(*recv_seq));
+		st = tcp_read(thr, buf, sizeof(*recv_seq));
 		if (FAILED(st) || !st)
 			break;
 
@@ -203,7 +203,7 @@ static void* receiver_tcp_proc(thread_handle thr)
 		if (*recv_seq == WILL_QUIT_SEQ)
 			break;
 
-		st = receiver_tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
+		st = tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
 		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))
 			break;
 
@@ -281,8 +281,8 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->tcp_sock)) ||
-		FAILED(st = thread_create(&(*precv)->tcp_thr, receiver_tcp_proc, (void*) *precv)) ||
-		FAILED(st = thread_create(&(*precv)->mcast_thr, receiver_mcast_proc, (void*) *precv))) {
+		FAILED(st = thread_create(&(*precv)->tcp_thr, tcp_func, (void*) *precv)) ||
+		FAILED(st = thread_create(&(*precv)->mcast_thr, mcast_func, (void*) *precv))) {
 		receiver_destroy(precv);
 		return st;
 	}

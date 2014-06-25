@@ -12,10 +12,10 @@ struct thread_t
 	volatile boolean stopping;
 };
 
-status thread_create(thread_handle* pthr, thread_proc proc, void* param)
+status thread_create(thread_handle* pthr, thread_func fn, void* param)
 {
 	int e;
-	if (!pthr || !proc) {
+	if (!pthr || !fn) {
 		error_invalid_arg("thread_create");
 		return FAIL;
 	}
@@ -27,7 +27,7 @@ status thread_create(thread_handle* pthr, thread_proc proc, void* param)
 	(*pthr)->stopping = (*pthr)->running = FALSE;
 	(*pthr)->param = param;
 
-	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) proc, (void*) *pthr);
+	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) fn, (void*) *pthr);
 	if (e) {
 		errno = e;
 		error_errno("pthread_create");

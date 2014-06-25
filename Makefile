@@ -12,6 +12,7 @@ storage.c \
 table.c \
 thread.c \
 twist.c \
+uudict.c \
 xalloc.c \
 yield.c
 
@@ -341,6 +342,8 @@ thread.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 thread.o: /usr/include/x86_64-linux-gnu/bits/setjmp.h
 twist.o: twist.h status.h error.h xalloc.h /usr/include/linux/stddef.h
 twist.o: /usr/include/linux/string.h
+uudict.o: uudict.h status.h /usr/include/linux/stddef.h error.h table.h
+uudict.o: xalloc.h /usr/include/linux/string.h
 xalloc.o: xalloc.h /usr/include/linux/stddef.h /usr/include/linux/string.h
 xalloc.o: error.h /usr/include/linux/errno.h
 xalloc.o: /usr/include/x86_64-linux-gnu/asm/errno.h

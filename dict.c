@@ -7,11 +7,9 @@ struct dict_t
 {
 	table_handle sym2id;
 	table_handle id2sym;
-	boolean use_sym2id;
-	boolean use_id2sym;
 };
 
-static int dict_sym2id_hash_fn(table_key key)
+static int sym2id_hash_fn(table_key key)
 {
 	const char* p = key;
 	int c, h = 5381;
@@ -22,20 +20,20 @@ static int dict_sym2id_hash_fn(table_key key)
 	return h;
 }
 
-static boolean dict_sym2id_eq_fn(table_key key1, table_key key2)
+static boolean sym2id_eq_fn(table_key key1, table_key key2)
 {
 	return strcmp(key1, key2) == 0;
 }
 
-static void dict_sym2id_dtor_fn(table_key key, table_value val)
+static void sym2id_dtor_fn(table_key key, table_value val)
 {
 	xfree(key);
 }
 
-status dict_create(dict_handle* pdict, size_t sym2id_sz, size_t id2sym_sz)
+status dict_create(dict_handle* pdict, size_t sz)
 {
 	status st;
-	if (!pdict || (sym2id_sz == 0 && id2sym_sz == 0)) {
+	if (!pdict || sz == 0) {
 		error_invalid_arg("dict_create");
 		return FAIL;
 	}
@@ -46,13 +44,8 @@ status dict_create(dict_handle* pdict, size_t sym2id_sz, size_t id2sym_sz)
 
 	BZERO(*pdict);
 
-	(*pdict)->use_sym2id = (sym2id_sz > 0);
-	(*pdict)->use_id2sym = (id2sym_sz > 0);
-
-	if (((*pdict)->use_sym2id &&
-		 FAILED(st = table_create(&(*pdict)->sym2id, sym2id_sz, dict_sym2id_hash_fn, dict_sym2id_eq_fn, dict_sym2id_dtor_fn))) ||
-		((*pdict)->use_id2sym &&
-		 FAILED(st = table_create(&(*pdict)->id2sym, id2sym_sz, NULL, NULL, NULL)))) {
+	if (FAILED(st = table_create(&(*pdict)->sym2id, sz, sym2id_hash_fn, sym2id_eq_fn, sym2id_dtor_fn)) ||
+		FAILED(st = table_create(&(*pdict)->id2sym, sz, NULL, NULL, NULL))) {
 		dict_destroy(pdict);
 		return st;
 	}
@@ -79,38 +72,35 @@ void dict_destroy(dict_handle* pdict)
 status dict_assoc(dict_handle dict, const char* symbol, int id)
 {
 	status st;
-	const char* s;
+	const char* p;
 
 	if (!symbol) {
 		error_invalid_arg("dict_assoc");
 		return FAIL;
 	}
 
-	s = xstrdup(symbol);
-	if (!s)
+	p = xstrdup(symbol);
+	if (!p)
 		return NO_MEMORY;
 
-	if (dict->use_sym2id && FAILED(st = table_insert(dict->sym2id, (table_key) s, (table_value) (long) id)))
+	if (FAILED(st = table_insert(dict->sym2id, (table_key) p, (table_value) (long) id)))
 		return st;
 
-	return dict->use_id2sym ? table_insert(dict->id2sym, (table_key) (long) id, (table_value) s) : OK;
+	return table_insert(dict->id2sym, (table_key) (long) id, (table_value) p);
 }
 
-status dict_get_id(dict_handle dict, const char* symbol, int* pval)
+status dict_get_id(dict_handle dict, const char* symbol, int* pid)
 {
 	table_value val;
 	status st;
 
-	if (!symbol || !pval) {
+	if (!symbol || !pid) {
 		error_invalid_arg("dict_get_id");
 		return FAIL;
 	}
 
-	if (!dict->use_sym2id)
-		return FALSE;
-
 	if (!FAILED(st = table_lookup(dict->sym2id, (table_key) symbol, &val)) && st)
-		*pval = (long) val;
+		*pid = (long) val;
 
 	return st;
 }
@@ -122,8 +112,5 @@ status dict_get_symbol(dict_handle dict, int id, const char** psymbol)
 		return FAIL;
 	}
 
-	if (!dict->use_id2sym)
-		return FALSE;
-
-	return table_lookup(dict->id2sym, (table_key) (long) id, (void**) psymbol);
+	return table_lookup(dict->id2sym, (table_key) (long) id, (table_value*) (void**) psymbol);
 }

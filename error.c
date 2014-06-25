@@ -5,25 +5,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-static error_proc error_custom_proc;
+static error_func error_custom_fn;
 static char error_desc[128], save_desc[128];
 static int error_code, save_code;
 static boolean save_used;
 
-static void error_capture(const char* func, int code)
+static void capture(const char* func, int code)
 {
 	error_code = code;
 	sprintf(error_desc, "%s: %s\n", func, strerror(code));
 
-	if (error_custom_proc)
-		error_custom_proc(code, error_desc);
+	if (error_custom_fn)
+		error_custom_fn(code, error_desc);
 }
 
-error_proc error_set_proc(error_proc new_proc)
+error_func error_set_func(error_func new_fn)
 {
-	error_proc old_proc = error_custom_proc;
-	error_custom_proc = new_proc;
-	return old_proc;
+	error_func old_fn = error_custom_fn;
+	error_custom_fn = new_fn;
+	return old_fn;
 }
 
 int error_last_code(void)
@@ -47,8 +47,8 @@ void error_eof(const char* func)
 	error_code = EOF;
 	sprintf(error_desc, "%s: end of file\n", func);
 
-	if (error_custom_proc)
-		error_custom_proc(error_code, error_desc);
+	if (error_custom_fn)
+		error_custom_fn(error_code, error_desc);
 }
 
 void error_errno(const char* func)
@@ -59,7 +59,7 @@ void error_errno(const char* func)
 		return;
 	}
 
-	error_capture(func, errno);
+	capture(func, errno);
 }
 
 void error_heartbeat(const char* func)
@@ -70,7 +70,7 @@ void error_heartbeat(const char* func)
 		return;
 	}
 
-	error_capture(func, ETIMEDOUT);
+	capture(func, ETIMEDOUT);
 }
 
 void error_invalid_arg(const char* func)
@@ -81,7 +81,7 @@ void error_invalid_arg(const char* func)
 		return;
 	}
 
-	error_capture(func, EINVAL);
+	capture(func, EINVAL);
 }
 
 void error_unimplemented(const char* func)
@@ -92,7 +92,7 @@ void error_unimplemented(const char* func)
 		return;
 	}
 
-	error_capture(func, ENOSYS);
+	capture(func, ENOSYS);
 }
 
 void error_save_last(void)
