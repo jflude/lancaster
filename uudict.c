@@ -11,7 +11,7 @@ struct uudict_t
 
 static int uu2id_hash_fn(table_key key)
 {
-	const char *p = key, *q = p + sizeof(struct uuid_t);
+	const char *p = key, *q = p + sizeof(union uuid_t);
 	int h = 5381;
 
 	while (p < q)
@@ -22,8 +22,8 @@ static int uu2id_hash_fn(table_key key)
 
 static boolean uu2id_eq_fn(table_key key1, table_key key2)
 {
-	struct uuid_t *uu1 = key1, *uu2 = key2;
-	return uu1->low == uu2->low && uu1->high == uu2->high;
+	union uuid_t *uu1 = key1, *uu2 = key2;
+	return uu1->word.low == uu2->word.low && uu1->word.high == uu2->word.high;
 }
 
 static void uu2id_dtor_fn(table_key key, table_value val)
@@ -70,10 +70,10 @@ void uudict_destroy(uudict_handle* puudict)
 	*puudict = NULL;
 }
 
-status uudict_assoc(uudict_handle uudict, struct uuid_t uu, int id)
+status uudict_assoc(uudict_handle uudict, union uuid_t uu, int id)
 {
 	status st = OK;
-	struct uuid_t* p = XMALLOC(struct uuid_t);
+	union uuid_t* p = XMALLOC(union uuid_t);
 	if (!p)
 		return NO_MEMORY;
 
@@ -85,7 +85,7 @@ status uudict_assoc(uudict_handle uudict, struct uuid_t uu, int id)
 	return table_insert(uudict->id2uu, (table_key) (long) id, (table_value) p);
 }
 
-status uudict_get_id(uudict_handle uudict, struct uuid_t uu, int* pid)
+status uudict_get_id(uudict_handle uudict, union uuid_t uu, int* pid)
 {
 	table_value val;
 	status st;
@@ -101,7 +101,7 @@ status uudict_get_id(uudict_handle uudict, struct uuid_t uu, int* pid)
 	return st;
 }
 
-status uudict_get_uuid(uudict_handle uudict, int id, struct uuid_t** ppuu)
+status uudict_get_uuid(uudict_handle uudict, int id, union uuid_t** ppuu)
 {
 	if (!ppuu) {
 		error_invalid_arg("uudict_get_uuid");
