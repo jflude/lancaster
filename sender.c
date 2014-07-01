@@ -491,15 +491,18 @@ void sender_destroy(sender_handle* psend)
 
 status sender_record_changed(sender_handle send, record_handle rec)
 {
-	status st;
+	status st = OK;
 	if (!rec) {
 		error_invalid_arg("sender_record_changed");
 		return FAIL;
 	}
 
-	SPIN_LOCK(&send->mcast_lock);
-	st = mcast_on_write(send, rec);
-	SPIN_UNLOCK(&send->mcast_lock);
+	if (poll_get_count(send->poller) > 1) {
+		SPIN_LOCK(&send->mcast_lock);
+		st = mcast_on_write(send, rec);
+		SPIN_UNLOCK(&send->mcast_lock);
+	}
+
 	return st;
 }
 
