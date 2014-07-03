@@ -29,6 +29,7 @@ struct receiver_t
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
 	storage_handle store;
+	size_t mcast_mtu;
 	long next_seq;
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
@@ -40,14 +41,14 @@ static void* mcast_func(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
+	char* buf = alloca(me->mcast_mtu);
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		char buf[MTU_BYTES];
 		const char *p, *last;
 		long* recv_seq = (long*) buf;
 
-		st = sock_recvfrom(me->mcast_sock, buf, sizeof(buf));
+		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
 			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_secs) {
 				error_heartbeat("mcast_func");
@@ -257,14 +258,16 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %d %d %lu %d", &proto_ver, mcast_addr, &mcast_port, &base_id, &max_id, &val_size, &hb_secs);
+	st = sscanf(buf, "%d %31s %d %lu %d %d %lu %d",
+				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &hb_secs);
+
 	if (st == EOF) {
 		errno = EPROTO;
 		error_errno("receiver_create");
 		return BAD_PROTOCOL;
 	}	
 
-	if (st != 7 || proto_ver != STORAGE_VERSION) {
+	if (st != 8 || proto_ver != STORAGE_VERSION) {
 		errno = EPROTONOSUPPORT;
 		error_errno("receiver_create");
 		return BAD_PROTOCOL;

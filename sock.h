@@ -6,7 +6,8 @@
 #include "status.h"
 #include <stddef.h>
 
-#define MTU_BYTES 1500
+#define IP_OVERHEAD 20
+#define UDP_OVERHEAD 8
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,6 +22,9 @@ void sock_destroy(sock_handle* psock);
 int sock_get_descriptor(sock_handle sock);
 void* sock_get_property(sock_handle sock);
 void sock_set_property(sock_handle sock, void* prop);
+
+status sock_get_interface(const char* dest_ip, char** pdevice);
+status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 
 status sock_nonblock(sock_handle sock);
 status sock_shutdown(sock_handle sock, int how);

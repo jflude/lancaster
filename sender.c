@@ -33,6 +33,7 @@ struct sender_t
 	poll_handle poller;
 	accum_handle mcast_accum;
 	storage_handle store;
+	size_t mcast_mtu;
 	size_t val_size;
 	long next_seq;
 	long min_store_seq;
@@ -411,6 +412,21 @@ static void* tcp_func(thread_handle thr)
 	return (void*) (long) st;
 }
 
+static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
+{
+	char* device;
+	status st;
+
+	if (!FAILED(st = sock_get_interface(dest_ip, &device))) {
+		if (!FAILED(st = sock_get_mtu(sock, device, pmtu)))
+			*pmtu -= IP_OVERHEAD + UDP_OVERHEAD;
+
+		xfree(device);
+	}
+
+	return st;
+}
+
 status sender_create(sender_handle* psend, storage_handle store, int hb_secs, boolean conflate_packet,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
 {
@@ -443,19 +459,32 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 	(*psend)->last_mcast_send = time(NULL);
 	(*psend)->conflate_pkt = conflate_packet;
 
-	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
-								  STORAGE_VERSION, mcast_addr, mcast_port,
-								  storage_get_base_id(store), storage_get_max_id(store),
-								  storage_get_value_size(store), (*psend)->heartbeat_secs);
+	if (FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+		FAILED(st = get_udp_mtu((*psend)->mcast_sock, mcast_addr, &(*psend)->mcast_mtu))) {
+		sender_destroy(psend);
+		return st;
+	}
+
+	(*psend)->hello_len = snprintf((*psend)->hello_str, sizeof((*psend)->hello_str),
+								   "%d\r\n%s\r\n%d\r\n%lu\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
+								   STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
+								   storage_get_base_id(store), storage_get_max_id(store),
+								   storage_get_value_size(store), (*psend)->heartbeat_secs);
 
 	if ((*psend)->hello_len < 0) {
-		error_errno("sprintf");
+		error_errno("snprintf");
 		sender_destroy(psend);
 		return FAIL;
 	}
 
-	if (FAILED(st = accum_create(&(*psend)->mcast_accum, MTU_BYTES, MAX_AGE_MILLISEC * 1000)) ||
-		FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+	if ((*psend)->hello_len >= sizeof((*psend)->hello_str)) {
+		errno = ENOBUFS;
+		error_errno("snprintf");
+		sender_destroy(psend);
+		return FAIL;
+	}
+
+	if (FAILED(st = accum_create(&(*psend)->mcast_accum, (*psend)->mcast_mtu, MAX_AGE_MILLISEC * 1000)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||

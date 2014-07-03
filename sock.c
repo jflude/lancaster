@@ -3,12 +3,23 @@
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#if defined(SIOCRIPMTU) && defined(SIOCSIPMTU)
+#define SIOCGIFMTU SIOCRIPMTU
+#define SIOCSIFMTU SIOCSIPMTU
+#endif
+
+#if !defined(ifr_mtu) && defined(ifr_metric)
+#define ifr_mtu ifr_metric
+#endif
 
 struct sock_t
 {
@@ -78,6 +89,71 @@ void* sock_get_property(sock_handle sock)
 void sock_set_property(sock_handle sock, void* prop)
 {
 	sock->property = prop;
+}
+
+status sock_get_interface(const char* dest_ip, char** pdevice)
+{
+	char out[256], cmd[256] = "ip route get ";
+	FILE* f;
+	int n;
+
+	if (!dest_ip || !pdevice) {
+		error_invalid_arg("sock_get_interface");
+		return FAIL;
+	}
+
+	strncat(cmd, dest_ip, sizeof(cmd) - strlen(cmd) - 2);
+	fflush(NULL);
+
+	errno = ENOMEM;
+	f = popen(cmd, "r");
+	if (!f) {
+		error_errno("popen");
+		return FAIL;
+	}
+
+loop:
+	if ((n = fscanf(f, "%*s %*s %*s %255s", out)) == EOF) {
+		if (errno == EINTR)
+			goto loop;
+
+		error_errno("fscanf");
+		return FAIL;
+	}
+
+	if (n != 1) {
+		errno = EILSEQ;
+		error_errno("sock_get_interface");
+		return FAIL;
+	}
+
+	if (pclose(f) == -1) {
+		error_errno("pclose");
+		return FAIL;
+	}
+
+	*pdevice = xstrdup(out);
+	return *pdevice ? OK : NO_MEMORY;
+}
+
+status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
+{
+	struct ifreq ifr;
+	if (!device || !pmtu) {
+		error_invalid_arg("sock_get_mtu");
+		return FAIL;
+	}
+
+	BZERO(&ifr);
+	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+
+	if (ioctl(sock->fd, SIOCGIFMTU, &ifr) == -1) {
+		error_errno("ioctl");
+		return FAIL;
+	}
+
+	*pmtu = ifr.ifr_mtu;
+	return OK;
 }
 
 status sock_nonblock(sock_handle sock)

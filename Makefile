@@ -233,25 +233,28 @@ sock.o: /usr/include/asm-generic/bitsperlong.h
 sock.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 sock.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 sock.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-sock.o: /usr/include/linux/unistd.h
-sock.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
-sock.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
-sock.o: /usr/include/arpa/inet.h /usr/include/features.h
+sock.o: /usr/include/stdio.h /usr/include/features.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 sock.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 sock.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
-sock.o: /usr/include/netinet/in.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/types.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h
+sock.o: /usr/include/_G_config.h /usr/include/wchar.h
+sock.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+sock.o: /usr/include/linux/unistd.h
+sock.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
+sock.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+sock.o: /usr/include/arpa/inet.h /usr/include/netinet/in.h
 sock.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h
 sock.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint-gcc.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/uio.h
-sock.o: /usr/include/x86_64-linux-gnu/sys/types.h
-sock.o: /usr/include/x86_64-linux-gnu/bits/types.h
-sock.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-sock.o: /usr/include/linux/time.h /usr/include/endian.h
-sock.o: /usr/include/x86_64-linux-gnu/bits/endian.h
+sock.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/linux/time.h
+sock.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/select.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/select.h
@@ -265,7 +268,7 @@ sock.o: /usr/include/x86_64-linux-gnu/asm/socket.h
 sock.o: /usr/include/asm-generic/socket.h
 sock.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 sock.o: /usr/include/asm-generic/sockios.h
-sock.o: /usr/include/x86_64-linux-gnu/bits/in.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/in.h /usr/include/net/if.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/ioctl.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/ioctls.h
 sock.o: /usr/include/x86_64-linux-gnu/asm/ioctls.h
