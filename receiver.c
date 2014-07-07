@@ -137,14 +137,13 @@ finish:
 	return (void*) (long) st;
 }
 
-static status tcp_read(thread_handle thr, char* buf, size_t sz)
+static status tcp_read(receiver_handle me, char* buf, size_t sz)
 {
-	receiver_handle me = thread_get_param(thr);
 	status st = TRUE;
 	size_t bytes_in = 0;
 
 	while (sz > 0) {
-		if (thread_is_stopping(thr)) {
+		if (thread_is_stopping(me->tcp_thr)) {
 			st = FALSE;
 			break;
 		}
@@ -194,7 +193,7 @@ static void* tcp_func(thread_handle thr)
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
-		st = tcp_read(thr, buf, sizeof(*recv_seq));
+		st = tcp_read(me, buf, sizeof(*recv_seq));
 		if (FAILED(st) || !st)
 			break;
 
@@ -204,7 +203,7 @@ static void* tcp_func(thread_handle thr)
 		if (*recv_seq == WILL_QUIT_SEQ)
 			break;
 
-		st = tcp_read(thr, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
+		st = tcp_read(me, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
 		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))
 			break;
 

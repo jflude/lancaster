@@ -285,40 +285,64 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 static status tcp_on_read(sender_handle me, sock_handle sock)
 {
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
+	long gap_inc = 0;
 	status st;
 
-	char* p = (void*) &req_param->range;
-	size_t sz = sizeof(req_param->range);
+	req_param->range.low = LONG_MAX;
+	req_param->range.high = LONG_MIN;
 
-	while (sz > 0) {
-		st = sock_read(sock, p, sz);
-		if (st == CLOSED || st == TIMEDOUT)
-			return tcp_on_hup(me, sock);
-		else if (st == BLOCKED) {
-			snooze();
-			continue;
-		} else if (FAILED(st))
-			return st;
+	for (;;) {
+		struct storage_seq_range_t range;
+		char* p = (void*) &range;
+		size_t sz = sizeof(range);
 
-		p += st;
-		sz -= st;
+		while (sz > 0) {
+			if (thread_is_stopping(me->tcp_thr))
+				return OK;
+
+			st = sock_read(sock, p, sz);
+			if (st == CLOSED || st == TIMEDOUT)
+				return tcp_on_hup(me, sock);
+			else if (st == BLOCKED) {
+				if (sz == sizeof(range))
+					goto read_all;
+
+				snooze();
+				continue;
+			} else if (FAILED(st))
+				return st;
+
+			p += st;
+			sz -= st;
+		}
+
+		if (range.low >= range.high) {
+			errno = EPROTO;
+			error_errno("tcp_on_read");
+			return BAD_PROTOCOL;
+		}
+
+		gap_inc++;
+
+		if (range.low < req_param->range.low)
+			req_param->range.low = range.low;
+
+		if (range.high > req_param->range.high)
+			req_param->range.high = range.high;
 	}
+
+read_all:
+	if (gap_inc == 0)
+		return OK;
 
 	SPIN_LOCK(&me->stats.lock);
-	me->stats.tcp_gap_count++;
+	me->stats.tcp_gap_count += gap_inc;
 	SPIN_UNLOCK(&me->stats.lock);
-
-	if (req_param->range.low >= req_param->range.high) {
-		errno = EPROTO;
-		error_errno("tcp_on_read");
-		return BAD_PROTOCOL;
-	}
 
 	if (req_param->range.high <= me->min_store_seq)
 		return OK;
 
 	req_param->min_store_seq_seen = LONG_MAX;
-
 	return poll_set_event(me->poller, sock, POLLOUT);
 }
 
