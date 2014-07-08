@@ -362,7 +362,7 @@ static status tcp_event_func(poll_handle poller, sock_handle sock, short* revent
 	return OK;
 }
 
-static status mcast_check_stale_or_heartbeat(sender_handle me)
+static status mcast_check_heartbeat_or_stale(sender_handle me)
 {
 	status st = OK;
 	if (SPIN_TRY_LOCK(&me->mcast_lock)) {
@@ -385,11 +385,10 @@ static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, sho
 	sender_handle me = param;
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
 
-	if (sock == me->listen_sock || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
+	if (sock == me->listen_sock || *events & POLLOUT || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
 		return OK;
 
 	*req_param->send_seq = HEARTBEAT_SEQ;
-
 	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->next_send = req_param->send_buf;
 	req_param->sending_hb = TRUE;
@@ -402,21 +401,12 @@ static void* tcp_func(thread_handle thr)
 	sender_handle me = thread_get_param(thr);
 	status st = OK, st2;
 
-	while (!thread_is_stopping(thr)) {
-		if (FAILED(st = mcast_check_stale_or_heartbeat(me)) ||
-			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)))
+	while (!thread_is_stopping(thr))
+		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
+			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, (void*) me)) ||
+			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)) ||
+			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, (void*) me))))
 			break;
-
-		if (st == 0) {
-			if (FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, (void*) me)))
-				break;
-
-			continue;
-		}
-
-		if (FAILED(st = poll_process_events(me->poller, tcp_event_func, (void*) me)))
-			break;
-	}
 
 	st2 = poll_remove(me->poller, me->listen_sock);
 	if (!FAILED(st))
