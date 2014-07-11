@@ -17,9 +17,9 @@
 struct receiver_stats_t
 {
 	spin_lock_t lock;
-	long tcp_gap_count;
-	long tcp_bytes_recv;
-	long mcast_bytes_recv;
+	size_t tcp_gap_count;
+	size_t tcp_bytes_recv;
+	size_t mcast_bytes_recv;
 };
 
 struct receiver_t
@@ -338,26 +338,26 @@ status receiver_stop(receiver_handle recv)
 	return FAILED(st) ? st : st2;
 }
 
-static long receiver_get_stat(receiver_handle me, long* pval)
+static size_t get_stat(receiver_handle me, const size_t* pval)
 {
-	long n;
+	size_t n;
 	SPIN_LOCK(&me->stats.lock);
 	n = *pval;
 	SPIN_UNLOCK(&me->stats.lock);
 	return n;
 }
 
-long receiver_get_tcp_gap_count(receiver_handle recv)
+size_t receiver_get_tcp_gap_count(receiver_handle recv)
 {
-	return receiver_get_stat(recv, &recv->stats.tcp_gap_count);
+	return get_stat(recv, &recv->stats.tcp_gap_count);
 }
 
-long receiver_get_tcp_bytes_recv(receiver_handle recv)
+size_t receiver_get_tcp_bytes_recv(receiver_handle recv)
 {
-	return receiver_get_stat(recv, &recv->stats.tcp_bytes_recv);
+	return get_stat(recv, &recv->stats.tcp_bytes_recv);
 }
 
-long receiver_get_mcast_bytes_recv(receiver_handle recv)
+size_t receiver_get_mcast_bytes_recv(receiver_handle recv)
 {
-	return receiver_get_stat(recv, &recv->stats.mcast_bytes_recv);
+	return get_stat(recv, &recv->stats.mcast_bytes_recv);
 }

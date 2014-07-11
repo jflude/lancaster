@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 	int verbose = 0;
 	int i = 1;
 	time_t t1 = time(NULL);
-	long tcp_c = 0, mcast_c = 0;
+	size_t tcp_c = 0, mcast_c = 0;
 
 	if (argc < 5 || argc > 6) {
 		fprintf(stderr, "Syntax: %s [-v|--verbose] [tcp address] [tcp port] [change queue size] [storage file]\n", argv[0]);
@@ -42,8 +42,8 @@ int main(int argc, char* argv[])
 		if (verbose) {
 			time_t t2 = time(NULL);
 			if (t2 != t1) {
-				long tcp_c2 = receiver_get_tcp_bytes_recv(recv);
-				long mcast_c2 = receiver_get_mcast_bytes_recv(recv);
+				size_t tcp_c2 = receiver_get_tcp_bytes_recv(recv);
+				size_t mcast_c2 = receiver_get_mcast_bytes_recv(recv);
 
 				printf("GAPS: %ld TCP: %ld bytes/sec MCAST: %ld bytes/sec          \r",
 					   receiver_get_tcp_gap_count(recv),

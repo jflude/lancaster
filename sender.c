@@ -20,9 +20,9 @@
 struct sender_stats_t
 {
 	spin_lock_t lock;
-	long tcp_gap_count;
-	long tcp_bytes_sent;
-	long mcast_bytes_sent;
+	size_t tcp_gap_count;
+	size_t tcp_bytes_sent;
+	size_t mcast_bytes_sent;
 };
 
 struct sender_t
@@ -285,7 +285,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 static status tcp_on_read(sender_handle me, sock_handle sock)
 {
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
-	long gap_inc = 0;
+	size_t gap_inc = 0;
 	status st;
 
 	req_param->range.low = LONG_MAX;
@@ -581,28 +581,28 @@ status sender_stop(sender_handle send)
 	return st;
 }
 
-static long sender_get_stat(sender_handle me, long* pval)
+static size_t get_stat(sender_handle me, const size_t* pval)
 {
-	long n;
+	size_t n;
 	SPIN_LOCK(&me->stats.lock);
 	n = *pval;
 	SPIN_UNLOCK(&me->stats.lock);
 	return n;
 }
 
-long sender_get_tcp_gap_count(sender_handle send)
+size_t sender_get_tcp_gap_count(sender_handle send)
 {
-	return sender_get_stat(send, &send->stats.tcp_gap_count);
+	return get_stat(send, &send->stats.tcp_gap_count);
 }
 
-long sender_get_tcp_bytes_sent(sender_handle send)
+size_t sender_get_tcp_bytes_sent(sender_handle send)
 {
-	return sender_get_stat(send, &send->stats.tcp_bytes_sent);
+	return get_stat(send, &send->stats.tcp_bytes_sent);
 }
 
-long sender_get_mcast_bytes_sent(sender_handle send)
+size_t sender_get_mcast_bytes_sent(sender_handle send)
 {
-	return sender_get_stat(send, &send->stats.mcast_bytes_sent);
+	return get_stat(send, &send->stats.mcast_bytes_sent);
 }
 
 int sender_get_subscriber_count(sender_handle send)

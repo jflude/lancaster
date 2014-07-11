@@ -91,7 +91,7 @@ dump.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 dict.o: dict.h status.h /usr/include/linux/stddef.h error.h table.h xalloc.h
 dict.o: /usr/include/linux/string.h
-error.o: error.h status.h /usr/include/linux/errno.h
+error.o: error.h spin.h barrier.h yield.h status.h /usr/include/linux/errno.h
 error.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 error.o: /usr/include/asm-generic/errno.h
 error.o: /usr/include/asm-generic/errno-base.h /usr/include/stdio.h

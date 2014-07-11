@@ -1,39 +1,50 @@
 #include "error.h"
+#include "spin.h"
 #include "status.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static error_func error_custom_fn;
-static char error_desc[128], save_desc[128];
-static int error_code, save_code;
-static boolean save_used;
+static spin_lock_t capture_lock;
+static error_func custom_fn;
+static char last_desc[128], saved_desc[128];
+static int last_code, saved_code;
+static boolean is_saved;
 
 static void capture(const char* func, int code)
 {
-	error_code = code;
-	sprintf(error_desc, "%s: %s\n", func, strerror(code));
+	SPIN_LOCK(&capture_lock);
 
-	if (error_custom_fn)
-		error_custom_fn(code, error_desc);
+	last_code = code;
+	sprintf(last_desc, "%s: %s\n", func, strerror(last_code));
+
+	if (custom_fn)
+		custom_fn(last_code, last_desc);
+
+	SPIN_UNLOCK(&capture_lock);
 }
 
 error_func error_set_func(error_func new_fn)
 {
-	error_func old_fn = error_custom_fn;
-	error_custom_fn = new_fn;
+	error_func old_fn;
+	SPIN_LOCK(&capture_lock);
+
+	old_fn = custom_fn;
+	custom_fn = new_fn;
+
+	SPIN_UNLOCK(&capture_lock);
 	return old_fn;
 }
 
 int error_last_code(void)
 {
-	return error_code;
+	return last_code;
 }
 
 const char* error_last_desc(void)
 {
-	return error_desc;
+	return last_desc;
 }
 
 void error_eof(const char* func)
@@ -44,11 +55,15 @@ void error_eof(const char* func)
 		return;
 	}
 
-	error_code = EOF;
-	sprintf(error_desc, "%s: end of file\n", func);
+	SPIN_LOCK(&capture_lock);
 
-	if (error_custom_fn)
-		error_custom_fn(error_code, error_desc);
+	last_code = EOF;
+	sprintf(last_desc, "%s: end of file\n", func);
+
+	if (custom_fn)
+		custom_fn(last_code, last_desc);
+
+	SPIN_UNLOCK(&capture_lock);
 }
 
 void error_errno(const char* func)
@@ -97,20 +112,28 @@ void error_unimplemented(const char* func)
 
 void error_save_last(void)
 {
-	if (!save_used) {
-		save_code = error_code;
-		strcpy(save_desc, error_desc);
-		save_used = TRUE;
+	SPIN_LOCK(&capture_lock);
+
+	if (!is_saved) {
+		saved_code = last_code;
+		strcpy(saved_desc, last_desc);
+		is_saved = TRUE;
 	}
+
+	SPIN_UNLOCK(&capture_lock);
 }
 
 void error_restore_last(void)
 {
-	if (save_used) {
-		error_code = save_code;
-		strcpy(error_desc, save_desc);
-		save_used = FALSE;
+	SPIN_LOCK(&capture_lock);
+
+	if (is_saved) {
+		last_code = saved_code;
+		strcpy(last_desc, saved_desc);
+		is_saved = FALSE;
 	}
+
+	SPIN_UNLOCK(&capture_lock);
 }
 
 void error_report_fatal(void)

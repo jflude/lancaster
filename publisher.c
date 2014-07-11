@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
 	int mcast_port, tcp_port;
 	int verbose = 0;
 	time_t t1 = time(NULL);
-	long tcp_c = 0, mcast_c = 0;
+	size_t tcp_c = 0, mcast_c = 0;
 
 	if (argc < 6 || argc > 7) {
 		fprintf(stderr, "Syntax: %s [-v|--verbose] [speed] [mcast address] [mcast port] [tcp address] [tcp port]\n", argv[0]);
@@ -63,8 +63,8 @@ int main(int argc, char* argv[])
 				if (verbose) {
 					time_t t2 = time(NULL);
 					if (t2 != t1) {
-						long tcp_c2 = sender_get_tcp_bytes_sent(sender);
-						long mcast_c2 = sender_get_mcast_bytes_sent(sender);
+						size_t tcp_c2 = sender_get_tcp_bytes_sent(sender);
+						size_t mcast_c2 = sender_get_mcast_bytes_sent(sender);
 
 						printf("GAPS: %ld TCP: %ld bytes/sec MCAST: %ld bytes/sec          \r",
 							   sender_get_tcp_gap_count(sender),
