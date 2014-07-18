@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 	int tcp_port;
 	const char* storage_file;
 	int q_capacity;
-	int verbose = 0;
+	boolean verbose = FALSE;
 	int i = 1;
 	time_t t1 = time(NULL);
 	size_t tcp_c = 0, mcast_c = 0;
@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
-		verbose = 1;
+		verbose = TRUE;
 		i++;
 	}
 

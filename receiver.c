@@ -283,8 +283,8 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->tcp_sock)) ||
-		FAILED(st = thread_create(&(*precv)->tcp_thr, tcp_func, (void*) *precv)) ||
-		FAILED(st = thread_create(&(*precv)->mcast_thr, mcast_func, (void*) *precv))) {
+		FAILED(st = thread_create(&(*precv)->tcp_thr, tcp_func, *precv)) ||
+		FAILED(st = thread_create(&(*precv)->mcast_thr, mcast_func, *precv))) {
 		receiver_destroy(precv);
 		return st;
 	}

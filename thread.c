@@ -27,7 +27,7 @@ status thread_create(thread_handle* pthr, thread_func fn, void* param)
 	(*pthr)->stopping = (*pthr)->running = FALSE;
 	(*pthr)->param = param;
 
-	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) fn, (void*) *pthr);
+	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) fn, *pthr);
 	if (e) {
 		errno = e;
 		error_errno("pthread_create");

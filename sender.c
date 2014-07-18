@@ -403,9 +403,9 @@ static void* tcp_func(thread_handle thr)
 
 	while (!thread_is_stopping(thr))
 		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
-			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, (void*) me)) ||
+			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, me)) ||
 			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)) ||
-			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, (void*) me))))
+			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, me))))
 			break;
 
 	st2 = poll_remove(me->poller, me->listen_sock);
@@ -505,7 +505,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, (void*) *psend))) {
+		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, *psend))) {
 		sender_destroy(psend);
 		return st;
 	}

@@ -3,11 +3,15 @@
 #include "datum.h"
 #include "error.h"
 #include "sender.h"
+#include "signals.h"
 #include "yield.h"
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#define MAX_ITERATIONS 1000000000
 
 int main(int argc, char* argv[])
 {
@@ -17,7 +21,7 @@ int main(int argc, char* argv[])
 	int mask, n = 0, i = 1;
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
-	int verbose = 0;
+	boolean verbose = FALSE;
 	time_t t1 = time(NULL);
 	size_t tcp_c = 0, mcast_c = 0;
 
@@ -27,7 +31,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
-		verbose = 1;
+		verbose = TRUE;
 		i++;
 	}
 
@@ -38,10 +42,15 @@ int main(int argc, char* argv[])
 	tcp_port = atoi(argv[i++]);
 
 	if (FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)) ||
+		FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)))
 		error_report_fatal();
 
-	while (sender_is_running(sender) && n < 1000000000) {
+	while (n < MAX_ITERATIONS) {
+		if (!sender_is_running(sender) || signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+			break;
+
 		for (i = 0; i < MAX_ID; ++i) {
 			record_handle rec;
 			struct datum_t* d;
@@ -86,7 +95,10 @@ finish:
 	if (verbose)
 		putchar('\n');
 
-	if ((st != BLOCKED && FAILED(st)) || FAILED(sender_stop(sender)))
+	if ((st != BLOCKED && FAILED(st)) ||
+		FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)) ||
+		FAILED(sender_stop(sender)))
 		error_report_fatal();
 
 	sender_destroy(&sender);

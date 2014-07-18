@@ -7,6 +7,7 @@ error.c \
 poll.c \
 receiver.c \
 sender.c \
+signals.c \
 sock.c \
 storage.c \
 table.c \
@@ -219,6 +220,20 @@ sender.o: /usr/include/x86_64-linux-gnu/asm/socket.h
 sender.o: /usr/include/asm-generic/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 sender.o: /usr/include/asm-generic/sockios.h
+signals.o: signals.h status.h error.h /usr/include/linux/signal.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/signal.h
+signals.o: /usr/include/linux/types.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/types.h
+signals.o: /usr/include/asm-generic/types.h
+signals.o: /usr/include/asm-generic/int-ll64.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+signals.o: /usr/include/asm-generic/bitsperlong.h
+signals.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+signals.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
+signals.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
+signals.o: /usr/include/asm-generic/siginfo.h /usr/include/linux/stddef.h
 sock.o: sock.h status.h /usr/include/linux/stddef.h error.h xalloc.h
 sock.o: /usr/include/linux/string.h /usr/include/linux/errno.h
 sock.o: /usr/include/x86_64-linux-gnu/asm/errno.h
@@ -381,7 +396,21 @@ yield.o: yield.h /usr/include/linux/sched.h /usr/include/linux/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 publisher.o: datum.h error.h sender.h storage.h spin.h barrier.h yield.h
-publisher.o: status.h /usr/include/linux/stddef.h /usr/include/stdio.h
+publisher.o: status.h /usr/include/linux/stddef.h signals.h
+publisher.o: /usr/include/linux/signal.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/signal.h
+publisher.o: /usr/include/linux/types.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/types.h
+publisher.o: /usr/include/asm-generic/types.h
+publisher.o: /usr/include/asm-generic/int-ll64.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+publisher.o: /usr/include/asm-generic/bitsperlong.h
+publisher.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+publisher.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
+publisher.o: /usr/include/asm-generic/siginfo.h /usr/include/stdio.h
 publisher.o: /usr/include/features.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
@@ -396,16 +425,7 @@ publisher.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
 publisher.o: /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/sys/types.h
-publisher.o: /usr/include/linux/time.h /usr/include/linux/types.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/types.h
-publisher.o: /usr/include/asm-generic/types.h
-publisher.o: /usr/include/asm-generic/int-ll64.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
-publisher.o: /usr/include/asm-generic/bitsperlong.h
-publisher.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-publisher.o: /usr/include/endian.h
+publisher.o: /usr/include/linux/time.h /usr/include/endian.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/select.h
