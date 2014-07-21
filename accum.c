@@ -68,7 +68,7 @@ size_t accum_get_available(accum_handle acc)
 
 status accum_store(accum_handle acc, const void* data, size_t size, void** pstored)
 {
-	if (!data || size == 0 || size > acc->capacity) {
+	if (size == 0 || size > acc->capacity) {
 		error_invalid_arg("accum_store");
 		return FAIL;
 	}
@@ -79,7 +79,9 @@ status accum_store(accum_handle acc, const void* data, size_t size, void** pstor
 	if (pstored)
 		*pstored = acc->next_free;
 
-	memcpy(acc->next_free, data, size);
+	if (data)
+		memcpy(acc->next_free, data, size);
+
 	acc->next_free += size;
 
 	if (acc->insert_time.tv_sec == NO_TIME && gettimeofday(&acc->insert_time, NULL) == -1) {

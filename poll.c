@@ -55,7 +55,7 @@ void poll_destroy(poll_handle* ppoller)
 
 int poll_get_count(poll_handle poller)
 {
-	return poller->count;
+	return poller->free_slot;
 }
 
 status poll_add(poll_handle poller, sock_handle sock, short events)

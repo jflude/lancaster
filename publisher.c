@@ -11,8 +11,6 @@
 #include <string.h>
 #include <time.h>
 
-#define MAX_ITERATIONS 1000000000
-
 int main(int argc, char* argv[])
 {
 	storage_handle store;
@@ -22,8 +20,8 @@ int main(int argc, char* argv[])
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
 	boolean verbose = FALSE;
-	time_t t1 = time(NULL);
-	size_t tcp_c = 0, mcast_c = 0;
+	size_t pkt_c, tcp_c, mcast_c;
+	time_t t1;
 
 	if (argc < 6 || argc > 7) {
 		fprintf(stderr, "Syntax: %s [-v|--verbose] [speed] [mcast address] [mcast port] [tcp address] [tcp port]\n", argv[0]);
@@ -47,10 +45,12 @@ int main(int argc, char* argv[])
 		FAILED(signal_add_handler(SIGTERM)))
 		error_report_fatal();
 
-	while (n < MAX_ITERATIONS) {
-		if (!sender_is_running(sender) || signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
-			break;
+	t1 = time(NULL);
+	pkt_c = sender_get_mcast_packets_sent(sender);
+	tcp_c = sender_get_tcp_bytes_sent(sender);
+	mcast_c = sender_get_mcast_bytes_sent(sender);
 
+	while (sender_is_running(sender) && !signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM))
 		for (i = 0; i < MAX_ID; ++i) {
 			record_handle rec;
 			struct datum_t* d;
@@ -72,15 +72,20 @@ int main(int argc, char* argv[])
 				if (verbose) {
 					time_t t2 = time(NULL);
 					if (t2 != t1) {
+						time_t elapsed = t2 - t1;
+						size_t pkt_c2 = sender_get_mcast_packets_sent(sender);
 						size_t tcp_c2 = sender_get_tcp_bytes_sent(sender);
 						size_t mcast_c2 = sender_get_mcast_bytes_sent(sender);
 
-						printf("GAPS: %ld TCP: %ld bytes/sec MCAST: %ld bytes/sec          \r",
+						printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f          \r",
+							   sender_get_subscriber_count(sender),
+							   (pkt_c2 - pkt_c) / elapsed,
 							   sender_get_tcp_gap_count(sender),
-							   (tcp_c2 - tcp_c) / (t2 - t1),
-							   (mcast_c2 - mcast_c) / (t2 - t1));
+							   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
+							   (mcast_c2 - mcast_c) / 1024.0 / elapsed);
 
 						t1 = t2;
+						pkt_c = pkt_c2;
 						tcp_c = tcp_c2;
 						mcast_c = mcast_c2;
 				
@@ -89,7 +94,6 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
-	}
 
 finish:
 	if (verbose)

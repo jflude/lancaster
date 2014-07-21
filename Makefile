@@ -17,9 +17,10 @@ uudict.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -pthread -fPIC -D_POSIX_C_SOURCE=1 -D_BSD_SOURCE -g
-LDFLAGS = -pthread
 DEPFLAGS = -I/usr/include/linux -I/usr/include/x86_64-linux-gnu -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
+CFLAGS = -ansi -pedantic -Wall -pthread -fPIC -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+LDFLAGS = -pthread
+LDLIBS = -lrt -lm
 OBJS = $(SRCS:.c=.o)
 
 all: publisher subscriber listener
@@ -123,8 +124,9 @@ error.o: /usr/include/x86_64-linux-gnu/sys/select.h
 error.o: /usr/include/x86_64-linux-gnu/bits/select.h
 error.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 error.o: /usr/include/x86_64-linux-gnu/bits/time.h
-error.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h
-error.o: /usr/include/linux/string.h
+error.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+error.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
+error.o: /usr/include/alloca.h /usr/include/linux/string.h
 poll.o: poll.h status.h sock.h /usr/include/linux/stddef.h error.h xalloc.h
 poll.o: /usr/include/linux/string.h /usr/include/linux/errno.h
 poll.o: /usr/include/x86_64-linux-gnu/asm/errno.h
@@ -142,8 +144,16 @@ receiver.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
 receiver.o: /usr/include/linux/errno.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 receiver.o: /usr/include/asm-generic/errno.h
-receiver.o: /usr/include/asm-generic/errno-base.h poll.h /usr/include/stdio.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/types.h
+receiver.o: /usr/include/asm-generic/errno-base.h
+receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/float.h
+receiver.o: /usr/include/math.h /usr/include/x86_64-linux-gnu/bits/huge_val.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/huge_valf.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/huge_vall.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/inf.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/nan.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/mathdef.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/mathcalls.h poll.h
+receiver.o: /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
 receiver.o: /usr/include/libio.h /usr/include/_G_config.h
 receiver.o: /usr/include/wchar.h
@@ -169,6 +179,7 @@ receiver.o: /usr/include/x86_64-linux-gnu/bits/select.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/time.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/uio.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
@@ -213,6 +224,7 @@ sender.o: /usr/include/x86_64-linux-gnu/bits/select.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/time.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/uio.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
@@ -276,6 +288,7 @@ sock.o: /usr/include/x86_64-linux-gnu/bits/select.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/time.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+sock.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/uio.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/socket.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
@@ -329,6 +342,7 @@ storage.o: /usr/include/x86_64-linux-gnu/bits/select.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/time.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/stat.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/stat.h
 table.o: table.h status.h /usr/include/linux/stddef.h error.h xalloc.h
@@ -391,7 +405,9 @@ xalloc.o: /usr/include/x86_64-linux-gnu/sys/select.h
 xalloc.o: /usr/include/x86_64-linux-gnu/bits/select.h
 xalloc.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 xalloc.o: /usr/include/x86_64-linux-gnu/bits/time.h
-xalloc.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h
+xalloc.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+xalloc.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
+xalloc.o: /usr/include/alloca.h
 yield.o: yield.h /usr/include/linux/sched.h /usr/include/linux/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
@@ -433,6 +449,7 @@ publisher.o: /usr/include/x86_64-linux-gnu/bits/select.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/time.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+publisher.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 publisher.o: /usr/include/alloca.h /usr/include/linux/string.h
 subscriber.o: error.h receiver.h storage.h spin.h barrier.h yield.h status.h
 subscriber.o: /usr/include/linux/stddef.h /usr/include/stdio.h
@@ -467,6 +484,7 @@ subscriber.o: /usr/include/x86_64-linux-gnu/bits/select.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/time.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+subscriber.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 subscriber.o: /usr/include/alloca.h /usr/include/linux/string.h
 listener.o: datum.h error.h storage.h spin.h barrier.h yield.h status.h
 listener.o: /usr/include/linux/stddef.h /usr/include/stdio.h

@@ -23,6 +23,7 @@ struct sender_stats_t
 	size_t tcp_gap_count;
 	size_t tcp_bytes_sent;
 	size_t mcast_bytes_sent;
+	size_t mcast_packets_sent;
 };
 
 struct sender_t
@@ -41,6 +42,7 @@ struct sender_t
 	boolean conflate_pkt;
 	spin_lock_t mcast_lock;
 	int heartbeat_secs;
+	void* time_stored_at;
 	struct sender_stats_t stats;
 	size_t hello_len;
 	char hello_str[128];
@@ -74,6 +76,11 @@ static status write_accum(sender_handle me)
 	else if (!st)
 		return OK;
 
+	if (clock_gettime(CLOCK_REALTIME, me->time_stored_at) == -1) {
+		error_errno("clock_gettime");
+		return FAIL;
+	}
+
 	st = sock_sendto(me->mcast_sock, data, sz);
 	if (!FAILED(st)) {
 		accum_clear(me->mcast_accum);
@@ -83,26 +90,23 @@ static status write_accum(sender_handle me)
 
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.mcast_bytes_sent += sz;
+		me->stats.mcast_packets_sent++;
 		SPIN_UNLOCK(&me->stats.lock);
 	}
 
 	return st;
 }
 
-static boolean mcast_accum_is_full(sender_handle me, record_handle rec)
-{
-	return accum_get_available(me->mcast_accum) < (me->val_size + sizeof(int)) &&
-		(!me->conflate_pkt || record_get_sequence(rec) != me->next_seq);
-}
-
 static status mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
-	void* stored_at;
 	int id;
-
-	if (((mcast_accum_is_full(me, rec) || accum_is_stale(me->mcast_accum)) && FAILED(st = write_accum(me))) ||
-		(accum_is_empty(me->mcast_accum) && FAILED(st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL))))
+	if ((((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(int)) &&
+		   (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
+		  accum_is_stale(me->mcast_accum)) && FAILED(st = write_accum(me))) ||
+		(accum_is_empty(me->mcast_accum) &&
+		 (FAILED(st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL)) ||
+		  FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(struct timespec), &me->time_stored_at)))))
 		return st;
 
 	id = record_get_id(rec);
@@ -110,11 +114,14 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
-	else if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
-			 !FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
-		record_set_sequence(rec, me->next_seq);
-		if (me->conflate_pkt)
-			record_set_conflated(rec, stored_at);
+	else {
+		void* stored_at;
+		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
+			!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
+			record_set_sequence(rec, me->next_seq);
+			if (me->conflate_pkt)
+				record_set_conflated(rec, stored_at);
+		}
 	}
 
 	RECORD_UNLOCK(rec);
@@ -365,18 +372,18 @@ static status tcp_event_func(poll_handle poller, sock_handle sock, short* revent
 static status mcast_check_heartbeat_or_stale(sender_handle me)
 {
 	status st = OK;
-	if (SPIN_TRY_LOCK(&me->mcast_lock)) {
-		if (accum_is_stale(me->mcast_accum))
-			st = write_accum(me);
-		else if ((time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
-			long hb_seq = HEARTBEAT_SEQ;
-			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)))
-				st = write_accum(me);
-		}
+	SPIN_LOCK(&me->mcast_lock);
 
-		SPIN_UNLOCK(&me->mcast_lock);
+	if (accum_is_stale(me->mcast_accum))
+		st = write_accum(me);
+	else if (poll_get_count(me->poller) > 1 && (time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
+		long hb_seq = HEARTBEAT_SEQ;
+		if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
+			!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(struct timespec), &me->time_stored_at)))
+			st = write_accum(me);
 	}
 
+	SPIN_UNLOCK(&me->mcast_lock);
 	return st;
 }
 
@@ -605,7 +612,12 @@ size_t sender_get_mcast_bytes_sent(sender_handle send)
 	return get_stat(send, &send->stats.mcast_bytes_sent);
 }
 
-int sender_get_subscriber_count(sender_handle send)
+size_t sender_get_mcast_packets_sent(sender_handle send)
+{
+	return get_stat(send, &send->stats.mcast_packets_sent);
+}
+
+size_t sender_get_subscriber_count(sender_handle send)
 {
 	return poll_get_count(send->poller) - 1;
 }
