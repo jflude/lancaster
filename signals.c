@@ -1,6 +1,5 @@
 #include "signals.h"
 #include "error.h"
-#include <signal.h>
 #include <stddef.h>
 
 static volatile sig_atomic_t is_raised[NSIG];

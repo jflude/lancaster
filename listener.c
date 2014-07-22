@@ -2,6 +2,7 @@
 
 #include "datum.h"
 #include "error.h"
+#include "signals.h"
 #include "storage.h"
 #include <stdio.h>
 
@@ -17,12 +18,13 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	if (FAILED(storage_open(&store, argv[1])))
+	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(storage_open(&store, argv[1])))
 		error_report_fatal();
 
 	q_capacity = storage_get_queue_capacity(store);
 
-	for (;;) {
+	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		unsigned j, new_head = storage_get_queue_head(store);
 		if (new_head == old_head) {
 			snooze();
@@ -68,5 +70,9 @@ int main(int argc, char* argv[])
 	}
 
 	storage_destroy(&store);
+
+	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+		error_report_fatal();
+
 	return 0;
 }

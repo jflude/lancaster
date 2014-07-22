@@ -2,6 +2,7 @@
 
 #include "error.h"
 #include "receiver.h"
+#include "signals.h"
 #include "yield.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +35,8 @@ int main(int argc, char* argv[])
 	q_capacity = atoi(argv[i++]);
 	storage_file = argv[i++];
 
-	if (FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
+	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);
@@ -42,7 +44,7 @@ int main(int argc, char* argv[])
 	tcp_c = receiver_get_tcp_bytes_recv(recv);
 	mcast_c = receiver_get_mcast_bytes_recv(recv);
 
-	while (receiver_is_running(recv)) {
+	while (receiver_is_running(recv) && !signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		if (verbose) {
 			time_t t2 = time(NULL);
 			if (t2 != t1) {
@@ -81,5 +83,9 @@ int main(int argc, char* argv[])
 		error_report_fatal();
 
 	receiver_destroy(&recv);
+
+	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+		error_report_fatal();
+	
 	return 0;
 }

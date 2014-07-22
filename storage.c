@@ -36,6 +36,7 @@ struct storage_t
 	record_handle array;
 	record_handle limit;
 	struct segment_t* seg;
+	char* mmap_file;
 	boolean is_seg_owner;
 };
 
@@ -74,15 +75,28 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 		size_t page_sz = sysconf(_SC_PAGESIZE);
 		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
 
-	open_loop:
-		fd = open(mmap_file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-		if (fd == -1) {
-			if (errno == EINTR)
-				goto open_loop;
+		if (strncmp(mmap_file, "shm:", 4) == 0) {
+		shm_loop:
+			fd = shm_open(mmap_file + 4, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+			if (fd == -1) {
+				if (errno == EINTR)
+					goto shm_loop;
 
-			error_errno("open");
-			storage_destroy(pstore);
-			return FAIL;
+				error_errno("shm_open");
+				storage_destroy(pstore);
+				return FAIL;
+			}
+		} else {
+		open_loop:
+			fd = open(mmap_file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+			if (fd == -1) {
+				if (errno == EINTR)
+					goto open_loop;
+
+				error_errno("open");
+				storage_destroy(pstore);
+				return FAIL;
+			}
 		}
 
 	trunc_loop:
@@ -103,6 +117,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 			return FAIL;
 		}
 
+		(*pstore)->mmap_file = xstrdup(mmap_file);
+
 		if (close(fd) == -1) {
 			error_errno("close");
 			storage_destroy(pstore);
@@ -122,17 +138,18 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
 
-	storage_reset(*pstore);
-
-	if ((*pstore)->is_seg_owner && (*pstore)->seg->mmap_size > 0)
-		msync((*pstore)->seg, (*pstore)->seg->mmap_size, MS_SYNC);
+	if ((*pstore)->seg->mmap_size > 0 && msync((*pstore)->seg, (*pstore)->seg->mmap_size, MS_SYNC) == -1) {
+		error_errno("msync");
+		storage_destroy(pstore);
+		return FAIL;
+	}
 
 	return OK;
 }
 
 status storage_open(storage_handle* pstore, const char* mmap_file)
 {
-	int fd, magic;
+	int fd;
 	size_t seg_sz;
 	if (!pstore || !mmap_file) {
 		error_invalid_arg("storage_open");
@@ -146,45 +163,48 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	BZERO(*pstore);
 	(*pstore)->is_seg_owner = FALSE;
 
-open_loop:
-	fd = open(mmap_file, O_RDWR);
-	if (fd == -1) {
-		if (errno == EINTR)
-			goto open_loop;
+	if (strncmp(mmap_file, "shm:", 4) == 0) {
+	shm_loop:
+		fd = shm_open(mmap_file + 4, O_RDWR, 0);
+		if (fd == -1) {
+			if (errno == EINTR)
+				goto shm_loop;
 
-		error_errno("open");
+			error_errno("shm_open");
+			storage_destroy(pstore);
+			return FAIL;
+		}
+	} else {
+	open_loop:
+		fd = open(mmap_file, O_RDWR);
+		if (fd == -1) {
+			if (errno == EINTR)
+				goto open_loop;
+
+			error_errno("open");
+			storage_destroy(pstore);
+			return FAIL;
+		}
+	}
+
+	(*pstore)->seg = mmap(NULL, sizeof(struct segment_t), PROT_READ, MAP_SHARED, fd, 0);
+	if ((*pstore)->seg == MAP_FAILED) {
+		error_errno("mmap");
+		(*pstore)->seg = NULL;
 		storage_destroy(pstore);
 		return FAIL;
 	}
 
-read_loop1:
-	if (read(fd, &magic, sizeof(magic)) == -1) {
-		if (errno == EINTR)
-			goto read_loop1;
-
-		error_errno("read");
-		storage_destroy(pstore);
-		return FAIL;
-	}
-
-	if (magic != MAGIC_NUMBER) {
+	if ((*pstore)->seg->magic != MAGIC_NUMBER) {
 		errno = EUCLEAN;
 		error_errno("storage_open");
-		return FAIL;
-	}
-
-	if (lseek(fd, offsetof(struct segment_t, mmap_size), SEEK_SET) == -1) {
-		error_errno("lseek");
 		storage_destroy(pstore);
 		return FAIL;
 	}
 
-read_loop2:
-	if (read(fd, &seg_sz, sizeof(seg_sz)) == -1) {
-		if (errno == EINTR)
-			goto read_loop2;
-
-		error_errno("read");
+	seg_sz = (*pstore)->seg->mmap_size;
+	if (munmap((*pstore)->seg, sizeof(struct segment_t)) == -1) {
+		error_errno("munmap");
 		storage_destroy(pstore);
 		return FAIL;
 	}
@@ -217,6 +237,10 @@ void storage_destroy(storage_handle* pstore)
 		if ((*pstore)->seg->mmap_size > 0) {
 			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
 				error_errno("munmap");
+			else if (strncmp((*pstore)->mmap_file, "shm:", 4) == 0 && shm_unlink((*pstore)->mmap_file + 4) == -1)
+				error_errno("shm_unlink");
+
+			xfree((*pstore)->mmap_file);
 		} else
 			xfree((*pstore)->seg);
 	}

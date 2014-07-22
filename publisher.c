@@ -5,7 +5,6 @@
 #include "sender.h"
 #include "signals.h"
 #include "yield.h"
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,10 +38,9 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[i++];
 	tcp_port = atoi(argv[i++]);
 
-	if (FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)) ||
-		FAILED(signal_add_handler(SIGINT)) ||
-		FAILED(signal_add_handler(SIGTERM)))
+	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) || FAILED(storage_reset(store)) ||
+		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);
@@ -99,13 +97,14 @@ finish:
 	if (verbose)
 		putchar('\n');
 
-	if ((st != BLOCKED && FAILED(st)) ||
-		FAILED(signal_remove_handler(SIGINT)) ||
-		FAILED(signal_remove_handler(SIGTERM)) ||
-		FAILED(sender_stop(sender)))
+	if ((st != BLOCKED && FAILED(st)) || FAILED(sender_stop(sender)))
 		error_report_fatal();
 
 	sender_destroy(&sender);
 	storage_destroy(&store);
+
+	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+		error_report_fatal();
+
 	return 0;
 }
