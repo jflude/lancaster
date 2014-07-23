@@ -1,0 +1,24 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'idea'
+
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    maven {
+        url "http://maven.peak6.net:8081/nexus/content/groups/public"
+    }
+    maven {
+        url "http://maven.peak6.net:8081/nexus/content/repositories/thirdparty"
+    }
+    maven {
+        url "http://maven.peak6.net:8081/nexus/content/repositories/central"
+    }
+}
+
+dependencies {
+    compile 'net.java.dev.jna:jna:4.1.0'
+}
