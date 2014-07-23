@@ -233,7 +233,7 @@ void storage_destroy(storage_handle* pstore)
 	if (!pstore || !*pstore)
 		return;
 
-	if ((*pstore)->is_seg_owner) {
+	if ((*pstore)->is_seg_owner && (*pstore)->seg) {
 		if ((*pstore)->seg->mmap_size > 0) {
 			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
 				error_errno("munmap");
