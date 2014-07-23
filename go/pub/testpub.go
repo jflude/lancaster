@@ -3,7 +3,7 @@ package main
 // #include "../../status.h"
 // #include "../../storage.h"
 // #include "../../error.h"
-// #cgo LDFLAGS: -L../.. -lcachester -lrt
+// #cgo LDFLAGS: -L../.. -lcachester -lrt -w
 import "C"
 import (
 	"errors"
@@ -34,8 +34,5 @@ func err(status C.status) error {
 		return nil
 	}
 	str := C.GoString(C.error_last_desc())
-	if str == "" {
-		return nil
-	}
 	return fmt.Errorf("%d: %s", status, errors.New(str))
 }
