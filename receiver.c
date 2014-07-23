@@ -11,6 +11,7 @@
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/socket.h>
 
 #define HEARTBEAT_SEQ -1
@@ -55,9 +56,10 @@ static void* mcast_func(thread_handle thr)
 
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
+#ifdef _POSIX_TIMERS
 		struct timespec now;
 		double latency, delta;
-
+#endif
 		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
 			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_secs) {
@@ -71,12 +73,13 @@ static void* mcast_func(thread_handle thr)
 		} else if (FAILED(st))
 			break;
 
+#ifdef _POSIX_TIMERS
 		if (clock_gettime(CLOCK_REALTIME, &now) == -1) {
 			error_errno("clock_gettime");
 			st = FAIL;
 			break;
 		}
-
+#endif
 		if (!sock_is_same_address(me->mcast_sock, me->tcp_sock)) {
 			errno = EEXIST;
 			error_errno("mcast_func");
@@ -98,6 +101,7 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
+#ifdef _POSIX_TIMERS
 		latency = 1000000000 * (now.tv_sec - recv_stamp->tv_sec) + now.tv_nsec - recv_stamp->tv_nsec;
 
 		delta = latency - me->stats.mcast_mean_latency;
@@ -109,7 +113,7 @@ static void* mcast_func(thread_handle thr)
 
 		if (latency > me->stats.mcast_max_latency)
 			me->stats.mcast_max_latency = latency;
-
+#endif
 		SPIN_UNLOCK(&me->stats.lock);
 		if (*recv_seq < me->next_seq)
 			continue;

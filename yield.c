@@ -4,7 +4,11 @@
 
 void yield(void)
 {
+#ifdef _POSIX_PRIORITY_SCHEDULING
 	sched_yield();
+#else
+	snooze();
+#endif
 }
 
 void snooze(void)

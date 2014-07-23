@@ -45,7 +45,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 		}
 
 		for (i = 0; i < 16 && (n + i) < sz; ++i) {
-			char c = isprint(q[n + i]) ? q[n + i] : '.';
+			char c = isprint((int) q[n + i]) ? q[n + i] : '.';
 			if (putc(c, f) == EOF) {
 				if (feof(f))
 					return EOF;

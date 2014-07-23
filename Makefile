@@ -174,6 +174,9 @@ receiver.o: /usr/include/asm-generic/bitsperlong.h
 receiver.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+receiver.o: /usr/include/linux/unistd.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/uio.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/endian.h
@@ -219,6 +222,9 @@ sender.o: /usr/include/asm-generic/bitsperlong.h
 sender.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+sender.o: /usr/include/linux/unistd.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/uio.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/endian.h

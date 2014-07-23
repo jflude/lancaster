@@ -23,7 +23,7 @@ int sock_get_descriptor(sock_handle sock);
 void* sock_get_property(sock_handle sock);
 void sock_set_property(sock_handle sock, void* prop);
 
-status sock_get_interface(const char* dest_ip, char** pdevice);
+status sock_get_interface(const char* dest_address, char** pdevice);
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 status sock_get_address(sock_handle sock, char* address, size_t address_sz);
 boolean sock_is_same_address(sock_handle sock1, sock_handle sock2);

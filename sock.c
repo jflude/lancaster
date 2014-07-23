@@ -91,18 +91,18 @@ void sock_set_property(sock_handle sock, void* prop)
 	sock->property = prop;
 }
 
-status sock_get_interface(const char* dest_ip, char** pdevice)
+status sock_get_interface(const char* dest_address, char** pdevice)
 {
 	char out[256], cmd[256] = "ip route get ";
 	FILE* f;
 	int n;
 
-	if (!dest_ip || !pdevice) {
+	if (!dest_address || !pdevice) {
 		error_invalid_arg("sock_get_interface");
 		return FAIL;
 	}
 
-	strncat(cmd, dest_ip, sizeof(cmd) - strlen(cmd) - 2);
+	strncat(cmd, dest_address, sizeof(cmd) - strlen(cmd) - 2);
 	fflush(NULL);
 
 	errno = ENOMEM;

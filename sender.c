@@ -11,6 +11,7 @@
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/socket.h>
 
 #define HEARTBEAT_SEQ -1
@@ -76,10 +77,14 @@ static status write_accum(sender_handle me)
 	else if (!st)
 		return OK;
 
+#ifdef _POSIX_TIMERS
 	if (clock_gettime(CLOCK_REALTIME, me->time_stored_at) == -1) {
 		error_errno("clock_gettime");
 		return FAIL;
 	}
+#else
+	memset(me->time_stored_at, 0, sizeof(struct timespec));
+#endif
 
 	st = sock_sendto(me->mcast_sock, data, sz);
 	if (!FAILED(st)) {
@@ -489,21 +494,13 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return st;
 	}
 
-	(*psend)->hello_len = snprintf((*psend)->hello_str, sizeof((*psend)->hello_str),
-								   "%d\r\n%s\r\n%d\r\n%lu\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
-								   STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
-								   storage_get_base_id(store), storage_get_max_id(store),
-								   storage_get_value_size(store), (*psend)->heartbeat_secs);
+	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
+								  STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
+								  storage_get_base_id(store), storage_get_max_id(store),
+								  storage_get_value_size(store), (*psend)->heartbeat_secs);
 
 	if ((*psend)->hello_len < 0) {
-		error_errno("snprintf");
-		sender_destroy(psend);
-		return FAIL;
-	}
-
-	if ((unsigned) (*psend)->hello_len >= sizeof((*psend)->hello_str)) {
-		errno = ENOBUFS;
-		error_errno("snprintf");
+		error_errno("sprintf");
 		sender_destroy(psend);
 		return FAIL;
 	}
