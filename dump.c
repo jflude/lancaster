@@ -20,7 +20,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 			if ((n + i) < sz) {
 				if (fprintf(f, "%02X ", (unsigned) (unsigned char) q[n + i]) < 0) {
 					if (feof(f))
-						return CLOSED;
+						return EOF;
 
 					error_errno("fprintf");
 					return FAIL;
@@ -28,7 +28,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 			} else {
 				if (fprintf(f, "   ") < 0) {
 					if (feof(f))
-						return CLOSED;
+						return EOF;
 
 					error_errno("fprintf");
 					return FAIL;
@@ -38,7 +38,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 
 		if (fprintf(f, "| ") < 0) {
 			if (feof(f))
-				return CLOSED;
+				return EOF;
 
 			error_errno("fprintf");
 			return FAIL;
@@ -48,7 +48,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 			char c = isprint(q[n + i]) ? q[n + i] : '.';
 			if (putc(c, f) == EOF) {
 				if (feof(f))
-					return CLOSED;
+					return EOF;
 
 				error_errno("putc");
 				return FAIL;
@@ -57,7 +57,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 
 		if (putc('\n', f) == EOF) {
 			if (feof(f))
-				return CLOSED;
+				return EOF;
 
 			error_errno("putc");
 			return FAIL;

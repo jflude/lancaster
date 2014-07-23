@@ -17,11 +17,16 @@ uudict.c \
 xalloc.c \
 yield.c
 
-DEPFLAGS = -I/usr/include/linux -I/usr/include/x86_64-linux-gnu -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
-CFLAGS = -ansi -pedantic -Wall -pthread -fPIC -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -fPIC -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
 LDFLAGS = -pthread
 LDLIBS = -lrt -lm
 OBJS = $(SRCS:.c=.o)
+
+DEPFLAGS = \
+-I/usr/include/linux \
+-I/usr/include/x86_64-linux-gnu \
+-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
+-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 
 all: publisher subscriber listener
 

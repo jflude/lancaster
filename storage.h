@@ -36,11 +36,10 @@ int storage_get_base_id(storage_handle store);
 int storage_get_max_id(storage_handle store);
 size_t storage_get_record_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
-
 size_t storage_get_value_offset(storage_handle store);
+
 const int* storage_get_queue_base_address(storage_handle store);
 const unsigned* storage_get_queue_head_address(storage_handle store);
-
 unsigned storage_get_queue_capacity(storage_handle store);
 unsigned storage_get_queue_head(storage_handle store);
 int storage_read_queue(storage_handle store, unsigned index);

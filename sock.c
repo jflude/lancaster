@@ -331,7 +331,7 @@ status sock_connect(sock_handle sock)
 	if (connect(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
 		error_errno("connect");
 		if (errno == ECONNREFUSED)
-			return CLOSED;
+			return EOF;
 		else if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
@@ -364,7 +364,7 @@ loop:
 #endif
 		error_errno("write");
 		if (errno == EPIPE || errno == ECONNRESET)
-			return CLOSED;
+			return EOF;
 		else if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
@@ -397,7 +397,7 @@ loop:
 #endif
 		error_errno("read");
 		if (errno == ECONNRESET)
-			return CLOSED;
+			return EOF;
 		else if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
@@ -406,7 +406,7 @@ loop:
 
 	if (count == 0) {
 		error_eof("read");
-		return CLOSED;
+		return EOF;
 	}
 
 	return count;
@@ -435,7 +435,7 @@ loop:
 #endif
 		error_errno("sendto");
 		if (errno == EPIPE || errno == ECONNRESET)
-			return CLOSED;
+			return EOF;
 		else if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
@@ -470,7 +470,7 @@ loop:
 #endif
 		error_errno("recvfrom");
 		if (errno == ECONNRESET)
-			return CLOSED;
+			return EOF;
 		else if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
@@ -479,7 +479,7 @@ loop:
 
 	if (count == 0) {
 		error_eof("recvfrom");
-		return CLOSED;
+		return EOF;
 	}
 
 	return count;

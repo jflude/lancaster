@@ -28,6 +28,7 @@ static boolean uu2id_eq_fn(table_key key1, table_key key2)
 
 static void uu2id_dtor_fn(table_key key, table_value val)
 {
+	(void) val;
 	xfree(key);
 }
 

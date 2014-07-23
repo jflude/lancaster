@@ -196,7 +196,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	}
 
 	if ((*pstore)->seg->magic != MAGIC_NUMBER) {
-		errno = EUCLEAN;
+		errno = EILSEQ;
 		error_errno("storage_open");
 		storage_destroy(pstore);
 		return FAIL;
@@ -281,6 +281,7 @@ size_t storage_get_value_size(storage_handle store)
 
 size_t storage_get_value_offset(storage_handle store)
 {
+	(void) store;
 	return offsetof(struct record_t, val);
 }
 
@@ -317,7 +318,7 @@ status storage_write_queue(storage_handle store, int id)
 		return FAIL;
 	}
 
-	if (store->seg->q_mask == -1) {
+	if (store->seg->q_mask == (unsigned) -1) {
 		errno = ENOBUFS;
 		error_errno("storage_write_queue");
 		return FAIL;

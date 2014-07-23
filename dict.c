@@ -27,6 +27,7 @@ static boolean sym2id_eq_fn(table_key key1, table_key key2)
 
 static void sym2id_dtor_fn(table_key key, table_value val)
 {
+	(void) val;
 	xfree(key);
 }
 

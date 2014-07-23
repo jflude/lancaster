@@ -44,7 +44,7 @@ struct sender_t
 	int heartbeat_secs;
 	void* time_stored_at;
 	struct sender_stats_t stats;
-	size_t hello_len;
+	int hello_len;
 	char hello_str[128];
 };
 
@@ -132,6 +132,7 @@ static status tcp_close_func(poll_handle poller, sock_handle sock, short* events
 {
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
 	status st;
+	(void) poller; (void) events; (void) param;
 
 	if (req_param) {
 		xfree(req_param->send_buf);
@@ -146,6 +147,7 @@ static status tcp_close_func(poll_handle poller, sock_handle sock, short* events
 static status tcp_will_quit_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	long quit_seq = WILL_QUIT_SEQ;
+	(void) poller; (void) events; (void) param;
 	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
 
@@ -262,7 +264,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 		st = tcp_on_write_remaining(req_param);
 		if (st == BLOCKED)
 			return OK;
-		else if (st == CLOSED || st == TIMEDOUT)
+		else if (st == EOF || st == TIMEDOUT)
 			return tcp_on_hup(me, sock);
 		else if (FAILED(st))
 			return st;
@@ -276,7 +278,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 	st = storage_iterate(me->store, tcp_on_write_iter_fn, req_param->curr_rec, req_param);
 	if (st == BLOCKED)
 		return OK;
-	else if (st == CLOSED || st == TIMEDOUT)
+	else if (st == EOF || st == TIMEDOUT)
 		return tcp_on_hup(me, sock);
 	else if (FAILED(st))
 		return st;
@@ -308,7 +310,7 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 				return OK;
 
 			st = sock_read(sock, p, sz);
-			if (st == CLOSED || st == TIMEDOUT)
+			if (st == EOF || st == TIMEDOUT)
 				return tcp_on_hup(me, sock);
 			else if (st == BLOCKED) {
 				if (sz == sizeof(range))
@@ -356,6 +358,7 @@ read_all:
 static status tcp_event_func(poll_handle poller, sock_handle sock, short* revents, void* param)
 {
 	sender_handle me = param;
+	(void) poller;
 	if (sock == me->listen_sock)
 		return tcp_on_accept(me, sock);
 
@@ -498,7 +501,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return FAIL;
 	}
 
-	if ((*psend)->hello_len >= sizeof((*psend)->hello_str)) {
+	if ((unsigned) (*psend)->hello_len >= sizeof((*psend)->hello_str)) {
 		errno = ENOBUFS;
 		error_errno("snprintf");
 		sender_destroy(psend);

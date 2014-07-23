@@ -45,7 +45,7 @@ status table_create(table_handle* ptab, size_t sz, table_hash_func h_fn, table_e
 
 void table_destroy(table_handle* ptab)
 {
-	int i;
+	size_t i;
 	if (!ptab || !*ptab)
 		return;
 
@@ -71,7 +71,6 @@ status table_lookup(table_handle tab, table_key key, table_value* pval)
 {
 	struct chain_t* c;
 	size_t hash;
-
 	if (!pval) {
 		error_invalid_arg("table_lookup");
 		return FAIL;
@@ -163,8 +162,7 @@ status table_remove(table_handle tab, table_key key)
 status table_iterate(table_handle tab, table_iterate_func iter_fn)
 {
 	status st = TRUE;
-	int i;
-
+	size_t i;
 	if (!iter_fn) {
 		error_invalid_arg("table_iterate");
 		return FAIL;

@@ -90,7 +90,7 @@ static void* mcast_func(thread_handle thr)
 		me->stats.mcast_bytes_recv += st;
 		me->stats.mcast_packets_recv++;
 
-		if (st < (sizeof(*recv_seq) + sizeof(*recv_stamp))) {
+		if ((unsigned) st < (sizeof(*recv_seq) + sizeof(*recv_stamp))) {
 			SPIN_UNLOCK(&me->stats.lock);
 			errno = EPROTO;
 			error_errno("mcast_func");

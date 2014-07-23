@@ -98,7 +98,7 @@ status poll_add(poll_handle poller, sock_handle sock, short events)
 
 status poll_remove(poll_handle poller, sock_handle sock)
 {
-	int i;
+	nfds_t i;
 	if (!sock) {
 		error_invalid_arg("poll_remove");
 		return FAIL;
@@ -106,7 +106,7 @@ status poll_remove(poll_handle poller, sock_handle sock)
 
 	for (i = 0; i < poller->free_slot; ++i)
 		if (poller->socks[i] == sock) {
-			int j = poller->free_slot - 1;
+			nfds_t j = poller->free_slot - 1;
 			if (i != j) {
 				poller->fds[i] = poller->fds[j];
 				poller->socks[i] = poller->socks[j];
@@ -121,7 +121,7 @@ status poll_remove(poll_handle poller, sock_handle sock)
 
 status poll_set_event(poll_handle poller, sock_handle sock, short new_events)
 {
-	int i;
+	nfds_t i;
 	if (!sock) {
 		error_invalid_arg("poll_set_event");
 		return FAIL;
