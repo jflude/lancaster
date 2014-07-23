@@ -156,6 +156,26 @@ status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 	return OK;
 }
 
+status sock_get_address(sock_handle sock, char* address, size_t address_sz)
+{
+	if (!address || address_sz == 0) {
+		error_invalid_arg("sock_get_address");
+		return FAIL;
+	}
+
+	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, address, address_sz)) {
+		error_errno("inet_ntop");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+boolean sock_is_same_address(sock_handle sock1, sock_handle sock2)
+{
+	return sock1->addr.sin_addr.s_addr == sock2->addr.sin_addr.s_addr;
+}
+
 status sock_nonblock(sock_handle sock)
 {
 	int flags;
@@ -263,8 +283,7 @@ status sock_listen(sock_handle sock, int backlog)
 status sock_accept(sock_handle sock, sock_handle* new_sock)
 {
 	struct sock_t accpt;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
-
+	socklen_t addrlen;
 	if (!new_sock) {
 		error_invalid_arg("sock_accept");
 		return FAIL;
@@ -272,6 +291,7 @@ status sock_accept(sock_handle sock, sock_handle* new_sock)
 
 	BZERO(&accpt);
 loop:
+	addrlen = sizeof(struct sockaddr_in);
 	accpt.fd = accept(sock->fd, (struct sockaddr*) &accpt.addr, &addrlen);
 	if (accpt.fd == -1) {
 		if (errno == EINTR)
@@ -316,21 +336,6 @@ status sock_connect(sock_handle sock)
 			return TIMEDOUT;
 		else
 			return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_get_dest_address(sock_handle sock, char* dest, size_t sz)
-{
-	if (!dest || sz == 0) {
-		error_invalid_arg("sock_get_dest_address");
-		return FAIL;
-	}
-
-	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, dest, sz)) {
-		error_errno("inet_ntop");
-		return FAIL;
 	}
 
 	return OK;
@@ -443,14 +448,14 @@ loop:
 status sock_recvfrom(sock_handle sock, void* data, size_t sz)
 {
 	ssize_t count;
-	socklen_t addrlen = sizeof(sock->addr);
-
+	socklen_t addrlen;
 	if (!data || sz == 0) {
 		error_invalid_arg("sock_recvfrom");
 		return FAIL;
 	}
 
 loop:
+	addrlen = sizeof(sock->addr);
 	count = recvfrom(sock->fd, data, sz, 0, (struct sockaddr*) &sock->addr, &addrlen);
 	if (count == -1) {
 		if (errno == EINTR)

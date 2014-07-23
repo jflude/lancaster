@@ -77,6 +77,13 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
+		if (!sock_is_same_address(me->mcast_sock, me->tcp_sock)) {
+			errno = EEXIST;
+			error_errno("mcast_func");
+			st = FAIL;
+			break;
+		}
+
 		me->last_mcast_recv = time(NULL);
 
 		SPIN_LOCK(&me->stats.lock);

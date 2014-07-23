@@ -25,6 +25,8 @@ void sock_set_property(sock_handle sock, void* prop);
 
 status sock_get_interface(const char* dest_ip, char** pdevice);
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
+status sock_get_address(sock_handle sock, char* address, size_t address_sz);
+boolean sock_is_same_address(sock_handle sock1, sock_handle sock2);
 
 status sock_nonblock(sock_handle sock);
 status sock_shutdown(sock_handle sock, int how);
@@ -36,7 +38,6 @@ status sock_mcast_set_ttl(sock_handle sock, int ttl);
 status sock_listen(sock_handle sock, int backlog);
 status sock_accept(sock_handle sock, sock_handle* new_h);
 status sock_connect(sock_handle sock);
-status sock_get_dest_address(sock_handle sock, char* dest, size_t sz);
 
 status sock_write(sock_handle sock, const void* data, size_t sz);
 status sock_read(sock_handle sock, void* data, size_t sz);
