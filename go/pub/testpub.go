@@ -6,6 +6,8 @@ package main
 // #cgo LDFLAGS: -L../.. -lcachester -lrt
 import "C"
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 )
@@ -18,19 +20,22 @@ func main() {
 		cs = nil
 	}
 	var store C.storage_handle
-	if status := C.storage_create(&store, cs, 100, 0, 1000, 100); status != 0 {
-		failError()
+	if err := err(C.storage_create(&store, cs, 128, 0, 1000, 100)); err != nil {
+		log.Panic(err)
 	}
-	if status := C.storage_reset(store); status != 0 {
-		failError()
+	if err := err(C.storage_reset(store)); err != nil {
+		log.Panic(err)
 	}
 	log.Println("Success!", store)
 }
 
-func failError() {
+func err(status C.status) error {
+	if status == 0 {
+		return nil
+	}
 	str := C.GoString(C.error_last_desc())
 	if str == "" {
-		return
+		return nil
 	}
-	log.Panic(str) // exits with stack
+	return fmt.Errorf("%d: %s", status, errors.New(str))
 }
