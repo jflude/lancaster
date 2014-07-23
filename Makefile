@@ -28,7 +28,7 @@ DEPFLAGS = \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 
-all: publisher subscriber listener
+all: publisher subscriber listener libcachester.so
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
@@ -42,11 +42,14 @@ listener: libcachester.a
 libcachester.a: $(OBJS)
 	ar -r libcachester.a $(OBJS)
 
+libcachester.so: $(OBJS)
+	$(CC) -shared $^ -o $@
+
 depend:
 	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c listener.c
 
 clean:
-	rm -f libcachester.a publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
+	rm -f libcachester.a libcachester.so publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
 
 distclean: clean
 	rm -f *~ *.bak core core.* *.stackdump
