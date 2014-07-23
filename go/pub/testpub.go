@@ -11,12 +11,26 @@ import (
 )
 
 func main() {
-	log.Println("stuff")
-	cs := C.CString(os.Args[1])
+	var cs *C.char
+	if len(os.Args) > 1 {
+		cs = C.CString(os.Args[1])
+	} else {
+		cs = nil
+	}
 	var store C.storage_handle
-	status := C.storage_create(&store, cs, 128, 0, 1000, 100)
-	log.Println(store, status)
-	C.error_report_fatal()
-	status = C.storage_reset(store)
-	log.Println(store, status)
+	if status := C.storage_create(&store, cs, 100, 0, 1000, 100); status != 0 {
+		failError()
+	}
+	if status := C.storage_reset(store); status != 0 {
+		failError()
+	}
+	log.Println("Success!", store)
+}
+
+func failError() {
+	str := C.GoString(C.error_last_desc())
+	if str == "" {
+		return
+	}
+	log.Panic(str) // exits with stack
 }
