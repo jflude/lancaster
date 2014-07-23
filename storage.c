@@ -19,7 +19,7 @@ struct record_t
 
 struct segment_t
 {
-	int magic;
+	unsigned magic;
 	size_t mmap_size;
 	size_t hdr_size;
 	size_t rec_size;
@@ -105,6 +105,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 				goto trunc_loop;
 
 			error_errno("ftruncate");
+			close(fd);
 			storage_destroy(pstore);
 			return FAIL;
 		}
@@ -113,6 +114,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 		if ((*pstore)->seg == MAP_FAILED) {
 			error_errno("mmap");
 			(*pstore)->seg = NULL;
+			close(fd);
 			storage_destroy(pstore);
 			return FAIL;
 		}
@@ -175,6 +177,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 			return FAIL;
 		}
 	} else {
+		struct stat file_stat;
 	open_loop:
 		fd = open(mmap_file, O_RDWR);
 		if (fd == -1) {
@@ -185,12 +188,28 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 			storage_destroy(pstore);
 			return FAIL;
 		}
+
+		if (fstat(fd, &file_stat) == -1) {
+			error_errno("fstat");
+			close(fd);
+			storage_destroy(pstore);
+			return FAIL;
+		}
+
+		if ((unsigned) file_stat.st_size < sizeof(struct segment_t)) {
+			errno = EILSEQ;
+			error_errno("storage_open");
+			close(fd);
+			storage_destroy(pstore);
+			return FAIL;
+		}
 	}
 
 	(*pstore)->seg = mmap(NULL, sizeof(struct segment_t), PROT_READ, MAP_SHARED, fd, 0);
 	if ((*pstore)->seg == MAP_FAILED) {
 		error_errno("mmap");
 		(*pstore)->seg = NULL;
+		close(fd);
 		storage_destroy(pstore);
 		return FAIL;
 	}
@@ -198,6 +217,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	if ((*pstore)->seg->magic != MAGIC_NUMBER) {
 		errno = EILSEQ;
 		error_errno("storage_open");
+		close(fd);
 		storage_destroy(pstore);
 		return FAIL;
 	}
@@ -205,6 +225,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	seg_sz = (*pstore)->seg->mmap_size;
 	if (munmap((*pstore)->seg, sizeof(struct segment_t)) == -1) {
 		error_errno("munmap");
+		close(fd);
 		storage_destroy(pstore);
 		return FAIL;
 	}
@@ -213,6 +234,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	if ((*pstore)->seg == MAP_FAILED) {
 		error_errno("mmap");
 		(*pstore)->seg = NULL;
+		close(fd);
 		storage_destroy(pstore);
 		return FAIL;
 	}
