@@ -49,7 +49,7 @@ clean:
 	rm -f libcachester.a publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
 
 distclean: clean
-	rm -f *~ *.bak
+	rm -f *~ *.bak core core.* *.stackdump
 
 # DO NOT DELETE
 
