@@ -56,7 +56,7 @@ depend:
 	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c reader.c
 
 clean:
-	rm -f libcachester.a libcachester.so publisher publisher.o subscriber subscriber.o reader reader.o $(OBJS)
+	rm -f libcachester.a libcachester$(SO_EXT) publisher publisher.o subscriber subscriber.o reader reader.o $(OBJS)
 
 distclean: clean
 	rm -f *~ *.bak core core.* *.stackdump
