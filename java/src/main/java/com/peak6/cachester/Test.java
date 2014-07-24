@@ -9,6 +9,12 @@ import com.sun.jna.ptr.PointerByReference;
  * Created on 7/23/14 @ 4:51 PM by dbudworth.
  */
 public class Test {
+    public interface RT extends Library{
+        RT INSTANCE = (RT)
+                Native.loadLibrary("rt",
+                        RT.class);
+
+    }
     public interface Cachester extends Library {
         Cachester INSTANCE = (Cachester)
                 Native.loadLibrary("/home/dbudworth/gits/cachester/libcachester.so",
@@ -26,6 +32,7 @@ public class Test {
         if (args.length > 0) {
             path = args[0];
         }
+        System.out.println("RT: "+RT.INSTANCE);
         System.out.println("Using path: " + path);
         PointerByReference pref = new PointerByReference();
         System.out.println("Create");
