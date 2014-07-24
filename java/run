@@ -1,0 +1,4 @@
+#!/bin/bash
+export CLASSPATH=`find build/libs -name *.jar | tr '\n' ':'`
+
+java com.peak6.cachester.Test "$@"
