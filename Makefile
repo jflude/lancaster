@@ -17,7 +17,7 @@ uudict.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -fPIC -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
 LDFLAGS = -pthread
 LDLIBS = -lrt -lm
 OBJS = $(SRCS:.c=.o)
@@ -28,7 +28,11 @@ DEPFLAGS = \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 
-all: publisher subscriber listener libcachester.so
+ifeq (,$(findstring CYGWIN,$(shell uname -s)))
+CFLAGS += -fPIC
+endif
+
+all: publisher subscriber reader libcachester.so
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
@@ -37,19 +41,19 @@ publisher: libcachester.a
 
 subscriber: libcachester.a
 
-listener: libcachester.a
+reader: libcachester.a
 
 libcachester.a: $(OBJS)
 	ar -r libcachester.a $(OBJS)
 
 libcachester.so: $(OBJS)
-	$(CC) -shared $^ -o $@
+	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 depend:
-	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c listener.c
+	makedepend $(DEPFLAGS) -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c reader.c
 
 clean:
-	rm -f libcachester.a libcachester.so publisher publisher.o subscriber subscriber.o listener listener.o $(OBJS)
+	rm -f libcachester.a libcachester.so publisher publisher.o subscriber subscriber.o reader reader.o $(OBJS)
 
 distclean: clean
 	rm -f *~ *.bak core core.* *.stackdump
@@ -507,31 +511,30 @@ subscriber.o: /usr/include/x86_64-linux-gnu/bits/time.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 subscriber.o: /usr/include/alloca.h /usr/include/linux/string.h
-listener.o: datum.h error.h signals.h status.h /usr/include/linux/signal.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/signal.h
-listener.o: /usr/include/linux/types.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/types.h
-listener.o: /usr/include/asm-generic/types.h
-listener.o: /usr/include/asm-generic/int-ll64.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
-listener.o: /usr/include/asm-generic/bitsperlong.h
-listener.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-listener.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
-listener.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
-listener.o: /usr/include/asm-generic/siginfo.h storage.h spin.h barrier.h
-listener.o: yield.h /usr/include/linux/stddef.h /usr/include/stdio.h
-listener.o: /usr/include/features.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
-listener.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
-listener.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
-listener.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/types.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-listener.o: /usr/include/libio.h /usr/include/_G_config.h
-listener.o: /usr/include/wchar.h
-listener.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
-listener.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+reader.o: datum.h error.h signals.h status.h /usr/include/linux/signal.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/signal.h
+reader.o: /usr/include/linux/types.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/types.h
+reader.o: /usr/include/asm-generic/types.h
+reader.o: /usr/include/asm-generic/int-ll64.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+reader.o: /usr/include/asm-generic/bitsperlong.h
+reader.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+reader.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
+reader.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
+reader.o: /usr/include/asm-generic/siginfo.h storage.h spin.h barrier.h
+reader.o: yield.h /usr/include/linux/stddef.h /usr/include/stdio.h
+reader.o: /usr/include/features.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
+reader.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
+reader.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
+reader.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/types.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h
+reader.o: /usr/include/_G_config.h /usr/include/wchar.h
+reader.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h

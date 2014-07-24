@@ -1,4 +1,4 @@
-/* test listener */
+/* test reader */
 
 #include "datum.h"
 #include "error.h"
