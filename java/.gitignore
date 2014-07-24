@@ -1,6 +1,7 @@
 .gradle/
 build/
-java.iml
-java.ipr
-java.iws
+*.iml
+*.ipr
+*.iws
 out/
+*.store
