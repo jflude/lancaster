@@ -35,7 +35,7 @@ else
 SO_EXT = .dll
 endif
 
-all: publisher subscriber reader libcachester.so
+all: publisher subscriber reader libcachester$(SO_EXT)
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
