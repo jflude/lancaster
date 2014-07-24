@@ -30,6 +30,9 @@ DEPFLAGS = \
 
 ifeq (,$(findstring CYGWIN,$(shell uname -s)))
 CFLAGS += -fPIC
+SO_EXT = .so
+else
+SO_EXT = .dll
 endif
 
 all: publisher subscriber reader libcachester.so
@@ -46,7 +49,7 @@ reader: libcachester.a
 libcachester.a: $(OBJS)
 	ar -r libcachester.a $(OBJS)
 
-libcachester.so: $(OBJS)
+libcachester$(SO_EXT): $(OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 depend:
