@@ -28,11 +28,11 @@ DEPFLAGS = \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 
-ifeq (,$(findstring CYGWIN,$(shell uname -s)))
+ifneq (,$(findstring CYGWIN,$(shell uname -s)))
+SO_EXT = .dll
+else
 CFLAGS += -fPIC
 SO_EXT = .so
-else
-SO_EXT = .dll
 endif
 
 all: publisher subscriber reader libcachester$(SO_EXT)
