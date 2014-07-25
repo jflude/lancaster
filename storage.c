@@ -349,7 +349,7 @@ status storage_write_queue(storage_handle store, identifier id)
 		return FAIL;
 	}
 
-	if (store->seg->q_mask == (unsigned) -1) {
+	if (store->seg->q_mask == -1u) {
 		errno = ENOBUFS;
 		error_errno("storage_write_queue");
 		return FAIL;

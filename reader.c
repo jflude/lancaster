@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 	q_capacity = storage_get_queue_capacity(store);
 
 	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
-		unsigned j, new_head = storage_get_queue_head(store);
+		unsigned q, new_head = storage_get_queue_head(store);
 		if (new_head == old_head) {
 			snooze();
 			continue;
@@ -37,13 +37,13 @@ int main(int argc, char* argv[])
 			c = '*';
 		}
 
-		for (j = old_head; j < new_head; ++j) {
+		for (q = old_head; q < new_head; ++q) {
 			record_handle rec;
 			struct datum_t* d;
-			long seq;
-			int bid;
+			sequence seq;
+			int bid_qty, ask_qty;
 
-			int id = storage_read_queue(store, j);
+			int id = storage_read_queue(store, q);
 			if (id == -1)
 				continue;
 
@@ -53,13 +53,14 @@ int main(int argc, char* argv[])
 			d = record_get_value(rec);
 			do {
 				seq = record_read_lock(rec);
-				bid = d->bid_qty;
+				bid_qty = d->bid_qty;
+				ask_qty = d->ask_qty;
 			} while (seq != record_get_sequence(rec));
 
-			if (c == '.' && bid != n)
+			if (c == '.' && (bid_qty != n || ask_qty != n + 1))
 				c = '!';
 
-			n = bid + 1;
+			n = ask_qty + 1;
 		}
 
 		old_head = new_head;
