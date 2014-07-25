@@ -71,7 +71,7 @@ void uudict_destroy(uudict_handle* puudict)
 	*puudict = NULL;
 }
 
-status uudict_assoc(uudict_handle uudict, union uuid_t uu, int id)
+status uudict_assoc(uudict_handle uudict, union uuid_t uu, identifier id)
 {
 	status st = OK;
 	union uuid_t* p = XMALLOC(union uuid_t);
@@ -86,23 +86,23 @@ status uudict_assoc(uudict_handle uudict, union uuid_t uu, int id)
 	return table_insert(uudict->id2uu, (table_key) (long) id, (table_value) p);
 }
 
-status uudict_get_id(uudict_handle uudict, union uuid_t uu, int* pid)
+status uudict_get_id(uudict_handle uudict, union uuid_t uu, identifier* pident)
 {
 	table_value val;
 	status st;
 
-	if (!pid) {
+	if (!pident) {
 		error_invalid_arg("uudict_get_id");
 		return FAIL;
 	}
 
 	if (!FAILED(st = table_lookup(uudict->uu2id, (table_key) &uu, &val)) && st)
-		*pid = (long) val;
+		*pident = (long) val;
 
 	return st;
 }
 
-status uudict_get_uuid(uudict_handle uudict, int id, union uuid_t** ppuu)
+status uudict_get_uuid(uudict_handle uudict, identifier id, union uuid_t** ppuu)
 {
 	if (!ppuu) {
 		error_invalid_arg("uudict_get_uuid");

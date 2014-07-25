@@ -393,7 +393,32 @@ thread.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 thread.o: /usr/include/x86_64-linux-gnu/bits/setjmp.h
 twist.o: twist.h status.h error.h xalloc.h /usr/include/linux/stddef.h
 twist.o: /usr/include/linux/string.h
-uudict.o: uudict.h status.h /usr/include/linux/stddef.h error.h table.h
+uudict.o: uudict.h status.h storage.h /usr/include/linux/stddef.h
+uudict.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
+uudict.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
+uudict.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
+uudict.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/types.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
+uudict.o: /usr/include/linux/time.h /usr/include/linux/types.h
+uudict.o: /usr/include/x86_64-linux-gnu/asm/types.h
+uudict.o: /usr/include/asm-generic/types.h
+uudict.o: /usr/include/asm-generic/int-ll64.h
+uudict.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+uudict.o: /usr/include/asm-generic/bitsperlong.h
+uudict.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+uudict.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+uudict.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+uudict.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
+uudict.o: /usr/include/x86_64-linux-gnu/sys/select.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/select.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/time.h
+uudict.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+uudict.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h error.h table.h
 uudict.o: xalloc.h /usr/include/linux/string.h
 xalloc.o: xalloc.h /usr/include/linux/stddef.h /usr/include/linux/string.h
 xalloc.o: error.h /usr/include/linux/errno.h
