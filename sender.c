@@ -7,7 +7,6 @@
 #include "xalloc.h"
 #include "yield.h"
 #include <errno.h>
-#include <limits.h>
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
@@ -37,8 +36,8 @@ struct sender_t
 	storage_handle store;
 	size_t mcast_mtu;
 	size_t val_size;
-	long next_seq;
-	long min_store_seq;
+	sequence next_seq;
+	sequence min_store_seq;
 	time_t last_mcast_send;
 	boolean conflate_pkt;
 	spin_lock_t mcast_lock;
@@ -56,12 +55,12 @@ struct tcp_req_param_t
 	size_t val_size;
 	size_t pkt_size;
 	char* send_buf;
-	long* send_seq;
-	int* send_id;
+	sequence* send_seq;
+	identifier* send_id;
 	char* next_send;
 	size_t remain_send;
 	record_handle curr_rec;
-	long min_store_seq_seen;
+	sequence min_store_seq_seen;
 	struct storage_seq_range_t range;
 	time_t last_tcp_send;
 	boolean sending_hb;
@@ -86,17 +85,22 @@ static status write_accum(sender_handle me)
 	memset(me->time_stored_at, 0, sizeof(struct timespec));
 #endif
 
-	st = sock_sendto(me->mcast_sock, data, sz);
-	if (!FAILED(st)) {
-		accum_clear(me->mcast_accum);
-		me->next_seq++;
+	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)))
+		return st;
 
-		me->last_mcast_send = time(NULL);
+	me->last_mcast_send = time(NULL);
 
-		SPIN_LOCK(&me->stats.lock);
-		me->stats.mcast_bytes_sent += sz;
-		me->stats.mcast_packets_sent++;
-		SPIN_UNLOCK(&me->stats.lock);
+	SPIN_LOCK(&me->stats.lock);
+	me->stats.mcast_bytes_sent += sz;
+	me->stats.mcast_packets_sent++;
+	SPIN_UNLOCK(&me->stats.lock);
+
+	accum_clear(me->mcast_accum);
+
+	if (++me->next_seq < 0) {
+		errno = EOVERFLOW;
+		error_errno("write_accum");
+		return FAIL;
 	}
 
 	return st;
@@ -105,8 +109,7 @@ static status write_accum(sender_handle me)
 static status mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
-	int id;
-	if ((((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(int)) &&
+	if ((((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
 		   (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
 		  accum_is_stale(me->mcast_accum)) && FAILED(st = write_accum(me))) ||
 		(accum_is_empty(me->mcast_accum) &&
@@ -114,22 +117,25 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 		  FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(struct timespec), &me->time_stored_at)))))
 		return st;
 
-	id = record_get_id(rec);
-	RECORD_LOCK(rec);
-
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else {
-		void* stored_at;
-		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL)) &&
-			!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
-			record_set_sequence(rec, me->next_seq);
-			if (me->conflate_pkt)
-				record_set_conflated(rec, stored_at);
+		identifier id = record_get_id(rec);
+		sequence seq = record_write_lock(rec);
+
+		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
+			void* stored_at;
+			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
+				if (me->conflate_pkt)
+					record_set_conflated(rec, stored_at);
+
+				seq = me->next_seq;
+			}
 		}
+
+		record_set_sequence(rec, seq);
 	}
 
-	RECORD_UNLOCK(rec);
 	return st;
 }
 
@@ -151,7 +157,7 @@ static status tcp_close_func(poll_handle poller, sock_handle sock, short* events
 
 static status tcp_will_quit_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
-	long quit_seq = WILL_QUIT_SEQ;
+	sequence quit_seq = WILL_QUIT_SEQ;
 	(void) poller; (void) events; (void) param;
 	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
@@ -175,7 +181,7 @@ static status tcp_on_accept(sender_handle me, sock_handle sock)
 	BZERO(req_param);
 
 	req_param->val_size = storage_get_value_size(me->store);
-	req_param->pkt_size = sizeof(long) + sizeof(int) + req_param->val_size;
+	req_param->pkt_size = sizeof(sequence) + sizeof(identifier) + req_param->val_size;
 
 	req_param->send_buf = xmalloc(req_param->pkt_size);
 	if (!req_param->send_buf) {
@@ -184,8 +190,8 @@ static status tcp_on_accept(sender_handle me, sock_handle sock)
 		return NO_MEMORY;
 	}
 
-	req_param->send_seq = (long*) req_param->send_buf;
-	req_param->send_id = (int*) (req_param->send_seq + 1);
+	req_param->send_seq = (sequence*) req_param->send_buf;
+	req_param->send_id = (identifier*) (req_param->send_seq + 1);
 
 	req_param->me = me;
 	req_param->sock = accepted;
@@ -237,21 +243,20 @@ static status tcp_on_write_iter_fn(record_handle rec, void* param)
 	struct tcp_req_param_t* req_param = param;
 	status st;
 
-	RECORD_LOCK(rec);
-	*req_param->send_seq = record_get_sequence(rec);
+	*req_param->send_seq = record_write_lock(rec);
 
 	if (*req_param->send_seq < req_param->min_store_seq_seen)
 		req_param->min_store_seq_seen = *req_param->send_seq;
 
 	if (*req_param->send_seq < req_param->range.low || *req_param->send_seq >= req_param->range.high) {
-		RECORD_UNLOCK(rec);
+		record_set_sequence(rec, *req_param->send_seq);
 		return TRUE;
 	}
 
-	*req_param->send_id = record_get_id(rec);
 	memcpy(req_param->send_id + 1, record_get_value(rec), req_param->val_size);
-	RECORD_UNLOCK(rec);
+	record_set_sequence(rec, *req_param->send_seq);
 
+	*req_param->send_id = record_get_id(rec);
 	req_param->curr_rec = rec;
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = req_param->pkt_size;
@@ -302,8 +307,8 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 	size_t gap_inc = 0;
 	status st;
 
-	req_param->range.low = LONG_MAX;
-	req_param->range.high = LONG_MIN;
+	req_param->range.low = SEQUENCE_MAX;
+	req_param->range.high = SEQUENCE_MIN;
 
 	for (;;) {
 		struct storage_seq_range_t range;
@@ -356,7 +361,7 @@ read_all:
 	if (req_param->range.high <= me->min_store_seq)
 		return OK;
 
-	req_param->min_store_seq_seen = LONG_MAX;
+	req_param->min_store_seq_seen = SEQUENCE_MAX;
 	return poll_set_event(me->poller, sock, POLLOUT);
 }
 
@@ -385,7 +390,7 @@ static status mcast_check_heartbeat_or_stale(sender_handle me)
 	if (accum_is_stale(me->mcast_accum))
 		st = write_accum(me);
 	else if (poll_get_count(me->poller) > 1 && (time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
-		long hb_seq = HEARTBEAT_SEQ;
+		sequence hb_seq = HEARTBEAT_SEQ;
 		if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
 			!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(struct timespec), &me->time_stored_at)))
 			st = write_accum(me);
@@ -465,7 +470,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return FAIL;
 	}
 
-	if (!storage_is_segment_owner(store)) {
+	if (!storage_is_owner(store)) {
 		errno = EPERM;
 		error_errno("sender_create");
 		return FAIL;

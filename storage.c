@@ -1,18 +1,19 @@
 #include "storage.h"
+#include "barrier.h"
 #include "error.h"
+#include "spin.h"
 #include "xalloc.h"
+#include "yield.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 struct record_t
 {
-	spin_lock_t lock;
-	int id;
-	long seq;
+	volatile sequence seq;
+	identifier id;
 	void* confl;
 	char val[1];
 };
@@ -24,11 +25,12 @@ struct segment_t
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
-	int base_id;
-	int max_id;
+	identifier base_id;
+	identifier max_id;
+	pid_t owner_pid;
 	unsigned q_mask;
 	unsigned q_head;
-	int change_q[1];
+	identifier change_q[1];
 };
 
 struct storage_t
@@ -43,7 +45,8 @@ struct storage_t
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 #define MAGIC_NUMBER 0xC0FFEE
 
-status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity, int base_id, int max_id, size_t val_size)
+status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity,
+					  identifier base_id, identifier max_id, size_t val_size)
 {
 	size_t rec_sz, hdr_sz, seg_sz;
 	if (!pstore || max_id <= base_id || val_size == 0 || q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
@@ -135,6 +138,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	(*pstore)->seg->val_size = val_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
+	(*pstore)->seg->owner_pid = getpid();
 	(*pstore)->seg->q_mask = q_capacity - 1;
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
@@ -167,7 +171,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
 	shm_loop:
-		fd = shm_open(mmap_file + 4, O_RDWR, 0);
+		fd = shm_open(mmap_file + 4, O_RDONLY, 0);
 		if (fd == -1) {
 			if (errno == EINTR)
 				goto shm_loop;
@@ -179,7 +183,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 	} else {
 		struct stat file_stat;
 	open_loop:
-		fd = open(mmap_file, O_RDWR);
+		fd = open(mmap_file, O_RDONLY);
 		if (fd == -1) {
 			if (errno == EINTR)
 				goto open_loop;
@@ -230,7 +234,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 		return FAIL;
 	}
 
-	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ, MAP_SHARED, fd, 0);
 	if ((*pstore)->seg == MAP_FAILED) {
 		error_errno("mmap");
 		(*pstore)->seg = NULL;
@@ -271,9 +275,14 @@ void storage_destroy(storage_handle* pstore)
 	*pstore = NULL;
 }
 
-boolean storage_is_segment_owner(storage_handle store)
+boolean storage_is_owner(storage_handle store)
 {
 	return store->is_seg_owner;
+}
+
+pid_t storage_get_owner_pid(storage_handle store)
+{
+	return store->seg->owner_pid;
 }
 
 record_handle storage_get_array(storage_handle store)
@@ -281,12 +290,12 @@ record_handle storage_get_array(storage_handle store)
 	return store->array;
 }
 
-int storage_get_base_id(storage_handle store)
+identifier storage_get_base_id(storage_handle store)
 {
 	return store->seg->base_id;
 }
 
-int storage_get_max_id(storage_handle store)
+identifier storage_get_max_id(storage_handle store)
 {
 	return store->seg->max_id;
 }
@@ -307,7 +316,7 @@ size_t storage_get_value_offset(storage_handle store)
 	return offsetof(struct record_t, val);
 }
 
-const int* storage_get_queue_base_address(storage_handle store)
+const identifier* storage_get_queue_base_address(storage_handle store)
 {
 	return store->seg->change_q;
 }
@@ -327,12 +336,12 @@ unsigned storage_get_queue_head(storage_handle store)
 	return store->seg->q_head;
 }
 
-int storage_read_queue(storage_handle store, unsigned index)
+identifier storage_read_queue(storage_handle store, unsigned index)
 {
 	return store->seg->change_q[index & store->seg->q_mask];
 }
 
-status storage_write_queue(storage_handle store, int id)
+status storage_write_queue(storage_handle store, identifier id)
 {
 	if (!store->is_seg_owner) {
 		errno = EPERM;
@@ -350,7 +359,7 @@ status storage_write_queue(storage_handle store, int id)
 	return OK;
 }
 
-status storage_lookup(storage_handle store, int id, record_handle* prec)
+status storage_lookup(storage_handle store, identifier id, record_handle* prec)
 {
 	if (!prec || id < store->seg->base_id || id >= store->seg->max_id) {
 		error_invalid_arg("storage_lookup");
@@ -385,7 +394,7 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 
 status storage_reset(storage_handle store)
 {
-	int i;
+	identifier i;
 	record_handle rec;
 
 	if (!store->is_seg_owner) {
@@ -396,9 +405,8 @@ status storage_reset(storage_handle store)
 
 	rec = store->array;
 	for (i = store->seg->base_id; i < store->seg->max_id; ++i) {
-		SPIN_CREATE(&rec->lock);
-		rec->id = i;
 		rec->seq = 0;
+		rec->id = i;
 		rec->confl = NULL;
 		memset(rec->val, 0, store->seg->val_size);
 
@@ -412,7 +420,7 @@ status storage_reset(storage_handle store)
 	return OK;
 }
 
-int record_get_id(record_handle rec)
+identifier record_get_id(record_handle rec)
 {
 	return rec->id;
 }
@@ -422,13 +430,14 @@ void* record_get_value(record_handle rec)
 	return rec->val;
 }
 
-long record_get_sequence(record_handle rec)
+sequence record_get_sequence(record_handle rec)
 {
 	return rec->seq;
 }
 
-void record_set_sequence(record_handle rec, long seq)
+void record_set_sequence(record_handle rec, sequence seq)
 {
+	MEMORY_BARRIER();
 	rec->seq = seq;
 }
 
@@ -440,4 +449,32 @@ void* record_get_conflated(record_handle rec)
 void record_set_conflated(record_handle rec, void* confl)
 {
 	rec->confl = confl;
+}
+
+sequence record_read_lock(record_handle rec)
+{
+	int n = 0;
+	sequence seq;
+
+	while ((seq = rec->seq) < 0)
+		if ((++n & MAX_RELAXES) != 0)
+			CPU_RELAX();
+		else
+			yield();
+
+	return seq;
+}
+
+sequence record_write_lock(record_handle rec)
+{
+	int n = 0;
+	sequence seq;
+
+	while ((seq = __sync_fetch_and_or(&rec->seq, SEQUENCE_MIN)) < 0)
+		if ((++n & MAX_RELAXES) != 0)
+			CPU_RELAX();
+		else
+			yield();
+
+	return seq;
 }

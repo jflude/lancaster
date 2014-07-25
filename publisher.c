@@ -15,7 +15,8 @@ int main(int argc, char* argv[])
 	storage_handle store;
 	sender_handle sender;
 	status st = OK;
-	int mask, n = 0, i = 1;
+	int mask, n = 1;
+	identifier id;
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
 	boolean verbose = FALSE;
@@ -27,16 +28,16 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
+	if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
 		verbose = TRUE;
-		i++;
+		n++;
 	}
 
-	mask = (1 << atoi(argv[i++])) - 1;
-	mcast_addr = argv[i++];
-	mcast_port = atoi(argv[i++]);
-	tcp_addr = argv[i++];
-	tcp_port = atoi(argv[i++]);
+	mask = (1 << atoi(argv[n++])) - 1;
+	mcast_addr = argv[n++];
+	mcast_port = atoi(argv[n++]);
+	tcp_addr = argv[n++];
+	tcp_port = atoi(argv[n++]);
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) || FAILED(storage_reset(store)) ||
@@ -48,19 +49,21 @@ int main(int argc, char* argv[])
 	tcp_c = sender_get_tcp_bytes_sent(sender);
 	mcast_c = sender_get_mcast_bytes_sent(sender);
 
+	n = 0;
 	while (sender_is_running(sender) && !signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM))
-		for (i = 0; i < MAX_ID; ++i) {
+		for (id = 0; id < MAX_ID; ++id) {
 			record_handle rec;
 			struct datum_t* d;
+			sequence seq;
 
-			if (FAILED(st = storage_lookup(store, i, &rec)))
+			if (FAILED(st = storage_lookup(store, id, &rec)))
 				goto finish;
 
 			d = record_get_value(rec);
 
-			RECORD_LOCK(rec);
-			d->bid_qty = ++n;
-			RECORD_UNLOCK(rec);
+			seq = record_write_lock(rec);
+			d->bid_qty = n++;
+			record_set_sequence(rec, seq);
 
 			if (FAILED(st = sender_record_changed(sender, rec)))
 				goto finish;

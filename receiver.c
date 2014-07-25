@@ -38,7 +38,7 @@ struct receiver_t
 	sock_handle tcp_sock;
 	storage_handle store;
 	size_t mcast_mtu;
-	long next_seq;
+	sequence next_seq;
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
 	int heartbeat_secs;
@@ -50,7 +50,7 @@ static void* mcast_func(thread_handle thr)
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
 	char* buf = alloca(me->mcast_mtu);
-	long* recv_seq = (long*) buf;
+	sequence* recv_seq = (sequence*) buf;
 	struct timespec* recv_stamp = (struct timespec*) (recv_seq + 1);
 	status st = OK, st2;
 
@@ -119,17 +119,16 @@ static void* mcast_func(thread_handle thr)
 			continue;
 
 		last = buf + st;
-		for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(int)) {
+		for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
 			record_handle rec;
-			int* id = (int*) p;
+			identifier* id = (identifier*) p;
 
 			if (FAILED(st = storage_lookup(me->store, *id, &rec)))
 				goto finish;
 
-			RECORD_LOCK(rec);
+			record_write_lock(rec);
 			memcpy(record_get_value(rec), id + 1, val_size);
 			record_set_sequence(rec, *recv_seq);
-			RECORD_UNLOCK(rec);
 
 			if (FAILED(st = storage_write_queue(me->store, *id)))
 				goto finish;
@@ -225,15 +224,16 @@ static void* tcp_func(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
-	size_t pkt_size = sizeof(long) + sizeof(int) + val_size;
+	size_t pkt_size = sizeof(sequence) + sizeof(identifier) + val_size;
 	char* buf = alloca(pkt_size);
 
-	long* recv_seq = (long*) buf;
-	int* id = (int*) (recv_seq + 1);
+	sequence* recv_seq = (sequence*) buf;
+	identifier* id = (identifier*) (recv_seq + 1);
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
+		sequence seq;
 		st = tcp_read(me, buf, sizeof(*recv_seq));
 		if (FAILED(st) || !st)
 			break;
@@ -248,15 +248,14 @@ static void* tcp_func(thread_handle thr)
 		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))
 			break;
 
-		RECORD_LOCK(rec);
-		if (*recv_seq <= record_get_sequence(rec)) {
-			RECORD_UNLOCK(rec);
+		seq = record_write_lock(rec);
+		if (*recv_seq <= seq) {
+			record_set_sequence(rec, seq);
 			continue;
 		}
 
 		memcpy(record_get_value(rec), id + 1, val_size);
 		record_set_sequence(rec, *recv_seq);
-		RECORD_UNLOCK(rec);
 
 		if (FAILED(st = storage_write_queue(me->store, *id)))
 			break;

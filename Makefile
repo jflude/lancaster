@@ -147,15 +147,34 @@ poll.o: /usr/include/linux/string.h /usr/include/linux/errno.h
 poll.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 poll.o: /usr/include/asm-generic/errno.h
 poll.o: /usr/include/asm-generic/errno-base.h
-receiver.o: receiver.h storage.h spin.h barrier.h yield.h status.h
-receiver.o: /usr/include/linux/stddef.h error.h sock.h thread.h xalloc.h
-receiver.o: /usr/include/linux/string.h /usr/include/alloca.h
-receiver.o: /usr/include/features.h
+receiver.o: receiver.h storage.h status.h /usr/include/linux/stddef.h
+receiver.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 receiver.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 receiver.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/types.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
+receiver.o: /usr/include/linux/time.h /usr/include/linux/types.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/types.h
+receiver.o: /usr/include/asm-generic/types.h
+receiver.o: /usr/include/asm-generic/int-ll64.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+receiver.o: /usr/include/asm-generic/bitsperlong.h
+receiver.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+receiver.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
+receiver.o: /usr/include/x86_64-linux-gnu/sys/select.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/select.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/time.h
+receiver.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h error.h sock.h
+receiver.o: spin.h barrier.h yield.h thread.h xalloc.h
+receiver.o: /usr/include/linux/string.h /usr/include/alloca.h
 receiver.o: /usr/include/linux/errno.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 receiver.o: /usr/include/asm-generic/errno.h
@@ -168,36 +187,16 @@ receiver.o: /usr/include/x86_64-linux-gnu/bits/inf.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/nan.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/mathdef.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/mathcalls.h poll.h
-receiver.o: /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-receiver.o: /usr/include/libio.h /usr/include/_G_config.h
-receiver.o: /usr/include/wchar.h
+receiver.o: /usr/include/stdio.h /usr/include/libio.h
+receiver.o: /usr/include/_G_config.h /usr/include/wchar.h
 receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
-receiver.o: /usr/include/linux/time.h /usr/include/linux/types.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/types.h
-receiver.o: /usr/include/asm-generic/types.h
-receiver.o: /usr/include/asm-generic/int-ll64.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
-receiver.o: /usr/include/asm-generic/bitsperlong.h
-receiver.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
 receiver.o: /usr/include/linux/unistd.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/uio.h
-receiver.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/endian.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/endian.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
-receiver.o: /usr/include/x86_64-linux-gnu/sys/select.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/select.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/time.h
-receiver.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/uio.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
@@ -205,24 +204,15 @@ receiver.o: /usr/include/x86_64-linux-gnu/asm/socket.h
 receiver.o: /usr/include/asm-generic/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 receiver.o: /usr/include/asm-generic/sockios.h
-sender.o: sender.h storage.h spin.h barrier.h yield.h status.h
-sender.o: /usr/include/linux/stddef.h accum.h error.h poll.h sock.h thread.h
-sender.o: xalloc.h /usr/include/linux/string.h /usr/include/linux/errno.h
-sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
-sender.o: /usr/include/asm-generic/errno.h
-sender.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h
-sender.o: /usr/include/stdio.h /usr/include/features.h
+sender.o: sender.h storage.h status.h /usr/include/linux/stddef.h
+sender.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 sender.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 sender.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/types.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h
-sender.o: /usr/include/_G_config.h /usr/include/wchar.h
-sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
 sender.o: /usr/include/linux/time.h /usr/include/linux/types.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/types.h
 sender.o: /usr/include/asm-generic/types.h
@@ -232,20 +222,28 @@ sender.o: /usr/include/asm-generic/bitsperlong.h
 sender.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-sender.o: /usr/include/linux/unistd.h
-sender.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
-sender.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
-sender.o: /usr/include/x86_64-linux-gnu/sys/socket.h
-sender.o: /usr/include/x86_64-linux-gnu/sys/uio.h
-sender.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/endian.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/endian.h
+sender.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/select.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/select.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/time.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h accum.h error.h
+sender.o: poll.h sock.h spin.h barrier.h yield.h thread.h xalloc.h
+sender.o: /usr/include/linux/string.h /usr/include/linux/errno.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+sender.o: /usr/include/asm-generic/errno.h
+sender.o: /usr/include/asm-generic/errno-base.h /usr/include/stdio.h
+sender.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
+sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+sender.o: /usr/include/linux/unistd.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+sender.o: /usr/include/x86_64-linux-gnu/sys/socket.h
+sender.o: /usr/include/x86_64-linux-gnu/sys/uio.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/uio.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
@@ -327,14 +325,16 @@ sock.o: /usr/include/x86_64-linux-gnu/asm/ioctl.h
 sock.o: /usr/include/asm-generic/ioctl.h
 sock.o: /usr/include/x86_64-linux-gnu/bits/ioctl-types.h
 sock.o: /usr/include/x86_64-linux-gnu/sys/ttydefaults.h
-storage.o: storage.h spin.h barrier.h yield.h status.h
-storage.o: /usr/include/linux/stddef.h error.h xalloc.h
-storage.o: /usr/include/linux/string.h /usr/include/linux/errno.h
-storage.o: /usr/include/x86_64-linux-gnu/asm/errno.h
-storage.o: /usr/include/asm-generic/errno.h
-storage.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/fcntl.h
-storage.o: /usr/include/x86_64-linux-gnu/asm/fcntl.h
-storage.o: /usr/include/asm-generic/fcntl.h /usr/include/linux/types.h
+storage.o: storage.h status.h /usr/include/linux/stddef.h
+storage.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
+storage.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
+storage.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
+storage.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/types.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
+storage.o: /usr/include/linux/time.h /usr/include/linux/types.h
 storage.o: /usr/include/x86_64-linux-gnu/asm/types.h
 storage.o: /usr/include/asm-generic/types.h
 storage.o: /usr/include/asm-generic/int-ll64.h
@@ -343,28 +343,25 @@ storage.o: /usr/include/asm-generic/bitsperlong.h
 storage.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
 storage.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 storage.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-storage.o: /usr/include/linux/unistd.h
-storage.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
-storage.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
-storage.o: /usr/include/x86_64-linux-gnu/sys/mman.h /usr/include/features.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
-storage.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
-storage.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
-storage.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/types.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/mman.h
-storage.o: /usr/include/x86_64-linux-gnu/sys/types.h
-storage.o: /usr/include/linux/time.h /usr/include/endian.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/endian.h
+storage.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/select.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/select.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/time.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h barrier.h
+storage.o: error.h spin.h yield.h xalloc.h /usr/include/linux/string.h
+storage.o: /usr/include/linux/errno.h
+storage.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+storage.o: /usr/include/asm-generic/errno.h
+storage.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/fcntl.h
+storage.o: /usr/include/x86_64-linux-gnu/asm/fcntl.h
+storage.o: /usr/include/asm-generic/fcntl.h /usr/include/linux/unistd.h
+storage.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
+storage.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+storage.o: /usr/include/x86_64-linux-gnu/sys/mman.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/mman.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/stat.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/stat.h
 table.o: table.h status.h /usr/include/linux/stddef.h error.h xalloc.h
@@ -433,22 +430,9 @@ xalloc.o: /usr/include/alloca.h
 yield.o: yield.h /usr/include/linux/sched.h /usr/include/linux/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
-publisher.o: datum.h error.h sender.h storage.h spin.h barrier.h yield.h
-publisher.o: status.h /usr/include/linux/stddef.h signals.h
-publisher.o: /usr/include/linux/signal.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/signal.h
-publisher.o: /usr/include/linux/types.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/types.h
-publisher.o: /usr/include/asm-generic/types.h
-publisher.o: /usr/include/asm-generic/int-ll64.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
-publisher.o: /usr/include/asm-generic/bitsperlong.h
-publisher.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-publisher.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
-publisher.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
-publisher.o: /usr/include/asm-generic/siginfo.h /usr/include/stdio.h
+publisher.o: datum.h error.h sender.h storage.h status.h
+publisher.o: /usr/include/linux/stddef.h
+publisher.o: /usr/include/x86_64-linux-gnu/sys/types.h
 publisher.o: /usr/include/features.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
@@ -457,13 +441,16 @@ publisher.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 publisher.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/types.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-publisher.o: /usr/include/libio.h /usr/include/_G_config.h
-publisher.o: /usr/include/wchar.h
-publisher.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
-publisher.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
-publisher.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
-publisher.o: /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/sys/types.h
-publisher.o: /usr/include/linux/time.h /usr/include/endian.h
+publisher.o: /usr/include/linux/time.h /usr/include/linux/types.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/types.h
+publisher.o: /usr/include/asm-generic/types.h
+publisher.o: /usr/include/asm-generic/int-ll64.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+publisher.o: /usr/include/asm-generic/bitsperlong.h
+publisher.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+publisher.o: /usr/include/endian.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/select.h
@@ -471,25 +458,22 @@ publisher.o: /usr/include/x86_64-linux-gnu/bits/select.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 publisher.o: /usr/include/x86_64-linux-gnu/bits/time.h
 publisher.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-publisher.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
-publisher.o: /usr/include/alloca.h /usr/include/linux/string.h
-subscriber.o: error.h receiver.h storage.h spin.h barrier.h yield.h status.h
-subscriber.o: /usr/include/linux/stddef.h signals.h
-subscriber.o: /usr/include/linux/signal.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/signal.h
-subscriber.o: /usr/include/linux/types.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/types.h
-subscriber.o: /usr/include/asm-generic/types.h
-subscriber.o: /usr/include/asm-generic/int-ll64.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
-subscriber.o: /usr/include/asm-generic/bitsperlong.h
-subscriber.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
-subscriber.o: /usr/include/linux/time.h
-subscriber.o: /usr/include/asm-generic/signal-defs.h
-subscriber.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
-subscriber.o: /usr/include/asm-generic/siginfo.h /usr/include/stdio.h
+publisher.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h signals.h
+publisher.o: /usr/include/linux/signal.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/signal.h
+publisher.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
+publisher.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
+publisher.o: /usr/include/asm-generic/siginfo.h yield.h /usr/include/stdio.h
+publisher.o: /usr/include/libio.h /usr/include/_G_config.h
+publisher.o: /usr/include/wchar.h
+publisher.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+publisher.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+publisher.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+publisher.o: /usr/include/stdlib.h /usr/include/alloca.h
+publisher.o: /usr/include/linux/string.h
+subscriber.o: error.h receiver.h storage.h status.h
+subscriber.o: /usr/include/linux/stddef.h
+subscriber.o: /usr/include/x86_64-linux-gnu/sys/types.h
 subscriber.o: /usr/include/features.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
@@ -498,13 +482,16 @@ subscriber.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 subscriber.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/types.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
-subscriber.o: /usr/include/libio.h /usr/include/_G_config.h
-subscriber.o: /usr/include/wchar.h
-subscriber.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
-subscriber.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
-subscriber.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
-subscriber.o: /usr/include/stdlib.h /usr/include/x86_64-linux-gnu/sys/types.h
-subscriber.o: /usr/include/linux/time.h /usr/include/endian.h
+subscriber.o: /usr/include/linux/time.h /usr/include/linux/types.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/types.h
+subscriber.o: /usr/include/asm-generic/types.h
+subscriber.o: /usr/include/asm-generic/int-ll64.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+subscriber.o: /usr/include/asm-generic/bitsperlong.h
+subscriber.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+subscriber.o: /usr/include/endian.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/select.h
@@ -512,8 +499,20 @@ subscriber.o: /usr/include/x86_64-linux-gnu/bits/select.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 subscriber.o: /usr/include/x86_64-linux-gnu/bits/time.h
 subscriber.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-subscriber.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
-subscriber.o: /usr/include/alloca.h /usr/include/linux/string.h
+subscriber.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h signals.h
+subscriber.o: /usr/include/linux/signal.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/signal.h
+subscriber.o: /usr/include/linux/time.h
+subscriber.o: /usr/include/asm-generic/signal-defs.h
+subscriber.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
+subscriber.o: /usr/include/asm-generic/siginfo.h yield.h /usr/include/stdio.h
+subscriber.o: /usr/include/libio.h /usr/include/_G_config.h
+subscriber.o: /usr/include/wchar.h
+subscriber.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+subscriber.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+subscriber.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+subscriber.o: /usr/include/stdlib.h /usr/include/alloca.h
+subscriber.o: /usr/include/linux/string.h
 reader.o: datum.h error.h signals.h status.h /usr/include/linux/signal.h
 reader.o: /usr/include/x86_64-linux-gnu/asm/signal.h
 reader.o: /usr/include/linux/types.h
@@ -527,17 +526,27 @@ reader.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
 reader.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
 reader.o: /usr/include/linux/time.h /usr/include/asm-generic/signal-defs.h
 reader.o: /usr/include/x86_64-linux-gnu/asm/siginfo.h
-reader.o: /usr/include/asm-generic/siginfo.h storage.h spin.h barrier.h
-reader.o: yield.h /usr/include/linux/stddef.h /usr/include/stdio.h
-reader.o: /usr/include/features.h
+reader.o: /usr/include/asm-generic/siginfo.h storage.h
+reader.o: /usr/include/linux/stddef.h
+reader.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
 reader.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 reader.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
 reader.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
 reader.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
 reader.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
 reader.o: /usr/include/x86_64-linux-gnu/bits/types.h
-reader.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/libio.h
-reader.o: /usr/include/_G_config.h /usr/include/wchar.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
+reader.o: /usr/include/linux/time.h /usr/include/endian.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/endian.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
+reader.o: /usr/include/x86_64-linux-gnu/sys/select.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/select.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/time.h
+reader.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+reader.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h yield.h
+reader.o: /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h
+reader.o: /usr/include/wchar.h
 reader.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
 reader.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
 reader.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h

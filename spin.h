@@ -6,6 +6,8 @@
 #include "barrier.h"
 #include "yield.h"
 
+#define MAX_RELAXES 8191
+
 typedef volatile int spin_lock_t;
 
 #define SPIN_CREATE(p) \
@@ -20,7 +22,7 @@ typedef volatile int spin_lock_t;
 	do { \
 		int n = 0; \
 		while (!SPIN_TRY_LOCK(p)) \
-			if ((++n & 8191) != 0) \
+			if ((++n & MAX_RELAXES) != 0) \
 				CPU_RELAX(); \
 			else \
 				yield(); \

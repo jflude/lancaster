@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
 	const char* tcp_addr;
 	int tcp_port;
 	const char* storage_file;
-	int q_capacity, i = 1;
+	int q_capacity, n = 1;
 	boolean verbose = FALSE;
 	size_t pkt_c, tcp_c, mcast_c;
 	time_t t1;
@@ -25,15 +25,15 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
+	if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
 		verbose = TRUE;
-		i++;
+		n++;
 	}
 
-	tcp_addr = argv[i++];
-	tcp_port = atoi(argv[i++]);
-	q_capacity = atoi(argv[i++]);
-	storage_file = argv[i++];
+	tcp_addr = argv[n++];
+	tcp_port = atoi(argv[n++]);
+	q_capacity = atoi(argv[n++]);
+	storage_file = argv[n++];
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))

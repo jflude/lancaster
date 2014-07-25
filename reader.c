@@ -4,6 +4,7 @@
 #include "error.h"
 #include "signals.h"
 #include "storage.h"
+#include "yield.h"
 #include <stdio.h>
 
 int main(int argc, char* argv[])
@@ -39,7 +40,8 @@ int main(int argc, char* argv[])
 		for (j = old_head; j < new_head; ++j) {
 			record_handle rec;
 			struct datum_t* d;
-			int new_n;
+			long seq;
+			int bid;
 
 			int id = storage_read_queue(store, j);
 			if (id == -1)
@@ -49,15 +51,15 @@ int main(int argc, char* argv[])
 				error_report_fatal();
 
 			d = record_get_value(rec);
+			do {
+				seq = record_read_lock(rec);
+				bid = d->bid_qty;
+			} while (seq != record_get_sequence(rec));
 
-			RECORD_LOCK(rec);
-			new_n = d->bid_qty;
-			RECORD_UNLOCK(rec);
-
-			if (new_n != (n + 1) && c == '.')
+			if (c == '.' && bid != n)
 				c = '!';
 
-			n = new_n;
+			n = bid + 1;
 		}
 
 		old_head = new_head;
