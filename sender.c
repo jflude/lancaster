@@ -499,9 +499,9 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return st;
 	}
 
-	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%d\r\n%d\r\n%lu\r\n%d\r\n",
+	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
-								  storage_get_base_id(store), storage_get_max_id(store),
+								  (long) storage_get_base_id(store), (long) storage_get_max_id(store),
 								  storage_get_value_size(store), (*psend)->heartbeat_secs);
 
 	if ((*psend)->hello_len < 0) {

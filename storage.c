@@ -21,13 +21,13 @@ struct record_t
 struct segment_t
 {
 	unsigned magic;
+	pid_t owner_pid;
 	size_t mmap_size;
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
-	pid_t owner_pid;
 	unsigned q_mask;
 	unsigned q_head;
 	identifier change_q[1];
@@ -48,6 +48,7 @@ struct storage_t
 status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size)
 {
+	/* q_capacity must be a power of 2 */
 	size_t rec_sz, hdr_sz, seg_sz;
 	if (!pstore || max_id <= base_id || val_size == 0 || q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
 		error_invalid_arg("storage_create");
@@ -132,13 +133,13 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	}
 
 	(*pstore)->seg->magic = MAGIC_NUMBER;
+	(*pstore)->seg->owner_pid = getpid();
 	(*pstore)->seg->mmap_size = seg_sz;
 	(*pstore)->seg->hdr_size = hdr_sz;
 	(*pstore)->seg->rec_size = rec_sz;
 	(*pstore)->seg->val_size = val_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
-	(*pstore)->seg->owner_pid = getpid();
 	(*pstore)->seg->q_mask = q_capacity - 1;
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
@@ -413,7 +414,7 @@ status storage_reset(storage_handle store)
 		rec = RECORD_ADDR(store, rec, 1);
 	}
 
-	for (i = store->seg->q_mask; i >= 0; --i)
+	for (i = (int) store->seg->q_mask; i >= 0; --i)
 		store->seg->change_q[i] = -1;
 
 	store->seg->q_head = 0;

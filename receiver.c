@@ -274,7 +274,8 @@ static void* tcp_func(thread_handle thr)
 status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
-	int proto_ver, mcast_port, base_id, max_id, hb_secs;
+	int proto_ver, mcast_port, hb_secs;
+	long base_id, max_id;
 	size_t val_size;
 	status st;
 
@@ -297,7 +298,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %lu %d %d %lu %d",
+	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %d",
 				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &hb_secs);
 
 	if (st == EOF) {

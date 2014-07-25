@@ -21,7 +21,7 @@ typedef struct record_t* record_handle;
 
 typedef status (*storage_iterate_func)(record_handle, void*);
 
-typedef int identifier;
+typedef long identifier;
 typedef long sequence;
 
 #define SEQUENCE_MAX (1uL >> 1)  /* assumes two's complement */

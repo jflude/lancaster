@@ -20,8 +20,9 @@ char* xstrdup(const char* p);
 #define XMALLOC(t) (xmalloc(sizeof(t)))
 #define BZERO(p) (memset((p), 0, sizeof(*(p))))
 #define COUNTOF(a) (sizeof(a) / sizeof((a)[0]))
-#define DEFAULT_ALIGNMENT 8
+
 #define ALIGNED_SIZE(s, a, v, n) (sizeof(s) - a + ((sizeof(((s *) NULL)->v) * (n - 1) + a) & ~(a - 1)))
+#define DEFAULT_ALIGNMENT 8
 
 #ifdef __cplusplus
 }
