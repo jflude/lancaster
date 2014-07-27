@@ -30,7 +30,7 @@ func runDirect() {
 	for {
 		new_head = int(*(qHeadPtr))
 		if new_head == old_head {
-			time.Sleep(100 * time.Nanosecond)
+			time.Sleep(time.Microsecond)
 			// fmt.Println("sleep", new_head)
 			continue
 		}
