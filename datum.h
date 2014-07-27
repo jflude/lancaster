@@ -7,13 +7,14 @@
 extern "C" {
 #endif
 
-struct datum_t
+typedef struct datum_t
 {
-	double bid_price;
-	double ask_price;
-	int bid_qty;
-	int ask_qty;
-};
+	long bidPrice;
+	long askPrice;
+	int bidSize;
+	int askSize;
+	unsigned long opraSeq;
+} datum;
 
 #define MAX_ID 1000000
 #define HB_PERIOD 10

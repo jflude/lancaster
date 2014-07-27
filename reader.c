@@ -53,8 +53,8 @@ int main(int argc, char* argv[])
 			d = record_get_value(rec);
 			do {
 				seq = record_read_lock(rec);
-				bid_qty = d->bid_qty;
-				ask_qty = d->ask_qty;
+				bid_qty = d->bidSize;
+				ask_qty = d->askSize;
 			} while (seq != record_get_sequence(rec));
 
 			if (c == '.' && (bid_qty != n || ask_qty != n + 1))

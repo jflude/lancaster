@@ -62,8 +62,8 @@ int main(int argc, char* argv[])
 			d = record_get_value(rec);
 
 			seq = record_write_lock(rec);
-			d->bid_qty = n++;
-			d->ask_qty = n++;
+			d->bidSize = n++;
+			d->askSize = n++;
 			record_set_sequence(rec, seq);
 
 			if (FAILED(st = sender_record_changed(sender, rec)))
