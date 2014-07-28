@@ -19,18 +19,63 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
-var qSize = flag.Uint("qsize", 1<<20, "Queue size for ring buffer")
-var file = flag.String("file", "", "File to write to")
-var httpAddr = flag.String("http", ":8080", "Http listener")
+var qSize uint
+var file string
+var httpAddr string
 
-type Receiver struct {
-	Host string
-	rcvr C.receiver_handle
+var State struct {
+	Receivers []*Receiver
 }
 
-func (r *Receiver) Stats() map[string]interface{} {
+func init() {
+	flag.StringVar(&file, "file", "shm:cachester", "Base filename for streams (host and port is appended)")
+	flag.UintVar(&qSize, "qsize", 1<<20, "Size of update queue")
+	flag.StringVar(&httpAddr, "http", ":8080", "HTTP Listen Address")
+}
+
+type Receiver struct {
+	Host  string
+	rcvr  C.receiver_handle
+	Stats Stats
+}
+
+type Stats struct {
+	GapCount           uint64
+	TcpBytesRecv       uint64
+	TcpBytesSec        uint64
+	MCastBytesRecv     uint64
+	MCastBytesSec      uint64
+	MCastPacketsRecv   uint64
+	MCastPacketsSec    uint64
+	MCastMinLatency    float64
+	MCastMaxLatency    float64
+	MCastMeanLatency   float64
+	MCastStdDevLatency float64
+	lastUpdate         time.Time
+}
+
+func (r *Receiver) updateStats() {
+	var s Stats
+	s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
+	s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
+	s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
+	s.MCastPacketsRecv = uint64(C.receiver_get_mcast_packets_recv(r.rcvr))
+	s.MCastMinLatency = float64(C.receiver_get_mcast_min_latency(r.rcvr))
+	s.MCastMaxLatency = float64(C.receiver_get_mcast_max_latency(r.rcvr))
+	s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
+	s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
+	s.lastUpdate = time.Now()
+	dur := s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds()
+	s.TcpBytesSec = uint64(float64(s.TcpBytesRecv-r.Stats.TcpBytesRecv) / dur)
+	s.MCastPacketsSec = uint64(float64(s.MCastPacketsRecv-r.Stats.MCastPacketsRecv) / dur)
+	s.MCastBytesSec = uint64(float64(s.MCastBytesRecv-r.Stats.MCastBytesRecv) / dur)
+	r.Stats = s
+}
+
+/*func (r *Receiver) Stats() map[string]interface{} {
 	ret := make(map[string]interface{})
 	ret["tcp_gap_count"] = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
 	ret["tcp_bytes_recv"] = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
@@ -42,47 +87,57 @@ func (r *Receiver) Stats() map[string]interface{} {
 	ret["mcast_stddev_latency"] = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
 	return ret
 }
-
-var State struct {
-	Receivers []Receiver
-}
-
+*/
 func main() {
 	flag.Parse()
+	if file == "" {
+		fail("Expected -file")
+	}
 	for _, host := range flag.Args() {
-		parts := strings.Split(host, ":")
-		fmt.Println("parts", parts)
-		if len(parts) != 2 {
-			fail("Expected host:port, but got:", host)
-		}
-		var addr string
-		var port int
-		if parts[0] != "" {
-			addr = parts[0]
-		}
-		port, err := strconv.Atoi(parts[1])
-		if err != nil {
+		if err := startReceiver(host); err != nil {
 			fail(err)
 		}
-		var rcvr C.receiver_handle
-		if *file == "" {
-			fail("Expected filename")
-		}
-		mapName := fmt.Sprintf("%s-%s", *file, host)
-		fn := C.CString(mapName)
-		ip, err := net.ResolveIPAddr("ip", addr)
-		if err != nil {
-			fail(err.Error())
-		}
-		tcp_addr := C.CString(ip.String())
-		if err := chkStatus(C.receiver_create(&rcvr, fn, C.uint(*qSize), tcp_addr, C.int(port))); err != nil {
-			fail("Failed to start: %s", err)
-		}
-		State.Receivers = append(State.Receivers, Receiver{rcvr: rcvr, Host: host})
-		log.Println("Started receiver:", host, " file:", mapName)
 	}
+
 	http.HandleFunc("/", httpHandler)
-	http.ListenAndServe(*httpAddr, nil)
+	go http.ListenAndServe(httpAddr, nil)
+	for {
+		time.Sleep(time.Second)
+		for _, r := range State.Receivers {
+			r.updateStats()
+		}
+	}
+}
+
+func startReceiver(addr string) error {
+	parts := strings.Split(addr, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("Expected host:port, but got: %s", addr)
+	}
+	port, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+
+	host := parts[0]
+	if host == "" {
+		host = "localhost"
+	}
+
+	var rcvr C.receiver_handle
+	mapName := fmt.Sprintf("%s-%s", file, host)
+	fn := C.CString(mapName)
+	ip, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		return err
+	}
+	tcp_addr := C.CString(ip.String())
+	if err := chkStatus(C.receiver_create(&rcvr, fn, C.uint(qSize), tcp_addr, C.int(port))); err != nil {
+		return err
+	}
+	State.Receivers = append(State.Receivers, &Receiver{rcvr: rcvr, Host: host})
+	log.Println("Started receiver:", host, " file:", mapName)
+	return nil
 }
 
 func httpHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,10 +183,13 @@ var statusTemplateText = `
 	<table style="width:300px">
 		<tr>
 		  <th>Host</th>
-		  <th>TCP Gaps</th>
+		  <th>Gaps</th>
 		  <th>TCP Bytes Rec</th> 
+		  <th>TCP Bytes / sec</th> 
 		  <th>MCAST Bytes Rec</th>
+		  <th>MCAST Bytes / sec</th>
 		  <th>MCAST Packets Rec</th>
+		  <th>MCAST Packets / sec</th>
 		  <th>MCAST Min Latency</th>
 		  <th>MCAST Max Latency</th>
 		  <th>MCAST Mean Latency</th>
@@ -141,14 +199,17 @@ var statusTemplateText = `
 		{{ $s := .Stats }}
 		<tr>
 			<td>{{.Host}}</td>
-			<td>{{$s.tcp_gap_count}}</td>
-			<td>{{$s.tcp_bytes_recv  | bytes}}</td> 
-			<td>{{$s.mcast_bytes_recv  | bytes}}</td>
-			<td>{{$s.mcast_packets_recv}}</td>
-			<td>{{$s.mcast_min_latency}}</td>
-			<td>{{$s.mcast_max_latency}}</td>
-			<td>{{$s.mcast_mean_latency}}</td>
-			<td>{{$s.mcast_stddev_latency | _4Dec }}</td>
+			<td>{{$s.GapCount}}</td>
+			<td>{{$s.TcpBytesRecv  | bytes}}</td> 
+			<td>{{$s.TcpBytesSec  | bytes}}</td> 
+			<td>{{$s.MCastBytesRecv  | bytes}}</td>
+			<td>{{$s.MCastBytesSec  | bytes}}</td>
+			<td>{{$s.MCastPacketsRecv}}</td>
+			<td>{{$s.MCastPacketsSec}}</td>
+			<td>{{$s.MCastMinLatency}}</td>
+			<td>{{$s.MCastMaxLatency}}</td>
+			<td>{{$s.MCastMeanLatency}}</td>
+			<td>{{$s.MCastStdDevLatency | _4Dec }}</td>
 		</tr>
 		{{end}}
 	</table>
