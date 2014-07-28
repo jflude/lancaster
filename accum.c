@@ -9,7 +9,7 @@
 struct accum_t
 {
 	size_t capacity;
-	long max_age;
+	long max_age_usec;
 	struct timeval insert_time;
 	char* next_free;
 	char buf[1];
@@ -27,7 +27,7 @@ status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec)
 		return NO_MEMORY;
 
 	(*pacc)->capacity = capacity;
-	(*pacc)->max_age = max_age_usec;
+	(*pacc)->max_age_usec = max_age_usec;
 	(*pacc)->insert_time.tv_sec = NO_TIME;
 	(*pacc)->next_free = (*pacc)->buf;
 	return OK;
@@ -50,7 +50,7 @@ boolean accum_is_empty(accum_handle acc)
 status accum_is_stale(accum_handle acc)
 {
 	struct timeval tv;
-	if (acc->max_age <= 0 || acc->insert_time.tv_sec == NO_TIME)
+	if (acc->max_age_usec <= 0 || acc->insert_time.tv_sec == NO_TIME)
 		return FALSE;
 
 	if (gettimeofday(&tv, NULL) == -1) {
@@ -58,7 +58,7 @@ status accum_is_stale(accum_handle acc)
 		return FAIL;
 	}
 
-	return acc->max_age < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
+	return acc->max_age_usec < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
 }
 
 size_t accum_get_available(accum_handle acc)

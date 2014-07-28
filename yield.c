@@ -1,23 +1,39 @@
 #include "yield.h"
+#include "error.h"
+#include <errno.h>
 #include <sched.h>
+#include <time.h>
 #include <unistd.h>
 
-void yield(void)
+status yield(void)
 {
 #ifdef _POSIX_PRIORITY_SCHEDULING
-	sched_yield();
+	if (sched_yield() == -1) {
+		error_errno("sched_yield");
+		return FAIL;
+	}
+
+	return OK;
 #else
-	snooze();
+	return snooze(0, 1000);
 #endif
 }
 
-void snooze(void)
+status snooze(long sec, long nanosec)
 {
-	usleep(1);
-}
+	struct timespec req, rem;
+	req.tv_sec = sec;
+	req.tv_nsec = nanosec;
+loop:
+	if (nanosleep(&req, &rem) == -1) {
+		if (errno == EINTR) {
+			req = rem;
+			goto loop;
+		}
 
-void slumber(unsigned seconds)
-{
-	while ((seconds = sleep(seconds)) != 0)
-		/* empty */ ;
+		error_errno("nanosleep");
+		return FAIL;
+	}
+
+	return OK;
 }

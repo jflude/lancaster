@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		slumber(1);
+		snooze(1, 0);
 	}
 
 	if (verbose)

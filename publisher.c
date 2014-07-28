@@ -41,7 +41,8 @@ int main(int argc, char* argv[])
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) || FAILED(storage_reset(store)) ||
-		FAILED(sender_create(&sender, store, HB_PERIOD, TRUE, mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+		FAILED(sender_create(&sender, store, HEARTBEAT_SEC, MAX_AGE_USEC, CONFLATE_PKT,
+							 mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);
@@ -70,7 +71,7 @@ int main(int argc, char* argv[])
 				goto finish;
 
 			if ((n & mask) == 0) {
-				snooze();
+				snooze(0, 1000);
 				if (verbose) {
 					time_t t2 = time(NULL);
 					if (t2 != t1) {

@@ -1,5 +1,7 @@
 /* portably sleep and yield the CPU to another process */
 
+#include "status.h"
+
 #ifndef YIELD_H
 #define YIELD_H
 
@@ -9,9 +11,8 @@
 extern "C" {
 #endif
 
-void yield(void);
-void snooze(void);
-void slumber(unsigned seconds);
+status yield(void);
+status snooze(long sec, long nanosec);
 
 #ifdef __cplusplus
 }
