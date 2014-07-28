@@ -68,7 +68,7 @@ func main() {
 		if *file == "" {
 			fail("Expected filename")
 		}
-		mapName := fmt.Sprintf("%s-%s", file, host)
+		mapName := fmt.Sprintf("%s-%s", *file, host)
 		fn := C.CString(mapName)
 		ip, err := net.ResolveIPAddr("ip", addr)
 		if err != nil {
