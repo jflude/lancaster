@@ -125,7 +125,7 @@ func startReceiver(addr string) error {
 	}
 
 	var rcvr C.receiver_handle
-	mapName := fmt.Sprintf("%s-%s", file, host)
+	mapName := fmt.Sprintf("%s-%s", file, addr)
 	fn := C.CString(mapName)
 	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
