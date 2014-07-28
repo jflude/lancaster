@@ -362,10 +362,13 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		error_errno("write");
-		if (errno == EPIPE || errno == ECONNRESET)
+		if (errno == EPIPE || errno == ECONNRESET) {
+			error_eof("write");
 			return EOF;
-		else if (errno == ETIMEDOUT)
+		}
+
+		error_errno("write");
+		if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
 			return FAIL;
@@ -395,10 +398,13 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		error_errno("read");
-		if (errno == ECONNRESET)
+		if (errno == ECONNRESET) {
+			error_eof("read");
 			return EOF;
-		else if (errno == ETIMEDOUT)
+		}
+
+		error_errno("read");
+		if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
 			return FAIL;
@@ -433,10 +439,13 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		error_errno("sendto");
-		if (errno == EPIPE || errno == ECONNRESET)
+		if (errno == EPIPE || errno == ECONNRESET) {
+			error_eof("sendto");
 			return EOF;
-		else if (errno == ETIMEDOUT)
+		}
+
+		error_errno("sendto");
+		if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
 			return FAIL;
@@ -468,10 +477,13 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		error_errno("recvfrom");
-		if (errno == ECONNRESET)
+		if (errno == ECONNRESET) {
+			error_eof("recvfrom");
 			return EOF;
-		else if (errno == ETIMEDOUT)
+		}
+
+		error_errno("recvfrom");
+		if (errno == ETIMEDOUT)
 			return TIMEDOUT;
 		else
 			return FAIL;

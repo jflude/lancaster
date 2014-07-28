@@ -1,6 +1,6 @@
 #include "circ.h"
-#include "barrier.h"
 #include "error.h"
+#include "sync.h"
 #include "xalloc.h"
 #include "yield.h"
 
@@ -51,7 +51,7 @@ status circ_insert(circ_handle circ, void* val)
 
 	circ->buf[circ->write_to & circ->mask] = val;
 	++circ->write_to;
-	COMPILER_BARRIER();
+	SYNC_SYNCHONIZE();
 	return OK;
 }
 

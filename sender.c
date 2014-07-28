@@ -5,7 +5,6 @@
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
-#include "yield.h"
 #include <errno.h>
 #include <poll.h>
 #include <stdio.h>
@@ -15,7 +14,6 @@
 
 #define HEARTBEAT_SEQ -1
 #define WILL_QUIT_SEQ -2
-#define MAX_AGE_MILLISEC 10
 
 struct sender_stats_t
 {
@@ -41,7 +39,9 @@ struct sender_t
 	time_t last_mcast_send;
 	boolean conflate_pkt;
 	spin_lock_t mcast_lock;
-	int heartbeat_secs;
+	int heartbeat_sec;
+	long max_age_sec;
+	long max_age_nsec;
 	void* time_stored_at;
 	struct sender_stats_t stats;
 	int hello_len;
@@ -89,6 +89,7 @@ static status write_accum(sender_handle me)
 		return st;
 
 	me->last_mcast_send = time(NULL);
+	storage_set_send_recv_time(me->store, me->last_mcast_send);
 
 	SPIN_LOCK(&me->stats.lock);
 	me->stats.mcast_bytes_sent += sz;
@@ -120,16 +121,15 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else {
-		identifier id = record_get_id(rec);
+		identifier id = storage_get_id(me->store, rec);
 		sequence seq = record_write_lock(rec);
 
 		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
 			void* stored_at;
 			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
+				seq = me->next_seq;
 				if (me->conflate_pkt)
 					record_set_conflated(rec, stored_at);
-
-				seq = me->next_seq;
 			}
 		}
 
@@ -218,8 +218,7 @@ static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
 	status st = OK;
 
 	while (req_param->remain_send > 0) {
-		st = sock_sendto(req_param->sock, req_param->next_send, req_param->remain_send);
-		if (FAILED(st))
+		if (FAILED(st = sock_sendto(req_param->sock, req_param->next_send, req_param->remain_send)))
 			break;
 
 		req_param->next_send += st;
@@ -256,7 +255,7 @@ static status tcp_on_write_iter_fn(record_handle rec, void* param)
 	memcpy(req_param->send_id + 1, record_get_value(rec), req_param->val_size);
 	record_set_sequence(rec, *req_param->send_seq);
 
-	*req_param->send_id = record_get_id(rec);
+	*req_param->send_id = storage_get_id(req_param->me->store, rec);
 	req_param->curr_rec = rec;
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = req_param->pkt_size;
@@ -326,7 +325,7 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 				if (sz == sizeof(range))
 					goto read_all;
 
-				snooze();
+				snooze(0, 1000);
 				continue;
 			} else if (FAILED(st))
 				return st;
@@ -389,7 +388,7 @@ static status mcast_check_heartbeat_or_stale(sender_handle me)
 
 	if (accum_is_stale(me->mcast_accum))
 		st = write_accum(me);
-	else if (poll_get_count(me->poller) > 1 && (time(NULL) - me->last_mcast_send) >= me->heartbeat_secs) {
+	else if (poll_get_count(me->poller) > 1 && (time(NULL) - me->last_mcast_send) >= me->heartbeat_sec) {
 		sequence hb_seq = HEARTBEAT_SEQ;
 		if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
 			!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(struct timespec), &me->time_stored_at)))
@@ -405,7 +404,7 @@ static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, sho
 	sender_handle me = param;
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
 
-	if (sock == me->listen_sock || *events & POLLOUT || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_secs)
+	if (sock == me->listen_sock || *events & POLLOUT || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_sec)
 		return OK;
 
 	*req_param->send_seq = HEARTBEAT_SEQ;
@@ -421,12 +420,15 @@ static void* tcp_func(thread_handle thr)
 	sender_handle me = thread_get_param(thr);
 	status st = OK, st2;
 
-	while (!thread_is_stopping(thr))
+	while (!thread_is_stopping(thr)) {
 		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
 			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, me)) ||
-			FAILED(st = poll_events(me->poller, MAX_AGE_MILLISEC)) ||
+			FAILED(st = poll_events(me->poller, 0)) ||
 			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, me))))
 			break;
+
+		snooze(me->max_age_sec, me->max_age_nsec);
+	}
 
 	st2 = poll_remove(me->poller, me->listen_sock);
 	if (!FAILED(st))
@@ -436,7 +438,7 @@ static void* tcp_func(thread_handle thr)
 	if (!FAILED(st))
 		st = st2;
 
-	slumber(1);
+	snooze(1, 0);
 
 	st2 = poll_process(me->poller, tcp_close_func, NULL);
 	if (!FAILED(st))
@@ -461,11 +463,11 @@ static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
 	return st;
 }
 
-status sender_create(sender_handle* psend, storage_handle store, int hb_secs, boolean conflate_packet,
+status sender_create(sender_handle* psend, storage_handle store, int hb_sec, long max_age_usec, boolean conflate_packet,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
 {
 	status st;
-	if (!psend || !store || hb_secs <= 0 || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
+	if (!psend || !store || hb_sec <= 0 || max_age_usec < 0 || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
 	}
@@ -489,7 +491,9 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 	(*psend)->val_size = storage_get_value_size(store);
 	(*psend)->next_seq = 1;
 	(*psend)->min_store_seq = 0;
-	(*psend)->heartbeat_secs = hb_secs;
+	(*psend)->max_age_sec = max_age_usec / 1000000;
+	(*psend)->max_age_nsec = 1000 * (max_age_usec - 1000000 * (*psend)->max_age_sec);
+	(*psend)->heartbeat_sec = hb_sec;
 	(*psend)->last_mcast_send = time(NULL);
 	(*psend)->conflate_pkt = conflate_packet;
 
@@ -499,10 +503,10 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return st;
 	}
 
-	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%d\r\n",
+	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%d\r\n",
 								  STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
 								  (long) storage_get_base_id(store), (long) storage_get_max_id(store),
-								  storage_get_value_size(store), (*psend)->heartbeat_secs);
+								  storage_get_value_size(store), max_age_usec, (*psend)->heartbeat_sec);
 
 	if ((*psend)->hello_len < 0) {
 		error_errno("sprintf");
@@ -510,7 +514,7 @@ status sender_create(sender_handle* psend, storage_handle store, int hb_secs, bo
 		return FAIL;
 	}
 
-	if (FAILED(st = accum_create(&(*psend)->mcast_accum, (*psend)->mcast_mtu, MAX_AGE_MILLISEC * 1000)) ||
+	if (FAILED(st = accum_create(&(*psend)->mcast_accum, (*psend)->mcast_mtu, max_age_usec)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||

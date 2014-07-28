@@ -41,7 +41,7 @@ struct receiver_t
 	sequence next_seq;
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
-	int heartbeat_secs;
+	int heartbeat_sec;
 	struct receiver_stats_t stats;
 };
 
@@ -62,13 +62,13 @@ static void* mcast_func(thread_handle thr)
 #endif
 		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
-			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_secs) {
+			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_sec) {
 				error_heartbeat("mcast_func");
 				st = HEARTBEAT;
 				break;
 			}
 
-			snooze();
+			snooze(0, 1000);
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -88,6 +88,7 @@ static void* mcast_func(thread_handle thr)
 		}
 
 		me->last_mcast_recv = time(NULL);
+		storage_set_send_recv_time(me->store, me->last_mcast_recv);
 
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.mcast_bytes_recv += st;
@@ -149,7 +150,7 @@ static void* mcast_func(thread_handle thr)
 				st = sock_write(me->tcp_sock, p, sz);
 				if (st == BLOCKED) {
 					st = OK;
-					snooze();
+					snooze(0, 1000);
 					continue;
 				} else if (FAILED(st))
 					goto finish;
@@ -191,13 +192,13 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 		st = sock_read(me->tcp_sock, buf, sz);
 		if (st == BLOCKED) {
 			st = OK;
-			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_secs) {
+			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_sec) {
 				error_heartbeat("tcp_func");
 				st = HEARTBEAT;
 				break;
 			}
 
-			snooze();
+			snooze(0, 1000);
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -211,6 +212,7 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 
 	if (bytes_in > 0) {
 		me->last_tcp_recv = time(NULL);
+		storage_set_send_recv_time(me->store, me->last_tcp_recv);
 
 		SPIN_LOCK(&me->stats.lock);
 		me->stats.tcp_bytes_recv += bytes_in;
@@ -259,6 +261,8 @@ static void* tcp_func(thread_handle thr)
 
 		if (FAILED(st = storage_write_queue(me->store, *id)))
 			break;
+
+
 	}
 
 	st2 = sock_close(me->tcp_sock);
@@ -274,8 +278,8 @@ static void* tcp_func(thread_handle thr)
 status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
-	int proto_ver, mcast_port, hb_secs;
-	long base_id, max_id;
+	int proto_ver, mcast_port, hb_sec;
+	long base_id, max_id, max_age_usec;
 	size_t val_size;
 	status st;
 
@@ -298,8 +302,8 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %d",
-				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &hb_secs);
+	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %d",
+				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &max_age_usec, &hb_sec);
 
 	if (st == EOF) {
 		errno = EPROTO;
@@ -307,7 +311,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 		return BAD_PROTOCOL;
 	}	
 
-	if (st != 8 || proto_ver != STORAGE_VERSION) {
+	if (st != 9 || proto_ver != STORAGE_VERSION) {
 		errno = EPROTONOSUPPORT;
 		error_errno("receiver_create");
 		return BAD_PROTOCOL;
@@ -316,7 +320,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
-	(*precv)->heartbeat_secs = 2 * hb_secs + 1;
+	(*precv)->heartbeat_sec = 2 * hb_sec + 1;
 	(*precv)->stats.mcast_min_latency = DBL_MAX;
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);

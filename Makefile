@@ -88,8 +88,8 @@ accum.o: /usr/include/x86_64-linux-gnu/bits/time.h
 accum.o: /usr/include/x86_64-linux-gnu/sys/select.h
 accum.o: /usr/include/x86_64-linux-gnu/bits/select.h
 accum.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
-circ.o: circ.h status.h barrier.h error.h xalloc.h
-circ.o: /usr/include/linux/stddef.h /usr/include/linux/string.h yield.h
+circ.o: circ.h status.h error.h sync.h xalloc.h /usr/include/linux/stddef.h
+circ.o: /usr/include/linux/string.h yield.h
 dump.o: dump.h status.h /usr/include/stdio.h /usr/include/features.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
 dump.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
@@ -108,7 +108,7 @@ dump.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
 dict.o: dict.h status.h /usr/include/linux/stddef.h error.h table.h xalloc.h
 dict.o: /usr/include/linux/string.h
-error.o: error.h spin.h barrier.h yield.h status.h /usr/include/linux/errno.h
+error.o: error.h spin.h sync.h yield.h status.h /usr/include/linux/errno.h
 error.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 error.o: /usr/include/asm-generic/errno.h
 error.o: /usr/include/asm-generic/errno-base.h /usr/include/stdio.h
@@ -173,7 +173,7 @@ receiver.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/time.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h error.h sock.h
-receiver.o: spin.h barrier.h yield.h thread.h xalloc.h
+receiver.o: spin.h sync.h yield.h thread.h xalloc.h
 receiver.o: /usr/include/linux/string.h /usr/include/alloca.h
 receiver.o: /usr/include/linux/errno.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/errno.h
@@ -230,7 +230,7 @@ sender.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/time.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h accum.h error.h
-sender.o: poll.h sock.h spin.h barrier.h yield.h thread.h xalloc.h
+sender.o: poll.h sock.h spin.h sync.h yield.h thread.h xalloc.h
 sender.o: /usr/include/linux/string.h /usr/include/linux/errno.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 sender.o: /usr/include/asm-generic/errno.h
@@ -350,8 +350,8 @@ storage.o: /usr/include/x86_64-linux-gnu/bits/select.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 storage.o: /usr/include/x86_64-linux-gnu/bits/time.h
 storage.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
-storage.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h barrier.h
-storage.o: error.h spin.h yield.h xalloc.h /usr/include/linux/string.h
+storage.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h error.h spin.h
+storage.o: sync.h yield.h xalloc.h /usr/include/linux/string.h
 storage.o: /usr/include/linux/errno.h
 storage.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 storage.o: /usr/include/asm-generic/errno.h
@@ -452,7 +452,19 @@ xalloc.o: /usr/include/x86_64-linux-gnu/bits/time.h
 xalloc.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 xalloc.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h
 xalloc.o: /usr/include/alloca.h
-yield.o: yield.h /usr/include/linux/sched.h /usr/include/linux/unistd.h
+yield.o: yield.h status.h error.h /usr/include/linux/errno.h
+yield.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+yield.o: /usr/include/asm-generic/errno.h
+yield.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/sched.h
+yield.o: /usr/include/linux/time.h /usr/include/linux/types.h
+yield.o: /usr/include/x86_64-linux-gnu/asm/types.h
+yield.o: /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h
+yield.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+yield.o: /usr/include/asm-generic/bitsperlong.h
+yield.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+yield.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+yield.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+yield.o: /usr/include/linux/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 yield.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 publisher.o: datum.h error.h sender.h storage.h status.h

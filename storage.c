@@ -1,9 +1,7 @@
 #include "storage.h"
-#include "barrier.h"
 #include "error.h"
 #include "spin.h"
 #include "xalloc.h"
-#include "yield.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -13,7 +11,6 @@
 struct record_t
 {
 	volatile sequence seq;
-	identifier id;
 	void* confl;
 	char val[1];
 };
@@ -28,6 +25,8 @@ struct segment_t
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
+	spin_lock_t time_lock;
+	time_t send_recv_time;
 	unsigned q_mask;
 	unsigned q_head;
 	identifier change_q[1];
@@ -132,6 +131,9 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 		}
 	}
 
+	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
+	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
+
 	(*pstore)->seg->magic = MAGIC_NUMBER;
 	(*pstore)->seg->owner_pid = getpid();
 	(*pstore)->seg->mmap_size = seg_sz;
@@ -142,15 +144,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	(*pstore)->seg->max_id = max_id;
 	(*pstore)->seg->q_mask = q_capacity - 1;
 
-	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
-	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
-
-	if ((*pstore)->seg->mmap_size > 0 && msync((*pstore)->seg, (*pstore)->seg->mmap_size, MS_SYNC) == -1) {
-		error_errno("msync");
-		storage_destroy(pstore);
-		return FAIL;
-	}
-
+	SPIN_CREATE(&(*pstore)->seg->time_lock);
 	return OK;
 }
 
@@ -317,6 +311,22 @@ size_t storage_get_value_offset(storage_handle store)
 	return offsetof(struct record_t, val);
 }
 
+time_t storage_get_send_recv_time(storage_handle store)
+{
+	time_t t;
+	SPIN_LOCK(&store->seg->time_lock);
+	t = store->seg->send_recv_time;
+	SPIN_UNLOCK(&store->seg->time_lock);
+	return t;
+}
+
+void storage_set_send_recv_time(storage_handle store, time_t when)
+{
+	SPIN_LOCK(&store->seg->time_lock);
+	store->seg->send_recv_time = when;
+	SPIN_UNLOCK(&store->seg->time_lock);
+}
+
 const identifier* storage_get_queue_base_address(storage_handle store)
 {
 	return store->seg->change_q;
@@ -356,8 +366,14 @@ status storage_write_queue(storage_handle store, identifier id)
 		return FAIL;
 	}
 
+	SYNC_SYNCHONIZE();
 	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
 	return OK;
+}
+
+identifier storage_get_id(storage_handle store, record_handle rec)
+{
+	return ((char*) rec - (char*) store->array) / store->seg->rec_size;
 }
 
 status storage_lookup(storage_handle store, identifier id, record_handle* prec)
@@ -393,6 +409,16 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 	return st;
 }
 
+status storage_sync(storage_handle store)
+{
+	if (store->seg->mmap_size > 0 && msync(store->seg, store->seg->mmap_size, MS_SYNC) == -1) {
+		error_errno("msync");
+		return FAIL;
+	}
+
+	return OK;
+}
+
 status storage_reset(storage_handle store)
 {
 	identifier i;
@@ -407,7 +433,6 @@ status storage_reset(storage_handle store)
 	rec = store->array;
 	for (i = store->seg->base_id; i < store->seg->max_id; ++i) {
 		rec->seq = 0;
-		rec->id = i;
 		rec->confl = NULL;
 		memset(rec->val, 0, store->seg->val_size);
 
@@ -419,11 +444,6 @@ status storage_reset(storage_handle store)
 
 	store->seg->q_head = 0;
 	return OK;
-}
-
-identifier record_get_id(record_handle rec)
-{
-	return rec->id;
 }
 
 void* record_get_value(record_handle rec)
@@ -438,7 +458,7 @@ sequence record_get_sequence(record_handle rec)
 
 void record_set_sequence(record_handle rec, sequence seq)
 {
-	MEMORY_BARRIER();
+	SYNC_SYNCHONIZE();
 	rec->seq = seq;
 }
 

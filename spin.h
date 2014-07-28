@@ -3,7 +3,7 @@
 #ifndef SPIN_H
 #define SPIN_H
 
-#include "barrier.h"
+#include "sync.h"
 #include "yield.h"
 
 #define MAX_RELAXES 8191
@@ -11,12 +11,10 @@
 typedef volatile int spin_lock_t;
 
 #define SPIN_CREATE(p) \
-	do { \
-		*p = 0; \
-	} while (0)
+	SPIN_UNLOCK(p)
 
 #define SPIN_TRY_LOCK(p) \
-	__sync_bool_compare_and_swap(p, 0, 1)
+	SYNC_BOOL_COMPARE_AND_SWAP(p, 0, 1)
 
 #define SPIN_LOCK(p) \
 	do { \
@@ -30,8 +28,7 @@ typedef volatile int spin_lock_t;
 
 #define SPIN_UNLOCK(p) \
 	do { \
-		MEMORY_BARRIER(); \
-		*p = 0; \
+		SYNC_LOCK_RELEASE(p); \
 	} while (0)
 
 #endif
