@@ -25,6 +25,8 @@ struct segment_t
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
+	identifier high_water_id;
+	spin_lock_t high_water_lock;
 	spin_lock_t time_lock;
 	time_t send_recv_time;
 	unsigned q_mask;
@@ -42,7 +44,7 @@ struct storage_t
 };
 
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
-#define MAGIC_NUMBER 0xC0FFEE
+#define MAGIC_NUMBER 0x0C0FFEE0
 
 static void clear_change_q(storage_handle store)
 {
@@ -141,9 +143,6 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 		}
 	}
 
-	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
-	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
-
 	(*pstore)->seg->magic = MAGIC_NUMBER;
 	(*pstore)->seg->owner_pid = getpid();
 	(*pstore)->seg->mmap_size = seg_sz;
@@ -152,9 +151,15 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	(*pstore)->seg->val_size = val_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
-	(*pstore)->seg->q_mask = q_capacity - 1;
+	(*pstore)->seg->high_water_id = -1;
+	SPIN_CREATE(&(*pstore)->seg->high_water_lock);
 
+	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
+	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
+
+	(*pstore)->seg->q_mask = q_capacity - 1;
 	clear_change_q(*pstore);
+
 	return OK;
 }
 
@@ -321,22 +326,6 @@ size_t storage_get_value_offset(storage_handle store)
 	return offsetof(struct record_t, val);
 }
 
-time_t storage_get_send_recv_time(storage_handle store)
-{
-	time_t t;
-	SPIN_LOCK(&store->seg->time_lock);
-	t = store->seg->send_recv_time;
-	SPIN_UNLOCK(&store->seg->time_lock);
-	return t;
-}
-
-void storage_set_send_recv_time(storage_handle store, time_t when)
-{
-	SPIN_LOCK(&store->seg->time_lock);
-	store->seg->send_recv_time = when;
-	SPIN_UNLOCK(&store->seg->time_lock);
-}
-
 const identifier* storage_get_queue_base_address(storage_handle store)
 {
 	return store->seg->change_q;
@@ -381,12 +370,36 @@ status storage_write_queue(storage_handle store, identifier id)
 	return OK;
 }
 
-identifier storage_get_id(storage_handle store, record_handle rec)
+time_t storage_get_send_recv_time(storage_handle store)
 {
-	return ((char*) rec - (char*) store->array) / store->seg->rec_size;
+	time_t t;
+	SPIN_LOCK(&store->seg->time_lock);
+	t = store->seg->send_recv_time;
+	SPIN_UNLOCK(&store->seg->time_lock);
+	return t;
 }
 
-status storage_lookup(storage_handle store, identifier id, record_handle* prec)
+void storage_set_send_recv_time(storage_handle store, time_t when)
+{
+	SPIN_LOCK(&store->seg->time_lock);
+	if (when > store->seg->send_recv_time)
+		store->seg->send_recv_time = when;
+
+	SPIN_UNLOCK(&store->seg->time_lock);
+}
+
+status storage_get_id(storage_handle store, record_handle rec, identifier* pident)
+{
+	if (!pident || rec < store->array || rec >= store->limit) {
+		error_invalid_arg("storage_get_id");
+		return FAIL;
+	}
+
+	*pident = ((char*) rec - (char*) store->array) / store->seg->rec_size;
+	return OK;
+}
+
+status storage_get_record(storage_handle store, identifier id, record_handle* prec)
 {
 	if (!prec || id < store->seg->base_id || id >= store->seg->max_id) {
 		error_invalid_arg("storage_lookup");
@@ -431,6 +444,7 @@ status storage_sync(storage_handle store)
 
 status storage_reset(storage_handle store)
 {
+	identifier high_id;
 	if (!store->is_seg_owner) {
 		errno = EPERM;
 		error_errno("storage_reset");
@@ -438,8 +452,30 @@ status storage_reset(storage_handle store)
 	}
 
 	clear_change_q(store);
-	memset(store->array, 0, store->seg->rec_size * (store->seg->max_id - store->seg->base_id));
+
+	high_id = storage_get_high_water_id(store);
+	if (high_id >= 0)
+		memset(store->array, 0, (high_id - store->seg->base_id) * store->seg->rec_size);
+
 	return OK;
+}
+
+identifier storage_get_high_water_id(storage_handle store)
+{
+	identifier id;
+	SPIN_LOCK(&store->seg->high_water_lock);
+	id = store->seg->high_water_id;
+	SPIN_UNLOCK(&store->seg->high_water_lock);
+	return id;
+}
+
+void storage_set_high_water_id(storage_handle store, identifier id)
+{
+	SPIN_LOCK(&store->seg->high_water_lock);
+	if (id > store->seg->high_water_id)
+		store->seg->high_water_id = id;
+
+	SPIN_UNLOCK(&store->seg->high_water_lock);
 }
 
 void* record_get_value(record_handle rec)

@@ -44,9 +44,6 @@ size_t storage_get_record_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
 size_t storage_get_value_offset(storage_handle store);
 
-time_t storage_get_send_recv_time(storage_handle store);
-void storage_set_send_recv_time(storage_handle store, time_t when);
-
 const identifier* storage_get_queue_base_address(storage_handle store);
 const unsigned* storage_get_queue_head_address(storage_handle store);
 unsigned storage_get_queue_capacity(storage_handle store);
@@ -54,11 +51,17 @@ unsigned storage_get_queue_head(storage_handle store);
 identifier storage_read_queue(storage_handle store, unsigned index);
 status storage_write_queue(storage_handle store, identifier id);
 
-identifier storage_get_id(storage_handle store, record_handle rec);
-status storage_lookup(storage_handle store, identifier id, record_handle* prec);
+time_t storage_get_send_recv_time(storage_handle store);
+void storage_set_send_recv_time(storage_handle store, time_t when);
+
+status storage_get_id(storage_handle store, record_handle rec, identifier* pident);
+status storage_get_record(storage_handle store, identifier id, record_handle* prec);
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn, record_handle prev, void* param);
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
+
+identifier storage_get_high_water_id(storage_handle store);
+void storage_set_high_water_id(storage_handle store, identifier id);
 
 void* record_get_value(record_handle rec);
 sequence record_get_sequence(record_handle rec);

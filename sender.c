@@ -60,6 +60,7 @@ struct tcp_req_param_t
 	char* next_send;
 	size_t remain_send;
 	record_handle curr_rec;
+	record_handle high_water_rec;
 	sequence min_store_seq_seen;
 	struct storage_seq_range_t range;
 	time_t last_tcp_send;
@@ -121,15 +122,21 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else {
-		identifier id = storage_get_id(me->store, rec);
-		sequence seq = record_write_lock(rec);
+		identifier id;
+		sequence seq;
+		if (FAILED(st = storage_get_id(me->store, rec, &id)))
+			return st;
+
+		seq = record_write_lock(rec);
 
 		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
 			void* stored_at;
 			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
-				seq = me->next_seq;
 				if (me->conflate_pkt)
 					record_set_conflated(rec, stored_at);
+
+				storage_set_high_water_id(me->store, id);
+				seq = me->next_seq;
 			}
 		}
 
@@ -242,6 +249,9 @@ static status tcp_on_write_iter_fn(record_handle rec, void* param)
 	struct tcp_req_param_t* req_param = param;
 	status st;
 
+	if (rec > req_param->high_water_rec)
+		return FALSE;
+
 	*req_param->send_seq = record_write_lock(rec);
 
 	if (*req_param->send_seq < req_param->min_store_seq_seen)
@@ -255,7 +265,9 @@ static status tcp_on_write_iter_fn(record_handle rec, void* param)
 	memcpy(req_param->send_id + 1, record_get_value(rec), req_param->val_size);
 	record_set_sequence(rec, *req_param->send_seq);
 
-	*req_param->send_id = storage_get_id(req_param->me->store, rec);
+	if (FAILED(st = storage_get_id(req_param->me->store, rec, req_param->send_id)))
+		return st;
+
 	req_param->curr_rec = rec;
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = req_param->pkt_size;
@@ -294,6 +306,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 	else if (st) {
 		req_param->curr_rec = NULL;
 		me->min_store_seq = req_param->min_store_seq_seen;
+
 		st = poll_set_event(me->poller, sock, POLLIN);
 	}
 
@@ -303,6 +316,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 static status tcp_on_read(sender_handle me, sock_handle sock)
 {
 	struct tcp_req_param_t* req_param = sock_get_property(sock);
+	identifier high_id;
 	size_t gap_inc = 0;
 	status st;
 
@@ -361,6 +375,13 @@ read_all:
 
 	if (req_param->range.high <= me->min_store_seq)
 		return OK;
+
+	high_id = storage_get_high_water_id(me->store);
+	if (high_id < 0)
+		return OK;
+
+	if (FAILED(st = storage_get_record(me->store, high_id, &req_param->high_water_rec)))
+		return st;
 
 	req_param->min_store_seq_seen = SEQUENCE_MAX;
 	return poll_set_event(me->poller, sock, POLLOUT);

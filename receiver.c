@@ -125,14 +125,14 @@ static void* mcast_func(thread_handle thr)
 		for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
 			record_handle rec;
 			identifier* id = (identifier*) p;
-
-			if (FAILED(st = storage_lookup(me->store, *id, &rec)))
+			if (FAILED(st = storage_get_record(me->store, *id, &rec)))
 				goto finish;
 
 			record_write_lock(rec);
 			memcpy(record_get_value(rec), id + 1, val_size);
 			record_set_sequence(rec, *recv_seq);
 
+			storage_set_high_water_id(me->store, *id);
 			if (FAILED(st = storage_write_queue(me->store, *id)))
 				goto finish;
 		}
@@ -251,7 +251,7 @@ static void* tcp_func(thread_handle thr)
 			break;
 
 		st = tcp_read(me, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
-		if (FAILED(st) || !st || FAILED(st = storage_lookup(me->store, *id, &rec)))
+		if (FAILED(st) || !st || FAILED(st = storage_get_record(me->store, *id, &rec)))
 			break;
 
 		seq = record_write_lock(rec);
@@ -263,10 +263,9 @@ static void* tcp_func(thread_handle thr)
 		memcpy(record_get_value(rec), id + 1, val_size);
 		record_set_sequence(rec, *recv_seq);
 
+		storage_set_high_water_id(me->store, *id);
 		if (FAILED(st = storage_write_queue(me->store, *id)))
 			break;
-
-
 	}
 
 	st2 = sock_close(me->tcp_sock);

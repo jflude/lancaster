@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
 			if (id == -1)
 				continue;
 
-			if (FAILED(st = storage_lookup(store, id, &rec)))
+			if (FAILED(st = storage_get_record(store, id, &rec)))
 				goto finish;
 
 			d = record_get_value(rec);

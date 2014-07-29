@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, MAX_ID, sizeof(struct datum_t))) || FAILED(storage_reset(store)) ||
 		FAILED(sender_create(&sender, store, HEARTBEAT_SEC, MAX_AGE_USEC, CONFLATE_PKT,
-							 mcast_addr, mcast_port, 1, tcp_addr, tcp_port)))
+							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 			struct datum_t* d;
 			sequence seq;
 
-			if (FAILED(st = storage_lookup(store, id, &rec)))
+			if (FAILED(st = storage_get_record(store, id, &rec)))
 				goto finish;
 
 			d = record_get_value(rec);

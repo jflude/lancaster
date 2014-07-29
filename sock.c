@@ -173,7 +173,7 @@ status sock_get_address(sock_handle sock, char* address, size_t address_sz)
 
 boolean sock_is_same_address(sock_handle sock1, sock_handle sock2)
 {
-	return sock1->addr.sin_addr.s_addr == sock2->addr.sin_addr.s_addr;
+	return sock1 && sock2 && sock1->addr.sin_addr.s_addr == sock2->addr.sin_addr.s_addr;
 }
 
 status sock_nonblock(sock_handle sock)
