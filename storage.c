@@ -44,6 +44,16 @@ struct storage_t
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 #define MAGIC_NUMBER 0xC0FFEE
 
+static void clear_change_q(storage_handle store)
+{
+	SPIN_CREATE(&store->seg->time_lock);
+	store->seg->send_recv_time = 0;
+
+	store->seg->q_head = 0;
+	if (store->seg->q_mask != -1u)
+		memset(store->seg->change_q, -1, sizeof(store->seg->change_q[0]) * (store->seg->q_mask + 1));
+}
+
 status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size)
 {
@@ -144,7 +154,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 	(*pstore)->seg->max_id = max_id;
 	(*pstore)->seg->q_mask = q_capacity - 1;
 
-	SPIN_CREATE(&(*pstore)->seg->time_lock);
+	clear_change_q(*pstore);
 	return OK;
 }
 
@@ -421,28 +431,14 @@ status storage_sync(storage_handle store)
 
 status storage_reset(storage_handle store)
 {
-	identifier i;
-	record_handle rec;
-
 	if (!store->is_seg_owner) {
 		errno = EPERM;
 		error_errno("storage_reset");
 		return FAIL;
 	}
 
-	rec = store->array;
-	for (i = store->seg->base_id; i < store->seg->max_id; ++i) {
-		rec->seq = 0;
-		rec->confl = NULL;
-		memset(rec->val, 0, store->seg->val_size);
-
-		rec = RECORD_ADDR(store, rec, 1);
-	}
-
-	for (i = (int) store->seg->q_mask; i >= 0; --i)
-		store->seg->change_q[i] = -1;
-
-	store->seg->q_head = 0;
+	clear_change_q(store);
+	memset(store->array, 0, store->seg->rec_size * (store->seg->max_id - store->seg->base_id));
 	return OK;
 }
 

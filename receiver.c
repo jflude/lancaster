@@ -68,7 +68,9 @@ static void* mcast_func(thread_handle thr)
 				break;
 			}
 
-			snooze(0, 1000);
+			if (FAILED(st = snooze(0, 1000)))
+				break;
+
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -149,8 +151,9 @@ static void* mcast_func(thread_handle thr)
 
 				st = sock_write(me->tcp_sock, p, sz);
 				if (st == BLOCKED) {
-					st = OK;
-					snooze(0, 1000);
+					if (FAILED(st = snooze(0, 1000)))
+						break;
+
 					continue;
 				} else if (FAILED(st))
 					goto finish;
@@ -191,14 +194,15 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 
 		st = sock_read(me->tcp_sock, buf, sz);
 		if (st == BLOCKED) {
-			st = OK;
 			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_sec) {
 				error_heartbeat("tcp_func");
 				st = HEARTBEAT;
 				break;
 			}
 
-			snooze(0, 1000);
+			if (FAILED(st = snooze(0, 1000)))
+				break;
+
 			continue;
 		} else if (FAILED(st))
 			break;
@@ -275,7 +279,8 @@ static void* tcp_func(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
+status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, boolean reset_storage,
+					   const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
 	int proto_ver, mcast_port, hb_sec;
@@ -326,7 +331,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, q_capacity, base_id, max_id, val_size)) ||
-		FAILED(st = storage_reset((*precv)->store)) ||
+		(reset_storage && FAILED(st = storage_reset((*precv)->store))) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||

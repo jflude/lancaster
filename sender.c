@@ -325,7 +325,9 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 				if (sz == sizeof(range))
 					goto read_all;
 
-				snooze(0, 1000);
+				if (FAILED(st = snooze(0, 1000)))
+					return st;
+
 				continue;
 			} else if (FAILED(st))
 				return st;
@@ -420,15 +422,13 @@ static void* tcp_func(thread_handle thr)
 	sender_handle me = thread_get_param(thr);
 	status st = OK, st2;
 
-	while (!thread_is_stopping(thr)) {
+	while (!thread_is_stopping(thr))
 		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
 			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, me)) ||
 			FAILED(st = poll_events(me->poller, 0)) ||
-			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, me))))
+			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, me))) ||
+			FAILED(st = snooze(me->max_age_sec, me->max_age_nsec)))
 			break;
-
-		snooze(me->max_age_sec, me->max_age_nsec);
-	}
 
 	st2 = poll_remove(me->poller, me->listen_sock);
 	if (!FAILED(st))
@@ -438,7 +438,9 @@ static void* tcp_func(thread_handle thr)
 	if (!FAILED(st))
 		st = st2;
 
-	snooze(1, 0);
+	st2 = snooze(1, 0);
+	if (!FAILED(st))
+		st = st2;
 
 	st2 = poll_process(me->poller, tcp_close_func, NULL);
 	if (!FAILED(st))

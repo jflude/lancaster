@@ -10,6 +10,7 @@
 int main(int argc, char* argv[])
 {
 	storage_handle store;
+	status st = OK;
 	unsigned q_capacity, old_head = 0;
 	int n = 0, x = 0;
 	char c = '.';
@@ -28,7 +29,9 @@ int main(int argc, char* argv[])
 	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		unsigned q, new_head = storage_get_queue_head(store);
 		if (new_head == old_head) {
-			snooze(0, 1000);
+			if (FAILED(st = snooze(0, 1000)))
+				break;
+
 			continue;
 		}
 
@@ -47,8 +50,8 @@ int main(int argc, char* argv[])
 			if (id == -1)
 				continue;
 
-			if (FAILED(storage_lookup(store, id, &rec)))
-				error_report_fatal();
+			if (FAILED(st = storage_lookup(store, id, &rec)))
+				goto finish;
 
 			d = record_get_value(rec);
 			do {
@@ -72,9 +75,12 @@ int main(int argc, char* argv[])
 		}
 	}
 
+finish:
+	putchar('\n');
+
 	storage_destroy(&store);
 
-	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+	if (FAILED(st) || FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 
 	return 0;

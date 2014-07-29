@@ -71,7 +71,9 @@ int main(int argc, char* argv[])
 				goto finish;
 
 			if ((n & mask) == 0) {
-				snooze(0, 1000);
+				if (FAILED(st = snooze(0, 1000)))
+					break;
+
 				if (verbose) {
 					time_t t2 = time(NULL);
 					if (t2 != t1) {
@@ -102,7 +104,7 @@ finish:
 	if (verbose)
 		putchar('\n');
 
-	if ((st != BLOCKED && FAILED(st)) || FAILED(sender_stop(sender)))
+	if (FAILED(st) || FAILED(sender_stop(sender)))
 		error_report_fatal();
 
 	sender_destroy(&sender);

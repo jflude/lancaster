@@ -12,6 +12,7 @@
 int main(int argc, char* argv[])
 {
 	receiver_handle recv;
+	status st = OK;
 	const char* tcp_addr;
 	int tcp_port;
 	const char* storage_file;
@@ -36,7 +37,7 @@ int main(int argc, char* argv[])
 	storage_file = argv[n++];
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
+		FAILED(receiver_create(&recv, storage_file, q_capacity, TRUE, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);
@@ -73,13 +74,14 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		snooze(1, 0);
+		if (FAILED(st = snooze(1, 0)))
+			break;
 	}
 
 	if (verbose)
 		putchar('\n');
 
-	if (FAILED(receiver_stop(recv)))
+	if (FAILED(st) || FAILED(receiver_stop(recv)))
 		error_report_fatal();
 
 	receiver_destroy(&recv);
