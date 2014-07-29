@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "expvar"
 	"flag"
 	"fmt"
 	"github.com/dustin/go-humanize"
@@ -67,7 +68,18 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 	if resetAddr != "" {
 		reset(resetAddr)
 	}
-	err := statusTemplate.Execute(w, &State)
+	a, err := Asset("index.html")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	rootTemplate := template.New("root").Funcs(funcMap)
+	t, err := rootTemplate.Parse(string(a))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	err = t.Execute(w, &State)
 	if err != nil {
 		log.Println(err)
 		// http.Error(w, err.Error(), 500)
@@ -95,8 +107,8 @@ var funcMap = template.FuncMap{
 	"f2i":    func(f float64) int64 { return int64(f) },
 	"micros": func(f float64) float64 { return f / 1000.0 },
 }
-var statusTemplate = template.Must(template.New("status").Funcs(funcMap).Parse(statusTemplateText))
-var statusTemplateText = `
+
+/*var statusTemplateText = `
 <html>
 	<head>
 		<title>Receiver Status</title>
@@ -115,8 +127,8 @@ var statusTemplateText = `
 		<tr>
 		  <th>Source</th>
 		  <th>Gaps</th>
-		  <th>TCP Bytes Rec</th> 
-		  <th>TCP Bytes / sec</th> 
+		  <th>TCP Bytes Rec</th>
+		  <th>TCP Bytes / sec</th>
 		  <th>MCAST Bytes Rec</th>
 		  <th>MCAST Bytes / sec</th>
 		  <th>MCAST Packets Rec</th>
@@ -126,14 +138,14 @@ var statusTemplateText = `
 		  <th>MCAST Mean Latency µ</th>
 		  <th>MCAST StdDev Latency µ</th>
 		</tr>
-		{{range $addr, $rec := .Receivers}}  
+		{{range $addr, $rec := .Receivers}}
 		{{ $s := $rec.Stats }}
 		<tr>
 			<td>{{$addr}}<br/><a href="/?reset={{$addr}}">reset</a></td>
 			{{ if $rec.Alive }}
 			<td>{{$s.GapCount}}</td>
-			<td>{{$s.TcpBytesRecv | bytes}}</td> 
-			<td>{{$s.TcpBytesSec | bytes}}</td> 
+			<td>{{$s.TcpBytesRecv | bytes}}</td>
+			<td>{{$s.TcpBytesSec | bytes}}</td>
 			<td>{{$s.MCastBytesRecv | bytes}}</td>
 			<td>{{$s.MCastBytesSec | bytes}}</td>
 			<td>{{$s.MCastPacketsRecv | int64 | commas}}</td>
@@ -151,3 +163,4 @@ var statusTemplateText = `
 	</body>
 </html>
 `
+*/
