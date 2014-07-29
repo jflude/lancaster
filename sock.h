@@ -29,6 +29,7 @@ status sock_get_address(sock_handle sock, char* address, size_t address_sz);
 boolean sock_is_same_address(sock_handle sock1, sock_handle sock2);
 
 status sock_nonblock(sock_handle sock);
+status sock_reuseaddr(sock_handle sock, int reuse);
 status sock_shutdown(sock_handle sock, int how);
 status sock_close(sock_handle sock);
 

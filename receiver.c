@@ -332,6 +332,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, q_capacity, base_id, max_id, val_size)) ||
 		(reset_storage && FAILED(st = storage_reset((*precv)->store))) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+		FAILED(st = sock_reuseaddr((*precv)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
 		FAILED(st = sock_nonblock((*precv)->tcp_sock)) ||

@@ -19,8 +19,25 @@ status yield(void)
 #endif
 }
 
+#ifndef _POSIX_TIMERS
+static status usleep2(useconds_t usec)
+{
+loop:
+	if (usleep(usec) == -1) {
+		if (errno == EINTR)
+			goto loop;
+
+		error_errno("usleep");
+		return FAIL;
+	}
+
+	return OK;
+}
+#endif
+
 status snooze(long sec, long nanosec)
 {
+#ifdef _POSIX_TIMERS
 	struct timespec req, rem;
 	req.tv_sec = sec;
 	req.tv_nsec = nanosec;
@@ -34,6 +51,12 @@ loop:
 		error_errno("nanosleep");
 		return FAIL;
 	}
+#else
+	long s;
+	for (s = sec; s > 0; --s)
+		usleep2(999999);
 
+	usleep2(sec + nanosec / 1000);
+#endif
 	return OK;
 }

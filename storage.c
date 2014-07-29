@@ -523,7 +523,7 @@ sequence record_write_lock(record_handle rec)
 	int n = 0;
 	sequence seq;
 
-	while ((seq = __sync_fetch_and_or(&rec->seq, SEQUENCE_MIN)) < 0)
+	while ((seq = SYNC_FETCH_AND_OR(&rec->seq, SEQUENCE_MIN)) < 0)
 		if ((++n & MAX_RELAXES) != 0)
 			CPU_RELAX();
 		else

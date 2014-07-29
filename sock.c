@@ -200,6 +200,16 @@ status sock_nonblock(sock_handle sock)
 	return OK;
 }
 
+status sock_reuseaddr(sock_handle sock, int reuse)
+{
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
+	return OK;
+}
+
 status sock_shutdown(sock_handle sock, int how)
 {
 	if (shutdown(sock->fd, how) == -1) {
@@ -231,13 +241,6 @@ status sock_close(sock_handle sock)
 status sock_mcast_bind(sock_handle sock)
 {
 	struct ip_mreq mreq;
-	int reuse = 1;
-
-	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
-
 	if (bind(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
 		error_errno("bind");
 		return FAIL;
