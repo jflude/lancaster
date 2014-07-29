@@ -7,11 +7,14 @@ package main
 import "C"
 import (
 	"fmt"
+	"log"
+	"syscall"
 	"time"
 	"unsafe"
 )
 
 func runDirect() {
+	var storeOwner = C.storage_get_owner_pid(store)
 	var qSize = int(qCapacity)
 	var qMask = qSize - 1
 	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_address(store))))
@@ -32,7 +35,16 @@ func runDirect() {
 		if new_head == old_head {
 			// time.Sleep(time.Microsecond)
 			time.Sleep(time.Nanosecond)
-
+			if err := syscall.Kill(int(storeOwner), 0); err != nil {
+				errno := int(err.(syscall.Errno))
+				if err == syscall.ESRCH {
+					log.Println("Subscriber (", storeOwner, ") died")
+				}
+				if err != syscall.ESRCH {
+					log.Println("Error checkpid:", storeOwner, errno, err)
+				}
+				return
+			}
 			// fmt.Println("sleep", new_head)
 			continue
 		}
