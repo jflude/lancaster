@@ -6,6 +6,7 @@
 #include "xalloc.h"
 #include <alloca.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <float.h>
 #include <math.h>
 #include <poll.h>
@@ -278,8 +279,7 @@ static void* tcp_func(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, boolean reset_storage,
-					   const char* tcp_addr, int tcp_port)
+status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
 	int proto_ver, mcast_port, hb_sec;
@@ -329,8 +329,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
 	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
-	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, q_capacity, base_id, max_id, val_size)) ||
-		(reset_storage && FAILED(st = storage_reset((*precv)->store))) ||
+	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, q_capacity, base_id, max_id, val_size)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_reuseaddr((*precv)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||

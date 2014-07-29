@@ -178,7 +178,9 @@ receiver.o: /usr/include/linux/string.h /usr/include/alloca.h
 receiver.o: /usr/include/linux/errno.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 receiver.o: /usr/include/asm-generic/errno.h
-receiver.o: /usr/include/asm-generic/errno-base.h
+receiver.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/fcntl.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/fcntl.h
+receiver.o: /usr/include/asm-generic/fcntl.h
 receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/float.h
 receiver.o: /usr/include/math.h /usr/include/x86_64-linux-gnu/bits/huge_val.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/huge_valf.h

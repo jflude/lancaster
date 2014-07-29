@@ -29,7 +29,7 @@ typedef long sequence;
 
 struct storage_seq_range_t { sequence low; sequence high; };
 
-status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity,
+status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, unsigned q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size);
 status storage_open(storage_handle* pstore, const char* mmap_file);
 void storage_destroy(storage_handle* pstore);

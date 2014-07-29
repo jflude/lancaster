@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 	storage_file = argv[n++];
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(receiver_create(&recv, storage_file, q_capacity, TRUE, tcp_addr, tcp_port)))
+		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
 		error_report_fatal();
 
 	t1 = time(NULL);

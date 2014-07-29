@@ -56,7 +56,7 @@ static void clear_change_q(storage_handle store)
 		memset(store->seg->change_q, -1, sizeof(store->seg->change_q[0]) * (store->seg->q_mask + 1));
 }
 
-status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_capacity,
+status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, unsigned q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size)
 {
 	/* q_capacity must be a power of 2 */
@@ -91,8 +91,9 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
 
 		if (strncmp(mmap_file, "shm:", 4) == 0) {
+			open_flags &= O_CREAT | O_EXCL;
 		shm_loop:
-			fd = shm_open(mmap_file + 4, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+			fd = shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 			if (fd == -1) {
 				if (errno == EINTR)
 					goto shm_loop;
@@ -102,8 +103,9 @@ status storage_create(storage_handle* pstore, const char* mmap_file, unsigned q_
 				return FAIL;
 			}
 		} else {
+			open_flags &= O_CREAT | O_EXCL | O_TRUNC;
 		open_loop:
-			fd = open(mmap_file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+			fd = open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 			if (fd == -1) {
 				if (errno == EINTR)
 					goto open_loop;
