@@ -54,9 +54,11 @@ func main() {
 func reset(addr string) error {
 	r, ok := State.Receivers[addr]
 	if ok {
-		err := r.reset()
+		nr, err := r.reset()
 		if err != nil {
 			log.Println("Failed to restart", err)
+		} else {
+			State.Receivers[addr] = nr
 		}
 	}
 	return fmt.Errorf("No such connection: %s", addr)

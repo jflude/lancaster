@@ -19,13 +19,13 @@ import (
 )
 
 type Receiver struct {
+	rcvr    C.receiver_handle
+	lock    sync.Mutex
 	Address string
 	Host    string
-	rcvr    C.receiver_handle
 	Stats   Stats
 	Alive   bool
 	Status  string
-	lock    sync.Mutex
 }
 
 type Stats struct {
@@ -43,23 +43,27 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) reset() error {
+func (r *Receiver) reset() (*Receiver, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.Status = "Resetting"
-	r.Alive = false
-	if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
-		r.Status = "Stop Failed, reason: " + err.Error()
-		return err
+	if r.rcvr != nil {
+		r.Alive = C.receiver_is_running(r.rcvr) != 0
+		if r.Alive {
+			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
+				r.Status = "Stop Failed, reason: " + err.Error()
+				return nil, err
+			}
+			r.Alive = false
+		}
+		C.receiver_destroy(&r.rcvr)
 	}
-	C.receiver_destroy(&r.rcvr)
 	nr, err := startReceiver(r.Address)
 	if err != nil {
 		r.Status = "Start Failed, reason: " + err.Error()
-		return err
+		return nil, err
 	}
-	*r = *nr
-	return nil
+	return nr, nil
 }
 
 func (r *Receiver) updateStats() {
