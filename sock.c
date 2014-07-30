@@ -24,9 +24,9 @@
 struct sock_t
 {
 	int fd;
-	struct sockaddr_in addr;
 	boolean is_open;
 	void* property;
+	struct sockaddr_in addr;
 };
 
 status sock_create(sock_handle* psock, int type, const char* address, int port)
@@ -76,11 +76,6 @@ void sock_destroy(sock_handle* psock)
 	*psock = NULL;
 }
 
-int sock_get_descriptor(sock_handle sock)
-{
-	return sock->fd;
-}
-
 void* sock_get_property(sock_handle sock)
 {
 	return sock->property;
@@ -89,6 +84,31 @@ void* sock_get_property(sock_handle sock)
 void sock_set_property(sock_handle sock, void* prop)
 {
 	sock->property = prop;
+}
+
+int sock_get_descriptor(sock_handle sock)
+{
+	return sock->fd;
+}
+
+const struct sockaddr_in* sock_get_address(sock_handle sock)
+{
+	return &sock->addr;
+}
+
+status sock_get_address_text(sock_handle sock, char* text, size_t text_sz)
+{
+	if (!text || text_sz == 0) {
+		error_invalid_arg("sock_get_address_text");
+		return FAIL;
+	}
+
+	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, text, text_sz)) {
+		error_errno("inet_ntop");
+		return FAIL;
+	}
+
+	return OK;
 }
 
 status sock_get_interface(const char* dest_address, char** pdevice)
@@ -154,26 +174,6 @@ status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 
 	*pmtu = ifr.ifr_mtu;
 	return OK;
-}
-
-status sock_get_address(sock_handle sock, char* address, size_t address_sz)
-{
-	if (!address || address_sz == 0) {
-		error_invalid_arg("sock_get_address");
-		return FAIL;
-	}
-
-	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, address, address_sz)) {
-		error_errno("inet_ntop");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-boolean sock_is_same_address(sock_handle sock1, sock_handle sock2)
-{
-	return sock1 && sock2 && sock1->addr.sin_addr.s_addr == sock2->addr.sin_addr.s_addr;
 }
 
 status sock_nonblock(sock_handle sock)

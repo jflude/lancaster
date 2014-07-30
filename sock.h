@@ -16,17 +16,19 @@ extern "C" {
 struct sock_t;
 typedef struct sock_t* sock_handle;
 
+struct sockaddr_in;
+
 status sock_create(sock_handle* psock, int type, const char* address, int port);
 void sock_destroy(sock_handle* psock);
 
-int sock_get_descriptor(sock_handle sock);
 void* sock_get_property(sock_handle sock);
 void sock_set_property(sock_handle sock, void* prop);
+int sock_get_descriptor(sock_handle sock);
+const struct sockaddr_in* sock_get_address(sock_handle sock);
 
+status sock_get_address_text(sock_handle sock, char* text, size_t text_sz);
 status sock_get_interface(const char* dest_address, char** pdevice);
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
-status sock_get_address(sock_handle sock, char* address, size_t address_sz);
-boolean sock_is_same_address(sock_handle sock1, sock_handle sock2);
 
 status sock_nonblock(sock_handle sock);
 status sock_reuseaddr(sock_handle sock, int reuse);

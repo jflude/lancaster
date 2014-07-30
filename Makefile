@@ -197,6 +197,9 @@ receiver.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
 receiver.o: /usr/include/linux/unistd.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
+receiver.o: /usr/include/netinet/in.h
+receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h
+receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint-gcc.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/uio.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/uio.h
@@ -206,6 +209,7 @@ receiver.o: /usr/include/x86_64-linux-gnu/asm/socket.h
 receiver.o: /usr/include/asm-generic/socket.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 receiver.o: /usr/include/asm-generic/sockios.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/in.h
 sender.o: sender.h storage.h status.h /usr/include/linux/stddef.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/predefs.h

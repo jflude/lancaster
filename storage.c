@@ -61,7 +61,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 {
 	/* q_capacity must be a power of 2 */
 	size_t rec_sz, hdr_sz, seg_sz;
-	if (!pstore || max_id <= base_id || val_size == 0 || q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
+	if (!pstore || max_id <= base_id || val_size == 0 || open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
+		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
 		error_invalid_arg("storage_create");
 		return FAIL;
 	}
@@ -91,7 +92,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
 
 		if (strncmp(mmap_file, "shm:", 4) == 0) {
-			open_flags &= O_CREAT | O_EXCL;
+			open_flags &= ~O_TRUNC;
 		shm_loop:
 			fd = shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 			if (fd == -1) {
@@ -103,7 +104,6 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 				return FAIL;
 			}
 		} else {
-			open_flags &= O_CREAT | O_EXCL | O_TRUNC;
 		open_loop:
 			fd = open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 			if (fd == -1) {

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 
 #define HEARTBEAT_SEQ -1
@@ -43,6 +44,7 @@ struct receiver_t
 	time_t last_mcast_recv;
 	time_t last_tcp_recv;
 	int heartbeat_sec;
+	struct sockaddr_in mcast_addr;
 	struct receiver_stats_t stats;
 };
 
@@ -83,11 +85,16 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 #endif
-		if (!sock_is_same_address(me->mcast_sock, me->tcp_sock)) {
-			errno = EEXIST;
-			error_errno("mcast_func");
-			st = FAIL;
-			break;
+		if (me->next_seq == 1)
+			me->mcast_addr = *sock_get_address(me->mcast_sock);
+		else {
+			const struct sockaddr_in* addr = sock_get_address(me->mcast_sock);
+			if (addr->sin_addr.s_addr != me->mcast_addr.sin_addr.s_addr || addr->sin_port != me->mcast_addr.sin_port) {
+				errno = EEXIST;
+				error_errno("mcast_func");
+				st = FAIL;
+				break;
+			}
 		}
 
 		me->last_mcast_recv = time(NULL);
