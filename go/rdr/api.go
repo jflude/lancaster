@@ -36,7 +36,7 @@ func runWithAPI() {
 				continue
 			}
 
-			if err := err(C.storage_lookup(store, id, &rec)); err != nil {
+			if err := err(C.storage_get_record(store, id, &rec)); err != nil {
 				log.Println("Error looking up", id, err)
 				return
 			}
