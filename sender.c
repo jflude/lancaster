@@ -301,12 +301,9 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 		return OK;
 	else if (st == EOF || st == TIMEDOUT)
 		return tcp_on_hup(me, sock);
-	else if (FAILED(st))
-		return st;
-	else if (st) {
+	else if (!FAILED(st)) {
 		req_param->curr_rec = NULL;
 		me->min_store_seq = req_param->min_store_seq_seen;
-
 		st = poll_set_event(me->poller, sock, POLLIN);
 	}
 
@@ -431,8 +428,8 @@ static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, sho
 		return OK;
 
 	*req_param->send_seq = HEARTBEAT_SEQ;
-	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->next_send = req_param->send_buf;
+	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->sending_hb = TRUE;
 
 	return poll_set_event(poller, sock, POLLOUT);
