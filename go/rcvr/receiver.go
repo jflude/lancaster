@@ -91,13 +91,14 @@ func (r *Receiver) updateStats() {
 	s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
 	s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
 	s.lastUpdate = time.Now()
-	dur := s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds()
-	s.TcpBytesSec = uint64(float64(s.TcpBytesRecv-r.Stats.TcpBytesRecv) / dur)
-	s.MCastPacketsSec = uint64(float64(s.MCastPacketsRecv-r.Stats.MCastPacketsRecv) / dur)
-	s.MCastBytesSec = uint64(float64(s.MCastBytesRecv-r.Stats.MCastBytesRecv) / dur)
+	time.Second.Nanoseconds()
+	dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
+
+	s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
+	s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
+	s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
 	r.Stats = s
 }
-
 func startReceiver(addr string) (*Receiver, error) {
 	parts := strings.Split(addr, ":")
 	if len(parts) != 2 {
