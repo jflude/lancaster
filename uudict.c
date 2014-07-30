@@ -32,10 +32,10 @@ static void uu2id_dtor_fn(table_key key, table_value val)
 	xfree(key);
 }
 
-status uudict_create(uudict_handle* puudict, size_t sz)
+status uudict_create(uudict_handle* puudict, size_t dict_sz)
 {
 	status st;
-	if (!puudict || sz == 0) {
+	if (!puudict || dict_sz == 0) {
 		error_invalid_arg("uudict_create");
 		return FAIL;
 	}
@@ -46,8 +46,8 @@ status uudict_create(uudict_handle* puudict, size_t sz)
 
 	BZERO(*puudict);
 
-	if (FAILED(st = table_create(&(*puudict)->uu2id, sz, uu2id_hash_fn, uu2id_eq_fn, uu2id_dtor_fn)) ||
-		FAILED(st = table_create(&(*puudict)->id2uu, sz, NULL, NULL, NULL))) {
+	if (FAILED(st = table_create(&(*puudict)->uu2id, dict_sz, uu2id_hash_fn, uu2id_eq_fn, uu2id_dtor_fn)) ||
+		FAILED(st = table_create(&(*puudict)->id2uu, dict_sz, NULL, NULL, NULL))) {
 		uudict_destroy(puudict);
 		return st;
 	}

@@ -1,4 +1,5 @@
 #include "receiver.h"
+#include "clock.h"
 #include "error.h"
 #include "sock.h"
 #include "spin.h"
@@ -12,7 +13,6 @@
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -54,15 +54,14 @@ static void* mcast_func(thread_handle thr)
 	size_t val_size = storage_get_value_size(me->store);
 	char* buf = alloca(me->mcast_mtu);
 	sequence* recv_seq = (sequence*) buf;
-	struct timespec* recv_stamp = (struct timespec*) (recv_seq + 1);
+	microsec_t* recv_stamp = (microsec_t*) (recv_seq + 1);
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
-#ifdef _POSIX_TIMERS
-		struct timespec now;
+		microsec_t now;
 		double latency, delta;
-#endif
+
 		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
 			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_sec) {
@@ -71,20 +70,18 @@ static void* mcast_func(thread_handle thr)
 				break;
 			}
 
-			if (FAILED(st = snooze(0, 1000)))
+			if (FAILED(st = clock_sleep(1)))
 				break;
 
 			continue;
 		} else if (FAILED(st))
 			break;
 
-#ifdef _POSIX_TIMERS
-		if (clock_gettime(CLOCK_REALTIME, &now) == -1) {
-			error_errno("clock_gettime");
-			st = FAIL;
+		if (FAILED(st2 = clock_time(&now))) {
+			st = st2;
 			break;
 		}
-#endif
+
 		if (me->next_seq == 1)
 			me->mcast_addr = *sock_get_address(me->mcast_sock);
 		else {
@@ -112,8 +109,7 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
-#ifdef _POSIX_TIMERS
-		latency = 1000000000 * (now.tv_sec - recv_stamp->tv_sec) + now.tv_nsec - recv_stamp->tv_nsec;
+		latency = now - *recv_stamp;
 
 		delta = latency - me->stats.mcast_mean_latency;
 		me->stats.mcast_mean_latency += delta / me->stats.mcast_packets_recv;
@@ -124,7 +120,7 @@ static void* mcast_func(thread_handle thr)
 
 		if (latency > me->stats.mcast_max_latency)
 			me->stats.mcast_max_latency = latency;
-#endif
+
 		SPIN_UNLOCK(&me->stats.lock);
 		if (*recv_seq < me->next_seq)
 			continue;
@@ -159,7 +155,7 @@ static void* mcast_func(thread_handle thr)
 
 				st = sock_write(me->tcp_sock, p, sz);
 				if (st == BLOCKED) {
-					if (FAILED(st = snooze(0, 1000)))
+					if (FAILED(st = clock_sleep(1)))
 						break;
 
 					continue;
@@ -208,7 +204,7 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 				break;
 			}
 
-			if (FAILED(st = snooze(0, 1000)))
+			if (FAILED(st = clock_sleep(1)))
 				break;
 
 			continue;

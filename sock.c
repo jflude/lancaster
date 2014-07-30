@@ -344,16 +344,16 @@ status sock_connect(sock_handle sock)
 	return OK;
 }
 
-status sock_write(sock_handle sock, const void* data, size_t sz)
+status sock_write(sock_handle sock, const void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!data || sz == 0) {
+	if (!data || data_sz == 0) {
 		error_invalid_arg("sock_write");
 		return FAIL;
 	}
 
 loop:
-	count = write(sock->fd, data, sz);
+	count = write(sock->fd, data, data_sz);
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -380,16 +380,16 @@ loop:
 	return count;
 }
 
-status sock_read(sock_handle sock, void* data, size_t sz)
+status sock_read(sock_handle sock, void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!data || sz == 0) {
+	if (!data || data_sz == 0) {
 		error_invalid_arg("sock_read");
 		return FAIL;
 	}
 
 loop:
-	count = read(sock->fd, data, sz);
+	count = read(sock->fd, data, data_sz);
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -421,16 +421,16 @@ loop:
 	return count;
 }
 
-status sock_sendto(sock_handle sock, const void* data, size_t sz)
+status sock_sendto(sock_handle sock, const void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!data || sz == 0) {
+	if (!data || data_sz == 0) {
 		error_invalid_arg("sock_sendto");
 		return FAIL;
 	}
 
 loop:
-	count = sendto(sock->fd, data, sz, 0, (struct sockaddr*) &sock->addr, sizeof(sock->addr));
+	count = sendto(sock->fd, data, data_sz, 0, (struct sockaddr*) &sock->addr, sizeof(sock->addr));
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -457,18 +457,18 @@ loop:
 	return count;
 }
 
-status sock_recvfrom(sock_handle sock, void* data, size_t sz)
+status sock_recvfrom(sock_handle sock, void* data, size_t data_sz)
 {
 	ssize_t count;
 	socklen_t addrlen;
-	if (!data || sz == 0) {
+	if (!data || data_sz == 0) {
 		error_invalid_arg("sock_recvfrom");
 		return FAIL;
 	}
 
 loop:
 	addrlen = sizeof(sock->addr);
-	count = recvfrom(sock->fd, data, sz, 0, (struct sockaddr*) &sock->addr, &addrlen);
+	count = recvfrom(sock->fd, data, data_sz, 0, (struct sockaddr*) &sock->addr, &addrlen);
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;

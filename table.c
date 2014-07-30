@@ -18,9 +18,9 @@ struct table_t
 	table_destroy_func dtor_fn;
 };
 
-status table_create(table_handle* ptab, size_t sz, table_hash_func h_fn, table_equality_func eq_fn, table_destroy_func dtor_fn)
+status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn, table_equality_func eq_fn, table_destroy_func dtor_fn)
 {
-	if (!ptab || sz == 0) {
+	if (!ptab || tab_sz == 0) {
 		error_invalid_arg("table_create");
 		return FAIL;
 	}
@@ -29,12 +29,12 @@ status table_create(table_handle* ptab, size_t sz, table_hash_func h_fn, table_e
 	if (!*ptab)
 		return NO_MEMORY;
 
-	(*ptab)->size = sz;
+	(*ptab)->size = tab_sz;
 	(*ptab)->h_fn = h_fn;
 	(*ptab)->eq_fn = eq_fn;
 	(*ptab)->dtor_fn = dtor_fn;
 
-	(*ptab)->array = xcalloc(sz, sizeof(struct chain_t*));
+	(*ptab)->array = xcalloc(tab_sz, sizeof(struct chain_t*));
 	if (!(*ptab)->array) {
 		table_destroy(ptab);
 		return NO_MEMORY;

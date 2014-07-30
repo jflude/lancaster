@@ -31,10 +31,10 @@ static void sym2id_dtor_fn(table_key key, table_value val)
 	xfree(key);
 }
 
-status dict_create(dict_handle* pdict, size_t sz)
+status dict_create(dict_handle* pdict, size_t dict_sz)
 {
 	status st;
-	if (!pdict || sz == 0) {
+	if (!pdict || dict_sz == 0) {
 		error_invalid_arg("dict_create");
 		return FAIL;
 	}
@@ -45,8 +45,8 @@ status dict_create(dict_handle* pdict, size_t sz)
 
 	BZERO(*pdict);
 
-	if (FAILED(st = table_create(&(*pdict)->sym2id, sz, sym2id_hash_fn, sym2id_eq_fn, sym2id_dtor_fn)) ||
-		FAILED(st = table_create(&(*pdict)->id2sym, sz, NULL, NULL, NULL))) {
+	if (FAILED(st = table_create(&(*pdict)->sym2id, dict_sz, sym2id_hash_fn, sym2id_eq_fn, sym2id_dtor_fn)) ||
+		FAILED(st = table_create(&(*pdict)->id2sym, dict_sz, NULL, NULL, NULL))) {
 		dict_destroy(pdict);
 		return st;
 	}
