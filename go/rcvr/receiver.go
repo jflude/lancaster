@@ -77,6 +77,8 @@ func (r *Receiver) updateStats() {
 	if !r.Alive {
 		r.Stats = Stats{}
 		r.Status = "Not Running"
+		str := C.GoString(C.error_last_desc())
+		log.Println(r.Address, "died, error_last_desc", str)
 		return
 	}
 	var s Stats
@@ -119,7 +121,8 @@ func startReceiver(addr string) (*Receiver, error) {
 		return nil, err
 	}
 	tcp_addr := C.CString(ip.String())
-	if err := chkStatus(C.receiver_create(&rcvr, fn, C.uint(qSize), tcp_addr, C.int(port))); err != nil {
+	err = chkStatus(C.receiver_create(&rcvr, fn, C.uint(qSize), tcp_addr, C.int(port)))
+	if err != nil {
 		return nil, err
 	}
 	log.Println("Started receiver:", addr, " file:", mapName)
