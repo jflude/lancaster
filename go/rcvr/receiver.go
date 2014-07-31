@@ -91,7 +91,6 @@ func (r *Receiver) updateStats() {
 	s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
 	s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
 	s.lastUpdate = time.Now()
-	time.Second.Nanoseconds()
 	dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
 
 	s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
