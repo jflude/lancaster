@@ -12,8 +12,8 @@
 
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
 
-#define htonll(x) __bswap_64(x)
-#define ntohll(x) __bswap_64(x)
+#define htonll(x) __builtin_bswap64(x)
+#define ntohll(x) __builtin_bswap64(x)
 
 #else
 
