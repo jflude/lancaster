@@ -83,10 +83,11 @@ int main(int argc, char* argv[])
 						size_t tcp_c2 = sender_get_tcp_bytes_sent(sender);
 						size_t mcast_c2 = sender_get_mcast_bytes_sent(sender);
 
-						printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f          \r",
+						printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, HW: %ld, TCP KB/sec: %.2f, MCAST KB/sec: %.2f            \r",
 							   sender_get_subscriber_count(sender),
 							   (pkt_c2 - pkt_c) / elapsed,
 							   sender_get_tcp_gap_count(sender),
+							   (long) storage_get_high_water_id(store),
 							   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
 							   (mcast_c2 - mcast_c) / 1024.0 / elapsed);
 
