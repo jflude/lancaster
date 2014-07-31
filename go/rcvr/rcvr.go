@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	_ "expvar"
 	"flag"
 	"fmt"
@@ -38,10 +39,10 @@ func main() {
 		if err != nil {
 			fail(err)
 		}
-		go r.statsLoop()
+		go r.Start()
 		State.Receivers[r.Address] = r
 	}
-
+	http.HandleFunc("/status", statusHandler)
 	http.HandleFunc("/", httpHandler)
 	go http.ListenAndServe(httpAddr, nil)
 	for {
@@ -63,7 +64,9 @@ func reset(addr string) error {
 	}
 	return fmt.Errorf("No such connection: %s", addr)
 }
-
+func statusHandler(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(State.Receivers)
+}
 func httpHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	resetAddr := arg(q, "reset")

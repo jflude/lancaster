@@ -48,7 +48,7 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) statsLoop() {
+func (r *Receiver) Start() {
 	for {
 		if !r.Alive {
 			r.reset(false)
@@ -158,6 +158,6 @@ func chkStatus(status C.status) error {
 	if status == 0 {
 		return nil
 	}
-	str := C.GoString(C.error_last_desc())
-	return fmt.Errorf("%d: %s", status, errors.New(strings.TrimSpace(str)))
+	str := strings.TrimSpace(C.GoString(C.error_last_desc()))
+	return fmt.Errorf("%d: %s", status, errors.New(str))
 }
