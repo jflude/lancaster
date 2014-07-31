@@ -11,13 +11,9 @@ struct uudict_t
 
 static int uu2id_hash_fn(table_key key)
 {
-	const char *p = key, *q = p + sizeof(union uuid_t);
-	int h = 5381;
-
-	while (p < q)
-		h = ((h << 5) + h) ^ *p++;
-
-	return h;
+	union uuid_t* uu = key;
+	long n = uu->word.low ^ uu->word.high;
+	return ((int) (n >> 32)) ^ (int) n;
 }
 
 static boolean uu2id_eq_fn(table_key key1, table_key key2)

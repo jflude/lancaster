@@ -1,6 +1,7 @@
 #include "receiver.h"
 #include "clock.h"
 #include "error.h"
+#include "h2n2h.h"
 #include "sock.h"
 #include "spin.h"
 #include "thread.h"
@@ -109,8 +110,7 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
-		latency = now - *recv_stamp;
-
+		latency = now - ntohll(*recv_stamp);
 		delta = latency - me->stats.mcast_mean_latency;
 		me->stats.mcast_mean_latency += delta / me->stats.mcast_packets_recv;
 		me->stats.mcast_M2_latency += delta * (latency - me->stats.mcast_mean_latency);
@@ -122,6 +122,8 @@ static void* mcast_func(thread_handle thr)
 			me->stats.mcast_max_latency = latency;
 
 		SPIN_UNLOCK(&me->stats.lock);
+
+		*recv_seq = ntohll(*recv_seq);
 		if (*recv_seq < me->next_seq)
 			continue;
 
@@ -129,6 +131,8 @@ static void* mcast_func(thread_handle thr)
 		for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
 			record_handle rec;
 			identifier* id = (identifier*) p;
+
+			*id = ntohll(*id);
 			if (FAILED(st = storage_get_record(me->store, *id, &rec)))
 				goto finish;
 
@@ -146,8 +150,9 @@ static void* mcast_func(thread_handle thr)
 			char* p = (void*) &range;
 			size_t sz = sizeof(range);
 
-			range.low = me->next_seq;
-			range.high = me->next_seq = *recv_seq;
+			range.low = htonll(me->next_seq);
+			me->next_seq = *recv_seq;
+			range.high = htonll(me->next_seq);
 
 			while (sz > 0) {
 				if (thread_is_stopping(thr))
@@ -248,6 +253,7 @@ static void* tcp_func(thread_handle thr)
 		if (FAILED(st) || !st)
 			break;
 
+		*recv_seq = ntohll(*recv_seq);
 		if (*recv_seq == HEARTBEAT_SEQ)
 			continue;
 
@@ -255,7 +261,11 @@ static void* tcp_func(thread_handle thr)
 			break;
 
 		st = tcp_read(me, buf + sizeof(*recv_seq), pkt_size - sizeof(*recv_seq));
-		if (FAILED(st) || !st || FAILED(st = storage_get_record(me->store, *id, &rec)))
+		if (FAILED(st) || !st)
+			break;
+
+		*id = ntohll(*id);
+		if (FAILED(st = storage_get_record(me->store, *id, &rec)))
 			break;
 
 		seq = record_write_lock(rec);

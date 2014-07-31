@@ -1,6 +1,7 @@
 #include "sender.h"
 #include "accum.h"
 #include "error.h"
+#include "h2n2h.h"
 #include "poll.h"
 #include "spin.h"
 #include "thread.h"
@@ -40,7 +41,7 @@ struct sender_t
 	spin_lock_t mcast_lock;
 	int heartbeat_sec;
 	microsec_t max_age_usec;
-	void* time_stored_at;
+	microsec_t* time_stored_at;
 	struct sender_stats_t stats;
 	int hello_len;
 	char hello_str[128];
@@ -75,7 +76,12 @@ static status write_accum(sender_handle me)
 	else if (!st)
 		return OK;
 
-	if (FAILED(clock_time(me->time_stored_at)) || FAILED(st = sock_sendto(me->mcast_sock, data, sz)))
+	if (FAILED(clock_time(me->time_stored_at)))
+		return st;
+
+	*me->time_stored_at = htonll(*me->time_stored_at);
+
+	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)))
 		return st;
 
 	me->last_mcast_send = time(NULL);
@@ -100,29 +106,37 @@ static status write_accum(sender_handle me)
 static status mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
-	if ((((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
-		   (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
-		  accum_is_stale(me->mcast_accum)) && FAILED(st = write_accum(me))) ||
-		(accum_is_empty(me->mcast_accum) &&
-		 (FAILED(st = accum_store(me->mcast_accum, &me->next_seq, sizeof(me->next_seq), NULL)) ||
-		  FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), &me->time_stored_at)))))
+
+	/* if the packet is full or stale, immediately send it */
+	if ((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
+		 (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) &&
+		FAILED(st = write_accum(me)))
 		return st;
+		
+	/* if the packet is empty, insert sequence and reserve space for timestamp */
+	if (accum_is_empty(me->mcast_accum)) {
+		sequence seq = htonll(me->next_seq);
+		if (FAILED(st = accum_store(me->mcast_accum, &seq, sizeof(seq), NULL)) ||
+			FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
+			return st;
+	}
 
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated(rec), record_get_value(rec), me->val_size);
 	else {
-		identifier id;
 		sequence seq;
+		identifier id, id2;
 		if (FAILED(st = storage_get_id(me->store, rec, &id)))
 			return st;
 
+		id2 = htonll(id);
 		seq = record_write_lock(rec);
 
-		if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
-			void* stored_at;
-			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &stored_at))) {
+		if (!FAILED(st = accum_store(me->mcast_accum, &id2, sizeof(id2), NULL))) {
+			void* rec_stored_at;
+			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value(rec), me->val_size, &rec_stored_at))) {
 				if (me->conflate_pkt)
-					record_set_conflated(rec, stored_at);
+					record_set_conflated(rec, rec_stored_at);
 
 				storage_set_high_water_id(me->store, id);
 				seq = me->next_seq;
@@ -153,7 +167,7 @@ static status tcp_close_func(poll_handle poller, sock_handle sock, short* events
 
 static status tcp_will_quit_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
-	sequence quit_seq = WILL_QUIT_SEQ;
+	sequence quit_seq = htonll(WILL_QUIT_SEQ);
 	(void) poller; (void) events; (void) param;
 	return sock_write(sock, &quit_seq, sizeof(quit_seq));
 }
@@ -236,26 +250,29 @@ static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
 static status tcp_on_write_iter_fn(record_handle rec, void* param)
 {
 	struct tcp_req_param_t* req_param = param;
+	sequence seq;
 	status st;
 
 	if (rec > req_param->high_water_rec)
 		return FALSE;
 
-	*req_param->send_seq = record_write_lock(rec);
+	seq = record_write_lock(rec);
+	if (seq < req_param->min_store_seq_seen)
+		req_param->min_store_seq_seen = seq;
 
-	if (*req_param->send_seq < req_param->min_store_seq_seen)
-		req_param->min_store_seq_seen = *req_param->send_seq;
-
-	if (*req_param->send_seq < req_param->range.low || *req_param->send_seq >= req_param->range.high) {
-		record_set_sequence(rec, *req_param->send_seq);
+	if (seq < req_param->range.low || seq >= req_param->range.high) {
+		record_set_sequence(rec, seq);
 		return TRUE;
 	}
 
 	memcpy(req_param->send_id + 1, record_get_value(rec), req_param->val_size);
-	record_set_sequence(rec, *req_param->send_seq);
+	record_set_sequence(rec, seq);
 
 	if (FAILED(st = storage_get_id(req_param->me->store, rec, req_param->send_id)))
 		return st;
+
+	*req_param->send_id = htonll(*req_param->send_id);
+	*req_param->send_seq = htonll(seq);
 
 	req_param->curr_rec = rec;
 	req_param->next_send = req_param->send_buf;
@@ -336,6 +353,9 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 			sz -= st;
 		}
 
+		range.low = ntohll(range.low);
+		range.high = ntohll(range.high);
+
 		if (range.low >= range.high) {
 			errno = EPROTO;
 			error_errno("tcp_on_read");
@@ -398,9 +418,9 @@ static status mcast_check_heartbeat_or_stale(sender_handle me)
 	if (accum_is_stale(me->mcast_accum))
 		st = write_accum(me);
 	else if (poll_get_count(me->poller) > 1 && (time(NULL) - me->last_mcast_send) >= me->heartbeat_sec) {
-		sequence hb_seq = HEARTBEAT_SEQ;
+		sequence hb_seq = htonll(HEARTBEAT_SEQ);
 		if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
-			!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), &me->time_stored_at)))
+			!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
 			st = write_accum(me);
 	}
 
@@ -416,7 +436,7 @@ static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, sho
 	if (sock == me->listen_sock || *events & POLLOUT || (time(NULL) - req_param->last_tcp_send) < me->heartbeat_sec)
 		return OK;
 
-	*req_param->send_seq = HEARTBEAT_SEQ;
+	*req_param->send_seq = htonll(HEARTBEAT_SEQ);
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = sizeof(*req_param->send_seq);
 	req_param->sending_hb = TRUE;

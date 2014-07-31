@@ -187,9 +187,21 @@ receiver.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/time.h
 receiver.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h clock.h error.h
-receiver.o: sock.h spin.h sync.h yield.h thread.h xalloc.h
-receiver.o: /usr/include/linux/string.h /usr/include/alloca.h
-receiver.o: /usr/include/linux/errno.h
+receiver.o: h2n2h.h /usr/include/arpa/inet.h /usr/include/netinet/in.h
+receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h
+receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint-gcc.h
+receiver.o: /usr/include/x86_64-linux-gnu/sys/socket.h
+receiver.o: /usr/include/x86_64-linux-gnu/sys/uio.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/uio.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/socket.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/socket.h
+receiver.o: /usr/include/asm-generic/socket.h
+receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
+receiver.o: /usr/include/asm-generic/sockios.h
+receiver.o: /usr/include/x86_64-linux-gnu/bits/in.h sock.h spin.h sync.h
+receiver.o: yield.h thread.h xalloc.h /usr/include/linux/string.h
+receiver.o: /usr/include/alloca.h /usr/include/linux/errno.h
 receiver.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 receiver.o: /usr/include/asm-generic/errno.h
 receiver.o: /usr/include/asm-generic/errno-base.h /usr/include/linux/fcntl.h
@@ -208,19 +220,6 @@ receiver.o: /usr/include/_G_config.h /usr/include/wchar.h
 receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
 receiver.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
-receiver.o: /usr/include/netinet/in.h
-receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h
-receiver.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint-gcc.h
-receiver.o: /usr/include/x86_64-linux-gnu/sys/socket.h
-receiver.o: /usr/include/x86_64-linux-gnu/sys/uio.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/uio.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/socket.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/sockaddr.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/socket.h
-receiver.o: /usr/include/asm-generic/socket.h
-receiver.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
-receiver.o: /usr/include/asm-generic/sockios.h
-receiver.o: /usr/include/x86_64-linux-gnu/bits/in.h
 sender.o: sender.h clock.h status.h storage.h /usr/include/linux/stddef.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
@@ -247,15 +246,9 @@ sender.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/time.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h accum.h error.h
-sender.o: poll.h sock.h spin.h sync.h yield.h thread.h xalloc.h
-sender.o: /usr/include/linux/string.h /usr/include/linux/errno.h
-sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
-sender.o: /usr/include/asm-generic/errno.h
-sender.o: /usr/include/asm-generic/errno-base.h /usr/include/stdio.h
-sender.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
-sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
-sender.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
+sender.o: h2n2h.h /usr/include/arpa/inet.h /usr/include/netinet/in.h
+sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h
+sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint-gcc.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/sys/uio.h
 sender.o: /usr/include/x86_64-linux-gnu/bits/uio.h
@@ -265,6 +258,16 @@ sender.o: /usr/include/x86_64-linux-gnu/asm/socket.h
 sender.o: /usr/include/asm-generic/socket.h
 sender.o: /usr/include/x86_64-linux-gnu/asm/sockios.h
 sender.o: /usr/include/asm-generic/sockios.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/in.h poll.h sock.h spin.h sync.h
+sender.o: yield.h thread.h xalloc.h /usr/include/linux/string.h
+sender.o: /usr/include/linux/errno.h
+sender.o: /usr/include/x86_64-linux-gnu/asm/errno.h
+sender.o: /usr/include/asm-generic/errno.h
+sender.o: /usr/include/asm-generic/errno-base.h /usr/include/stdio.h
+sender.o: /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h
+sender.o: /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdarg.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/stdio_lim.h
+sender.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h
 signals.o: signals.h status.h /usr/include/linux/signal.h
 signals.o: /usr/include/x86_64-linux-gnu/asm/signal.h
 signals.o: /usr/include/linux/types.h
