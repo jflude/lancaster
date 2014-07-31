@@ -19,14 +19,17 @@ import (
 )
 
 type Receiver struct {
-	rcvr    C.receiver_handle
-	store   C.storage_handle
-	lock    sync.Mutex
-	Address string
-	Host    string
-	Stats   Stats
-	Alive   bool
-	Status  string
+	rcvr     C.receiver_handle
+	store    C.storage_handle
+	lock     sync.Mutex
+	Address  string
+	IP       *net.IPAddr
+	Host     string
+	Port     int
+	Stats    Stats
+	Alive    bool
+	Status   string
+	FileName string
 }
 
 type Stats struct {
@@ -45,7 +48,25 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) reset(doLock bool) (*Receiver, error) {
+func (r *Receiver) statsLoop() {
+	for {
+		if !r.Alive {
+			r.reset(false)
+		} else {
+			r.Alive = C.receiver_is_running(r.rcvr) != 0
+			if !r.Alive {
+				r.Stats = Stats{}
+				r.Status = "Not Running"
+				str := C.GoString(C.error_last_desc())
+				log.Println(r.Address, "died, last error:", str)
+			} else {
+				r.updateStats()
+			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+func (r *Receiver) reset(doLock bool) error {
 	if doLock {
 		r.lock.Lock()
 		defer r.lock.Unlock()
@@ -56,43 +77,22 @@ func (r *Receiver) reset(doLock bool) (*Receiver, error) {
 		if r.Alive {
 			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
 				r.Status = "Stop Failed, reason: " + err.Error()
-				return nil, err
+				return err
 			}
 			r.Alive = false
 		}
 		C.receiver_destroy(&r.rcvr)
 	}
 
-	nr, err := startReceiver(r.Address)
+	err := r.start()
 	if err != nil {
 		r.Status = "Start Failed, reason: " + err.Error()
-		return nil, err
+		return err
 	}
-	return nr, nil
+	return nil
 }
 
 func (r *Receiver) updateStats() {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	if !r.Alive {
-		log.Println("Attempting auto-restart to:", r.Address)
-		nr, err := r.reset(false)
-		if err != nil {
-			return
-		}
-		log.Println("Reconnected!")
-		State.Receivers[nr.Address] = nr
-		return
-	}
-	r.Alive = C.receiver_is_running(r.rcvr) != 0
-	if !r.Alive {
-		r.Stats = Stats{}
-		r.Status = "Not Running"
-		str := C.GoString(C.error_last_desc())
-		log.Println(r.Address, "died, error_last_desc", str)
-		return
-	}
 	var s Stats
 	s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
 	s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
@@ -105,13 +105,13 @@ func (r *Receiver) updateStats() {
 	s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
 	s.lastUpdate = time.Now()
 	dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
-
 	s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
 	s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
 	s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
 	r.Stats = s
 }
-func startReceiver(addr string) (*Receiver, error) {
+
+func newReceiver(addr string) (*Receiver, error) {
 	parts := strings.Split(addr, ":")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("Expected host:port, but got: %s", addr)
@@ -125,22 +125,33 @@ func startReceiver(addr string) (*Receiver, error) {
 	if host == "" {
 		host = "localhost"
 	}
-
-	var rcvr C.receiver_handle
-	mapName := fmt.Sprintf("%s-%s", file, addr)
-	fn := C.CString(mapName)
 	ip, err := net.ResolveIPAddr("ip", host)
 	if err != nil {
 		return nil, err
 	}
-	tcp_addr := C.CString(ip.String())
-	err = chkStatus(C.receiver_create(&rcvr, fn, C.uint(qSize), tcp_addr, C.int(port)))
+	return &Receiver{
+		Host:     host,
+		Address:  addr,
+		IP:       ip,
+		Port:     port,
+		Alive:    false,
+		FileName: fmt.Sprintf("%s-%s", file, addr),
+	}, nil
+}
+
+func (r *Receiver) start() error {
+	fn := C.CString(r.FileName)
+	tcp_addr := C.CString(r.IP.String())
+	log.Println("Connecting to:", r.Address)
+	err := chkStatus(C.receiver_create(&(r.rcvr), fn, C.uint(qSize), tcp_addr, C.int(r.Port)))
 	if err != nil {
-		return nil, err
+		log.Println("Failed to connect to:", r.Address, "reason:", err)
+		return err
 	}
-	store := C.receiver_get_storage(rcvr)
-	log.Println("Started receiver:", addr, " file:", mapName)
-	return &Receiver{rcvr: rcvr, store: store, Host: host, Address: addr, Alive: true}, nil
+	r.store = C.receiver_get_storage(r.rcvr)
+	log.Println("Started receiver:", r.Address, " file:", r.FileName)
+	r.Alive = true
+	return nil
 }
 
 func chkStatus(status C.status) error {
@@ -148,5 +159,5 @@ func chkStatus(status C.status) error {
 		return nil
 	}
 	str := C.GoString(C.error_last_desc())
-	return fmt.Errorf("%d: %s", status, errors.New(str))
+	return fmt.Errorf("%d: %s", status, errors.New(strings.TrimSpace(str)))
 }

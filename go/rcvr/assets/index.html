@@ -52,7 +52,7 @@
 			<td>{{$s.MCastBytesRecv | bytes}}</td>
 			<td>{{$s.MCastPacketsRecv | int64 | commas}}</td>
 			{{ else }}
-			<td colspan="11" align="center">{{$rec.Status}}</td>
+			<td colspan="12" align="center">{{$rec.Status}}</td>
 			{{ end }}
 		</tr>
 		{{end}}

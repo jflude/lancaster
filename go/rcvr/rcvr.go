@@ -34,10 +34,11 @@ func main() {
 		fail("Expected -file")
 	}
 	for _, host := range flag.Args() {
-		r, err := startReceiver(host)
+		r, err := newReceiver(host)
 		if err != nil {
 			fail(err)
 		}
+		go r.statsLoop()
 		State.Receivers[r.Address] = r
 	}
 
@@ -45,20 +46,19 @@ func main() {
 	go http.ListenAndServe(httpAddr, nil)
 	for {
 		time.Sleep(time.Second)
-		for _, r := range State.Receivers {
-			r.updateStats()
-		}
+		// for _, r := range State.Receivers {
+		// r.updateStats()
+		// }
 	}
 }
 
 func reset(addr string) error {
 	r, ok := State.Receivers[addr]
 	if ok {
-		nr, err := r.reset(true)
+		err := r.reset(true)
 		if err != nil {
 			log.Println("Failed to restart", err)
-		} else {
-			State.Receivers[addr] = nr
+			return err
 		}
 	}
 	return fmt.Errorf("No such connection: %s", addr)
