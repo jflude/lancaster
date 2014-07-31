@@ -20,6 +20,7 @@ import (
 
 type Receiver struct {
 	rcvr    C.receiver_handle
+	store   C.storage_handle
 	lock    sync.Mutex
 	Address string
 	Host    string
@@ -30,6 +31,7 @@ type Receiver struct {
 
 type Stats struct {
 	GapCount           uint64
+	HighWaterId        int64
 	TcpBytesRecv       uint64
 	TcpBytesSec        uint64
 	MCastBytesRecv     uint64
@@ -82,6 +84,7 @@ func (r *Receiver) updateStats() {
 		return
 	}
 	var s Stats
+	s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
 	s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
 	s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
 	s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
@@ -125,8 +128,9 @@ func startReceiver(addr string) (*Receiver, error) {
 	if err != nil {
 		return nil, err
 	}
+	store := C.receiver_get_storage(rcvr)
 	log.Println("Started receiver:", addr, " file:", mapName)
-	return &Receiver{rcvr: rcvr, Host: host, Address: addr, Alive: true}, nil
+	return &Receiver{rcvr: rcvr, store: store, Host: host, Address: addr, Alive: true}, nil
 }
 
 func chkStatus(status C.status) error {
