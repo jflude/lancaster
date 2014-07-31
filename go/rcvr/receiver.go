@@ -45,9 +45,11 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) reset() (*Receiver, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+func (r *Receiver) reset(doLock bool) (*Receiver, error) {
+	if doLock {
+		r.lock.Lock()
+		defer r.lock.Unlock()
+	}
 	r.Status = "Resetting"
 	if r.rcvr != nil {
 		r.Alive = C.receiver_is_running(r.rcvr) != 0
@@ -60,6 +62,7 @@ func (r *Receiver) reset() (*Receiver, error) {
 		}
 		C.receiver_destroy(&r.rcvr)
 	}
+
 	nr, err := startReceiver(r.Address)
 	if err != nil {
 		r.Status = "Start Failed, reason: " + err.Error()
@@ -73,6 +76,13 @@ func (r *Receiver) updateStats() {
 	defer r.lock.Unlock()
 
 	if !r.Alive {
+		log.Println("Attempting auto-restart to:", r.Address)
+		nr, err := r.reset(false)
+		if err != nil {
+			return
+		}
+		log.Println("Reconnected!")
+		State.Receivers[nr.Address] = nr
 		return
 	}
 	r.Alive = C.receiver_is_running(r.rcvr) != 0
