@@ -9,6 +9,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"github.com/willf/bitset"
 	"log"
 	"os"
 )
@@ -16,13 +17,21 @@ import (
 var store C.storage_handle
 var qCapacity C.uint
 var rSize C.uint
+var watchKeys map[string]bool
+var watchBits bitset.BitSet
 
 func main() {
 	var cs *C.char
 	if len(os.Args) > 1 {
 		cs = C.CString(os.Args[1])
 	} else {
-		cs = nil
+		log.Fatal("Must specify file")
+	}
+	if len(os.Args) > 2 {
+		watchKeys = make(map[string]bool)
+		for _, a := range os.Args[2:] {
+			watchKeys[a] = true
+		}
 	}
 	if err := err(C.storage_open(&store, cs)); err != nil {
 		log.Fatal("Failed to open store", err)
@@ -34,6 +43,9 @@ func main() {
 	c := C.storage_get_value_offset(store)
 	log.Println("rs", a, "vs", b, "vo", c)
 	log.Println("Queue size:", qCapacity)
+	if watchKeys != nil {
+		log.Println("watchkeys:", watchKeys)
+	}
 	runDirect()
 }
 
