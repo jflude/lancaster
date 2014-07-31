@@ -1,10 +1,10 @@
 /* test publisher */
 
+#include "clock.h"
 #include "datum.h"
 #include "error.h"
 #include "sender.h"
 #include "signals.h"
-#include "yield.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 				goto finish;
 
 			if ((n & mask) == 0) {
-				if (FAILED(st = snooze(0, 1000)))
+				if (FAILED(st = clock_sleep(1)))
 					break;
 
 				if (verbose) {

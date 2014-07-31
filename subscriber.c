@@ -1,9 +1,9 @@
 /* generic subscriber */
 
 #include "error.h"
+#include "clock.h"
 #include "receiver.h"
 #include "signals.h"
-#include "yield.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,10 +60,10 @@ int main(int argc, char* argv[])
 					   receiver_get_tcp_gap_count(recv),
 					   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
 					   (mcast_c2 - mcast_c) / 1024.0 / elapsed,
-					   receiver_get_mcast_min_latency(recv) / 1000.0,
-					   receiver_get_mcast_mean_latency(recv) / 1000.0,
-					   receiver_get_mcast_max_latency(recv) / 1000.0,
-					   receiver_get_mcast_stddev_latency(recv) / 1000.0);
+					   receiver_get_mcast_min_latency(recv),
+					   receiver_get_mcast_mean_latency(recv),
+					   receiver_get_mcast_max_latency(recv),
+					   receiver_get_mcast_stddev_latency(recv));
 
 				t1 = t2;
 				pkt_c = pkt_c2;
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		if (FAILED(st = snooze(1, 0)))
+		if (FAILED(st = clock_sleep(1000000)))
 			break;
 	}
 

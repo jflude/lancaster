@@ -1,10 +1,10 @@
 /* test reader */
 
+#include "clock.h"
 #include "datum.h"
 #include "error.h"
 #include "signals.h"
 #include "storage.h"
-#include "yield.h"
 #include <stdio.h>
 
 int main(int argc, char* argv[])
@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		unsigned q, new_head = storage_get_queue_head(store);
 		if (new_head == old_head) {
-			if (FAILED(st = snooze(0, 1000)))
+			if (FAILED(st = clock_sleep(1)))
 				break;
 
 			continue;

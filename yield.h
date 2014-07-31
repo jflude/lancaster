@@ -12,7 +12,6 @@ extern "C" {
 #endif
 
 status yield(void);
-status snooze(long sec, long nanosec);
 
 #ifdef __cplusplus
 }

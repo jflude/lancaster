@@ -3,6 +3,7 @@
 #ifndef SENDER_H
 #define SENDER_H
 
+#include "clock.h"
 #include "storage.h"
 
 #ifdef __cplusplus
@@ -12,7 +13,7 @@ extern "C" {
 struct sender_t;
 typedef struct sender_t* sender_handle;
 
-status sender_create(sender_handle* psend, storage_handle store, int hb_sec, long max_age_usec, boolean conflate_packet,
+status sender_create(sender_handle* psend, storage_handle store, int hb_sec, microsec_t max_age_usec, boolean conflate_packet,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port);
 void sender_destroy(sender_handle* psend);
 

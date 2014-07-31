@@ -19,7 +19,7 @@ union uuid_t
 struct uudict_t;
 typedef struct uudict_t* uudict_handle;
 
-status uudict_create(uudict_handle* puudict, size_t sz);
+status uudict_create(uudict_handle* puudict, size_t dict_sz);
 void uudict_destroy(uudict_handle* puudict);
 
 status uudict_assoc(uudict_handle uudict, union uuid_t uu, identifier id);

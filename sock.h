@@ -42,10 +42,10 @@ status sock_listen(sock_handle sock, int backlog);
 status sock_accept(sock_handle sock, sock_handle* new_h);
 status sock_connect(sock_handle sock);
 
-status sock_write(sock_handle sock, const void* data, size_t sz);
-status sock_read(sock_handle sock, void* data, size_t sz);
-status sock_sendto(sock_handle sock, const void* data, size_t sz);
-status sock_recvfrom(sock_handle sock, void* data, size_t sz);
+status sock_write(sock_handle sock, const void* data, size_t data_sz);
+status sock_read(sock_handle sock, void* data, size_t data_sz);
+status sock_sendto(sock_handle sock, const void* data, size_t data_sz);
+status sock_recvfrom(sock_handle sock, void* data, size_t data_sz);
 
 #ifdef __cplusplus
 }

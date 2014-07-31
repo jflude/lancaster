@@ -2,20 +2,19 @@
 #include "error.h"
 #include "xalloc.h"
 #include <errno.h>
-#include <sys/time.h>
 
-#define NO_TIME ((time_t) -1)
+#define NO_TIME (-1)
 
 struct accum_t
 {
 	size_t capacity;
-	long max_age_usec;
-	struct timeval insert_time;
+	microsec_t max_age_usec;
+	microsec_t insert_time;
 	char* next_free;
 	char buf[1];
 };
 
-status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec)
+status accum_create(accum_handle* pacc, size_t capacity, microsec_t max_age_usec)
 {
 	if (!pacc || capacity == 0 || max_age_usec < 0) {
 		error_invalid_arg("accum_create");
@@ -28,7 +27,7 @@ status accum_create(accum_handle* pacc, size_t capacity, long max_age_usec)
 
 	(*pacc)->capacity = capacity;
 	(*pacc)->max_age_usec = max_age_usec;
-	(*pacc)->insert_time.tv_sec = NO_TIME;
+	(*pacc)->insert_time = NO_TIME;
 	(*pacc)->next_free = (*pacc)->buf;
 	return OK;
 }
@@ -49,16 +48,16 @@ boolean accum_is_empty(accum_handle acc)
 
 status accum_is_stale(accum_handle acc)
 {
-	struct timeval tv;
-	if (acc->max_age_usec <= 0 || acc->insert_time.tv_sec == NO_TIME)
+	microsec_t now;
+	status st;
+
+	if (acc->max_age_usec == 0 || acc->insert_time == NO_TIME)
 		return FALSE;
 
-	if (gettimeofday(&tv, NULL) == -1) {
-		error_errno("gettimeofday");
-		return FAIL;
-	}
+	if (FAILED(st = clock_time(&now)))
+		return st;
 
-	return acc->max_age_usec < (1000000 * (tv.tv_sec - acc->insert_time.tv_sec) + tv.tv_usec - acc->insert_time.tv_usec);
+	return (now - acc->insert_time) > acc->max_age_usec;
 }
 
 size_t accum_get_available(accum_handle acc)
@@ -66,36 +65,35 @@ size_t accum_get_available(accum_handle acc)
 	return acc->capacity - (acc->next_free - acc->buf);
 }
 
-status accum_store(accum_handle acc, const void* data, size_t size, void** pstored)
+status accum_store(accum_handle acc, const void* data, size_t data_sz, void** pstored)
 {
-	if (size == 0 || size > acc->capacity) {
+	status st;
+	if (data_sz == 0 || data_sz > acc->capacity) {
 		error_invalid_arg("accum_store");
 		return FAIL;
 	}
 
-	if (size > (acc->capacity - (acc->next_free - acc->buf)))
+	if (data_sz > (acc->capacity - (acc->next_free - acc->buf)))
 		return FALSE;
 
 	if (pstored)
 		*pstored = acc->next_free;
 
 	if (data)
-		memcpy(acc->next_free, data, size);
+		memcpy(acc->next_free, data, data_sz);
 
-	acc->next_free += size;
+	acc->next_free += data_sz;
 
-	if (acc->insert_time.tv_sec == NO_TIME && gettimeofday(&acc->insert_time, NULL) == -1) {
-		error_errno("gettimeofday");
-		return FAIL;
-	}
+	if (acc->insert_time == NO_TIME && FAILED(st = clock_time(&acc->insert_time)))
+		return st;
 
 	return TRUE;
 }
 
-status accum_get_batched(accum_handle acc, const void** pdata, size_t* psize)
+status accum_get_batched(accum_handle acc, const void** pdata, size_t* psz)
 {
 	size_t used;
-	if (!pdata || !psize) {
+	if (!pdata || !psz) {
 		error_invalid_arg("accum_get_batched");
 		return FAIL;
 	}
@@ -105,12 +103,12 @@ status accum_get_batched(accum_handle acc, const void** pdata, size_t* psize)
 		return FALSE;
 
 	*pdata = acc->buf;
-	*psize = used;
+	*psz = used;
 	return TRUE;
 }
 
 void accum_clear(accum_handle acc)
 {
 	acc->next_free = acc->buf;
-	acc->insert_time.tv_sec = NO_TIME;
+	acc->insert_time = NO_TIME;
 }
