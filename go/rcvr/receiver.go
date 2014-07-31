@@ -20,6 +20,7 @@ import (
 
 type Receiver struct {
 	rcvr    C.receiver_handle
+	store   C.storage_handle
 	lock    sync.Mutex
 	Address string
 	Host    string
@@ -30,6 +31,7 @@ type Receiver struct {
 
 type Stats struct {
 	GapCount           uint64
+	HighWaterId        int64
 	TcpBytesRecv       uint64
 	TcpBytesSec        uint64
 	MCastBytesRecv     uint64
@@ -43,9 +45,11 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) reset() (*Receiver, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+func (r *Receiver) reset(doLock bool) (*Receiver, error) {
+	if doLock {
+		r.lock.Lock()
+		defer r.lock.Unlock()
+	}
 	r.Status = "Resetting"
 	if r.rcvr != nil {
 		r.Alive = C.receiver_is_running(r.rcvr) != 0
@@ -58,6 +62,7 @@ func (r *Receiver) reset() (*Receiver, error) {
 		}
 		C.receiver_destroy(&r.rcvr)
 	}
+
 	nr, err := startReceiver(r.Address)
 	if err != nil {
 		r.Status = "Start Failed, reason: " + err.Error()
@@ -71,6 +76,13 @@ func (r *Receiver) updateStats() {
 	defer r.lock.Unlock()
 
 	if !r.Alive {
+		log.Println("Attempting auto-restart to:", r.Address)
+		nr, err := r.reset(false)
+		if err != nil {
+			return
+		}
+		log.Println("Reconnected!")
+		State.Receivers[nr.Address] = nr
 		return
 	}
 	r.Alive = C.receiver_is_running(r.rcvr) != 0
@@ -82,6 +94,7 @@ func (r *Receiver) updateStats() {
 		return
 	}
 	var s Stats
+	s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
 	s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
 	s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
 	s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
@@ -125,8 +138,9 @@ func startReceiver(addr string) (*Receiver, error) {
 	if err != nil {
 		return nil, err
 	}
+	store := C.receiver_get_storage(rcvr)
 	log.Println("Started receiver:", addr, " file:", mapName)
-	return &Receiver{rcvr: rcvr, Host: host, Address: addr, Alive: true}, nil
+	return &Receiver{rcvr: rcvr, store: store, Host: host, Address: addr, Alive: true}, nil
 }
 
 func chkStatus(status C.status) error {

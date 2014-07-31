@@ -17,7 +17,8 @@ import (
 var store C.storage_handle
 var qCapacity C.uint
 var rSize C.uint
-var watchKeys map[string]bool
+var hasWatch = false
+var watchKeys []string
 var watchBits bitset.BitSet
 
 func main() {
@@ -28,9 +29,9 @@ func main() {
 		log.Fatal("Must specify file")
 	}
 	if len(os.Args) > 2 {
-		watchKeys = make(map[string]bool)
+		hasWatch = true
 		for _, a := range os.Args[2:] {
-			watchKeys[a] = true
+			watchKeys = append(watchKeys, a)
 		}
 	}
 	if err := err(C.storage_open(&store, cs)); err != nil {

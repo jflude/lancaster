@@ -54,7 +54,7 @@ func main() {
 func reset(addr string) error {
 	r, ok := State.Receivers[addr]
 	if ok {
-		nr, err := r.reset()
+		nr, err := r.reset(true)
 		if err != nil {
 			log.Println("Failed to restart", err)
 		} else {
