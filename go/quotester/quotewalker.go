@@ -88,12 +88,32 @@ func runDirect() {
 			uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((id - rBaseId))))
 			raddr := (unsafe.Pointer)(uraddr)
 			vaddr := (unsafe.Pointer)(uraddr + vOffset)
-			d := (*Quote)(vaddr) //(*C.datum)(vaddr)
+			d := (*Quote)(vaddr)
+			// Not checking for lock contention on this part as the ID is known to only be written once per slot
+			// if we've been told about the record, it must have been written at least once.
+			key := keys[id]
+			useStr := watchKeys == nil
+			if key == nil {
+				s := d.key()
+				key = &s
+				keys[id] = key
+				if watchKeys != nil && watchKeys[s] {
+					watchBits.Set(uint(id))
+					useStr = true
+				}
+			} else if watchKeys != nil && watchBits.Test(uint(id)) {
+				useStr = true
+			}
+
+			str := ""
 			for {
 				seq := *((*C.uint)(raddr))
 				if seq < 0 {
 					fmt.Println("locked")
 					continue
+				}
+				if useStr {
+					str = d.String()
 				}
 				nseq := *((*C.uint)(raddr))
 				if seq == nseq {
@@ -101,22 +121,8 @@ func runDirect() {
 				}
 				fmt.Println("Version stomp", seq, "!=", nseq)
 			}
-			key := keys[id]
-			if key == nil {
-				s := d.key()
-				key = &s
-				keys[id] = key
-				if watchKeys != nil && watchKeys[s] {
-					watchBits.Set(uint(id))
-				}
-			}
-			// fmt.Println(*key, float64(d.bidPrice)/10000.0, d.bidSize, float64(d.askPrice)/10000.0, d.askSize, d.exchangeTS, d.opraSeq)
-			if watchKeys != nil {
-				if watchBits.Test(uint(id)) {
-					fmt.Println(j, j&qMask, d)
-				}
-			} else {
-				fmt.Println(j, j&qMask, d)
+			if useStr {
+				fmt.Println(j, j&qMask, str)
 			}
 		}
 		old_head = new_head
