@@ -5,6 +5,7 @@
 
 #include "status.h"
 #include "storage.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

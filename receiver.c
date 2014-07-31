@@ -140,8 +140,8 @@ static void* mcast_func(thread_handle thr)
 			memcpy(record_get_value(rec), id + 1, val_size);
 			record_set_sequence(rec, *recv_seq);
 
-			storage_set_high_water_id(me->store, *id);
-			if (FAILED(st = storage_write_queue(me->store, *id)))
+			if (FAILED(st = storage_set_high_water_id(me->store, *id)) ||
+				FAILED(st = storage_write_queue(me->store, *id)))
 				goto finish;
 		}
 
@@ -277,8 +277,8 @@ static void* tcp_func(thread_handle thr)
 		memcpy(record_get_value(rec), id + 1, val_size);
 		record_set_sequence(rec, *recv_seq);
 
-		storage_set_high_water_id(me->store, *id);
-		if (FAILED(st = storage_write_queue(me->store, *id)))
+		if (FAILED(st = storage_set_high_water_id(me->store, *id)) ||
+			FAILED(st = storage_write_queue(me->store, *id)))
 			break;
 	}
 

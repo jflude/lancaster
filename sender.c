@@ -138,8 +138,8 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 				if (me->conflate_pkt)
 					record_set_conflated(rec, rec_stored_at);
 
-				storage_set_high_water_id(me->store, id);
 				seq = me->next_seq;
+				st = storage_set_high_water_id(me->store, id);
 			}
 		}
 

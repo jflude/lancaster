@@ -120,8 +120,32 @@ dump.o: /usr/include/x86_64-linux-gnu/bits/sys_errlist.h error.h
 dump.o: /usr/include/ctype.h /usr/include/endian.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/endian.h
 dump.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
-dict.o: dict.h status.h /usr/include/linux/stddef.h error.h table.h xalloc.h
-dict.o: /usr/include/linux/string.h
+dict.o: dict.h status.h storage.h /usr/include/linux/stddef.h
+dict.o: /usr/include/x86_64-linux-gnu/sys/types.h /usr/include/features.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/predefs.h
+dict.o: /usr/include/x86_64-linux-gnu/sys/cdefs.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/wordsize.h
+dict.o: /usr/include/x86_64-linux-gnu/gnu/stubs.h
+dict.o: /usr/include/x86_64-linux-gnu/gnu/stubs-64.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/types.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/typesizes.h
+dict.o: /usr/include/linux/time.h /usr/include/linux/types.h
+dict.o: /usr/include/x86_64-linux-gnu/asm/types.h
+dict.o: /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h
+dict.o: /usr/include/x86_64-linux-gnu/asm/bitsperlong.h
+dict.o: /usr/include/asm-generic/bitsperlong.h
+dict.o: /usr/include/linux/posix_types.h /usr/include/linux/stddef.h
+dict.o: /usr/include/x86_64-linux-gnu/asm/posix_types.h
+dict.o: /usr/include/x86_64-linux-gnu/asm/posix_types_64.h
+dict.o: /usr/include/endian.h /usr/include/x86_64-linux-gnu/bits/endian.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/byteswap.h
+dict.o: /usr/include/x86_64-linux-gnu/sys/select.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/select.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/sigset.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/time.h
+dict.o: /usr/include/x86_64-linux-gnu/sys/sysmacros.h
+dict.o: /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h error.h table.h
+dict.o: xalloc.h /usr/include/linux/string.h
 error.o: error.h spin.h sync.h yield.h status.h /usr/include/linux/errno.h
 error.o: /usr/include/x86_64-linux-gnu/asm/errno.h
 error.o: /usr/include/asm-generic/errno.h

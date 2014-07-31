@@ -26,7 +26,7 @@ struct segment_t
 	identifier base_id;
 	identifier max_id;
 	identifier high_water_id;
-	spin_lock_t high_water_lock;
+	volatile int high_water_ver;
 	spin_lock_t time_lock;
 	time_t send_recv_time;
 	unsigned q_mask;
@@ -154,7 +154,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
 	(*pstore)->seg->high_water_id = -1;
-	SPIN_CREATE(&(*pstore)->seg->high_water_lock);
+	SPIN_CREATE(&(*pstore)->seg->high_water_ver);
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
@@ -367,7 +367,7 @@ status storage_write_queue(storage_handle store, identifier id)
 		return FAIL;
 	}
 
-	SYNC_SYNCHONIZE();
+	SYNC_SYNCHRONIZE();
 	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
 	return OK;
 }
@@ -465,19 +465,42 @@ status storage_reset(storage_handle store)
 identifier storage_get_high_water_id(storage_handle store)
 {
 	identifier id;
-	SPIN_LOCK(&store->seg->high_water_lock);
-	id = store->seg->high_water_id;
-	SPIN_UNLOCK(&store->seg->high_water_lock);
+	int ver;
+	do {
+		int n = 0;
+		while ((ver = store->seg->high_water_ver) < 0)
+			if ((++n & MAX_RELAXES) != 0)
+				CPU_RELAX();
+			else
+				yield();
+
+		id = store->seg->high_water_id;
+	} while (ver != store->seg->high_water_ver);
+
 	return id;
 }
 
-void storage_set_high_water_id(storage_handle store, identifier id)
+status storage_set_high_water_id(storage_handle store, identifier id)
 {
-	SPIN_LOCK(&store->seg->high_water_lock);
+	int ver, n = 0;
+	if (!store->is_seg_owner) {
+		errno = EPERM;
+		error_errno("storage_high_water_id");
+		return FAIL;
+	}
+
+	while ((ver = SYNC_FETCH_AND_OR(&store->seg->high_water_ver, ~(1u >> 1))) < 0)
+		if ((++n & MAX_RELAXES) != 0)
+			CPU_RELAX();
+		else
+			yield();
+
 	if (id > store->seg->high_water_id)
 		store->seg->high_water_id = id;
 
-	SPIN_UNLOCK(&store->seg->high_water_lock);
+	SYNC_SYNCHRONIZE();
+	store->seg->high_water_ver = ver + 1;
+	return OK;
 }
 
 void* record_get_value(record_handle rec)
@@ -492,7 +515,7 @@ sequence record_get_sequence(record_handle rec)
 
 void record_set_sequence(record_handle rec, sequence seq)
 {
-	SYNC_SYNCHONIZE();
+	SYNC_SYNCHRONIZE();
 	rec->seq = seq;
 }
 
@@ -508,8 +531,8 @@ void record_set_conflated(record_handle rec, void* confl)
 
 sequence record_read_lock(record_handle rec)
 {
-	int n = 0;
 	sequence seq;
+	int n = 0;
 
 	while ((seq = rec->seq) < 0)
 		if ((++n & MAX_RELAXES) != 0)
@@ -522,8 +545,8 @@ sequence record_read_lock(record_handle rec)
 
 sequence record_write_lock(record_handle rec)
 {
-	int n = 0;
 	sequence seq;
+	int n = 0;
 
 	while ((seq = SYNC_FETCH_AND_OR(&rec->seq, SEQUENCE_MIN)) < 0)
 		if ((++n & MAX_RELAXES) != 0)

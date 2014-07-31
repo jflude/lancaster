@@ -70,7 +70,7 @@ void dict_destroy(dict_handle* pdict)
 	*pdict = NULL;
 }
 
-status dict_assoc(dict_handle dict, const char* symbol, int id)
+status dict_assoc(dict_handle dict, const char* symbol, identifier id)
 {
 	status st;
 	const char* p;
@@ -90,23 +90,23 @@ status dict_assoc(dict_handle dict, const char* symbol, int id)
 	return table_insert(dict->id2sym, (table_key) (long) id, (table_value) p);
 }
 
-status dict_get_id(dict_handle dict, const char* symbol, int* pid)
+status dict_get_id(dict_handle dict, const char* symbol, identifier* pident)
 {
 	table_value val;
 	status st;
 
-	if (!symbol || !pid) {
+	if (!symbol || !pident) {
 		error_invalid_arg("dict_get_id");
 		return FAIL;
 	}
 
 	if (!FAILED(st = table_lookup(dict->sym2id, (table_key) symbol, &val)) && st)
-		*pid = (long) val;
+		*pident = (long) val;
 
 	return st;
 }
 
-status dict_get_symbol(dict_handle dict, int id, const char** psymbol)
+status dict_get_symbol(dict_handle dict, identifier id, const char** psymbol)
 {
 	if (!psymbol) {
 		error_invalid_arg("dict_get_symbol");

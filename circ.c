@@ -51,7 +51,7 @@ status circ_insert(circ_handle circ, void* val)
 
 	circ->buf[circ->write_to & circ->mask] = val;
 	++circ->write_to;
-	SYNC_SYNCHONIZE();
+	SYNC_SYNCHRONIZE();
 	return OK;
 }
 

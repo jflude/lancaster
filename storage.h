@@ -61,7 +61,7 @@ status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
 
 identifier storage_get_high_water_id(storage_handle store);
-void storage_set_high_water_id(storage_handle store, identifier id);
+status storage_set_high_water_id(storage_handle store, identifier id);
 
 void* record_get_value(record_handle rec);
 sequence record_get_sequence(record_handle rec);
