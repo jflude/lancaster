@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -38,9 +40,7 @@ func (q *Quote) ask() float64 {
 	return float64(q.askPrice) / 10000.0
 }
 func (q *Quote) String() string {
-
 	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
-
 	return fmt.Sprintf("%-28s %-15s  %9d %4d x %03.2f @ %0.2f x %d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
 }
 func runDirect() {
@@ -52,17 +52,17 @@ func runDirect() {
 	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
 	// Used to grab the record itself
 	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	// var rArr = (*[1 << 30]C.record_handle)(rBaseAddr)
 	var rSize = C.storage_get_record_size(store)
 	var vOffset = uintptr(C.storage_get_value_offset(store))
 	var rBaseId = C.storage_get_base_id(store)
-	var new_head, old_head int
+	var new_head = int(*(qHeadPtr))
+	var old_head = new_head
+	// log.Println(C.storage_get_high_water_id(store))
 	keys := make([]*string, qSize)
 	for {
 		new_head = int(*(qHeadPtr))
 		if new_head == old_head {
 			time.Sleep(time.Microsecond)
-			// time.Sleep(time.Nanosecond)
 			if err := syscall.Kill(int(storeOwner), 0); err != nil {
 				errno := int(err.(syscall.Errno))
 				if err == syscall.ESRCH {
@@ -73,7 +73,6 @@ func runDirect() {
 				}
 				return
 			}
-			// fmt.Println("sleep", new_head)
 			continue
 		}
 		if (new_head - old_head) > qSize {
@@ -92,16 +91,23 @@ func runDirect() {
 			// Not checking for lock contention on this part as the ID is known to only be written once per slot
 			// if we've been told about the record, it must have been written at least once.
 			key := keys[id]
-			useStr := watchKeys == nil
+			useStr := !hasWatch
 			if key == nil {
 				s := d.key()
 				key = &s
 				keys[id] = key
-				if watchKeys != nil && watchKeys[s] {
-					watchBits.Set(uint(id))
-					useStr = true
+				fmt.Fprintln(os.Stderr, "newKey :", id, s)
+				if hasWatch {
+					for _, k := range watchKeys {
+						if strings.HasPrefix(s, k) {
+							watchBits.Set(uint(id))
+							useStr = true
+							fmt.Fprintln(os.Stderr, "Found:", id, s)
+							break
+						}
+					}
 				}
-			} else if watchKeys != nil && watchBits.Test(uint(id)) {
+			} else if hasWatch && watchBits.Test(uint(id)) {
 				useStr = true
 			}
 
