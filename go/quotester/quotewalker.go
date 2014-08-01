@@ -47,8 +47,8 @@ func runDirect() {
 	var storeOwner = C.storage_get_owner_pid(store)
 	var qSize = int(qCapacity)
 	var qMask = qSize - 1
-	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_address(store))))
-	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_address(store))
+	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_ref(store))))
+	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(store))
 	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
 	// Used to grab the record itself
 	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))

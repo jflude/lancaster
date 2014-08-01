@@ -29,7 +29,7 @@ typedef long sequence;
 
 struct storage_seq_range_t { sequence low; sequence high; };
 
-status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, unsigned q_capacity,
+status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, size_t q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size);
 status storage_open(storage_handle* pstore, const char* mmap_file);
 void storage_destroy(storage_handle* pstore);
@@ -44,11 +44,11 @@ size_t storage_get_record_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
 size_t storage_get_value_offset(storage_handle store);
 
-const identifier* storage_get_queue_base_address(storage_handle store);
-const unsigned* storage_get_queue_head_address(storage_handle store);
-unsigned storage_get_queue_capacity(storage_handle store);
-unsigned storage_get_queue_head(storage_handle store);
-identifier storage_read_queue(storage_handle store, unsigned index);
+const identifier* storage_get_queue_base_ref(storage_handle store);
+const long* storage_get_queue_head_ref(storage_handle store);
+size_t storage_get_queue_capacity(storage_handle store);
+long storage_get_queue_head(storage_handle store);
+identifier storage_read_queue(storage_handle store, long index);
 status storage_write_queue(storage_handle store, identifier id);
 
 time_t storage_get_send_recv_time(storage_handle store);

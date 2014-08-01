@@ -29,8 +29,8 @@ struct segment_t
 	volatile int high_water_ver;
 	spin_lock_t time_lock;
 	time_t send_recv_time;
-	unsigned q_mask;
-	unsigned q_head;
+	size_t q_mask;
+	long q_head;
 	identifier change_q[1];
 };
 
@@ -56,7 +56,7 @@ static void clear_change_q(storage_handle store)
 		memset(store->seg->change_q, -1, sizeof(store->seg->change_q[0]) * (store->seg->q_mask + 1));
 }
 
-status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, unsigned q_capacity,
+status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, size_t q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size)
 {
 	/* q_capacity must be a power of 2 */
@@ -328,33 +328,34 @@ size_t storage_get_value_offset(storage_handle store)
 	return offsetof(struct record_t, val);
 }
 
-const identifier* storage_get_queue_base_address(storage_handle store)
+const identifier* storage_get_queue_base_ref(storage_handle store)
 {
 	return store->seg->change_q;
 }
 
-const unsigned* storage_get_queue_head_address(storage_handle store)
+const long* storage_get_queue_head_ref(storage_handle store)
 {
 	return &store->seg->q_head;
 }
 
-unsigned storage_get_queue_capacity(storage_handle store)
+size_t storage_get_queue_capacity(storage_handle store)
 {
 	return store->seg->q_mask + 1;
 }
 
-unsigned storage_get_queue_head(storage_handle store)
+long storage_get_queue_head(storage_handle store)
 {
 	return store->seg->q_head;
 }
 
-identifier storage_read_queue(storage_handle store, unsigned index)
+identifier storage_read_queue(storage_handle store, long index)
 {
 	return store->seg->change_q[index & store->seg->q_mask];
 }
 
 status storage_write_queue(storage_handle store, identifier id)
 {
+	long n;
 	if (!store->is_seg_owner) {
 		errno = EPERM;
 		error_errno("storage_write_queue");
@@ -367,8 +368,11 @@ status storage_write_queue(storage_handle store, identifier id)
 		return FAIL;
 	}
 
-	SYNC_SYNCHRONIZE();
-	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
+	do {
+		n = store->seg->q_head;
+		store->seg->change_q[n & store->seg->q_mask] = id;
+	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&store->seg->q_head, n, n + 1));
+
 	return OK;
 }
 

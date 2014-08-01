@@ -12,7 +12,7 @@
 
 int main(int argc, char* argv[])
 {
-	storage_handle store;
+	storage_handle store = NULL;
 	sender_handle sender;
 	status st = OK;
 	int mask, n = 1;
