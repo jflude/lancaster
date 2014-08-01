@@ -51,6 +51,7 @@ func runDirect() {
 	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_address(store))
 	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
 	// Used to grab the record itself
+	var maxRecords = int(C.storage_get_max_id(store))
 	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
 	var rSize = C.storage_get_record_size(store)
 	var vOffset = uintptr(C.storage_get_value_offset(store))
@@ -58,7 +59,7 @@ func runDirect() {
 	var new_head = int(*(qHeadPtr))
 	var old_head = new_head
 	// log.Println(C.storage_get_high_water_id(store))
-	keys := make([]*string, qSize)
+	keys := make([]*string, maxRecords)
 	for {
 		new_head = int(*(qHeadPtr))
 		if new_head == old_head {
