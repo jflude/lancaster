@@ -8,8 +8,8 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"github.com/willf/bitset"
 	"log"
-	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -43,22 +43,57 @@ func (q *Quote) String() string {
 	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
 	return fmt.Sprintf("%-28s %-15s  %9d %4d x %03.2f @ %0.2f x %d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
 }
-func runDirect() {
+func findQuotes(keys []string) {
+	// Used to grab the record itself
+	var maxRecords = int(C.storage_get_max_id(store))
+	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	var rSize = C.storage_get_record_size(store)
+	var vOffset = uintptr(C.storage_get_value_offset(store))
+	var rBaseId = int(C.storage_get_base_id(store))
+
+	for x := 0; x < maxRecords; x++ {
+		uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
+		raddr := (unsafe.Pointer)(uraddr)
+		seq := *((*C.uint)(raddr))
+		if seq < 1 {
+			return
+		}
+		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		d := (*Quote)(vaddr)
+		recKey := d.key()
+		for _, k := range keys {
+			if strings.HasPrefix(recKey, k) {
+				fmt.Println(d)
+				break
+			}
+		}
+	}
+
+}
+func tailQuotes(watchKeys []string) {
+	var hasWatch = len(watchKeys) > 0
+	var watchBits bitset.BitSet
+	var qCapacity = C.storage_get_queue_capacity(store)
 	var storeOwner = C.storage_get_owner_pid(store)
 	var qSize = int(qCapacity)
 	var qMask = qSize - 1
 	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_ref(store))))
 	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(store))
 	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
+	var new_head = int(*(qHeadPtr))
+	var old_head = new_head
 	// Used to grab the record itself
+	var maxRecords = int(C.storage_get_max_id(store))
 	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
 	var rSize = C.storage_get_record_size(store)
 	var vOffset = uintptr(C.storage_get_value_offset(store))
 	var rBaseId = C.storage_get_base_id(store)
-	var new_head = int(*(qHeadPtr))
-	var old_head = new_head
 	// log.Println(C.storage_get_high_water_id(store))
-	keys := make([]*string, qSize)
+	log.Println("Queue size:", qCapacity)
+	if hasWatch {
+		log.Println("Filtering for:", watchKeys)
+	}
+	keys := make([]*string, maxRecords)
 	for {
 		new_head = int(*(qHeadPtr))
 		if new_head == old_head {
@@ -96,13 +131,13 @@ func runDirect() {
 				s := d.key()
 				key = &s
 				keys[id] = key
-				fmt.Fprintln(os.Stderr, "newKey :", id, s)
+				// fmt.Fprintln(os.Stderr, "newKey :", id, s)
 				if hasWatch {
 					for _, k := range watchKeys {
 						if strings.HasPrefix(s, k) {
 							watchBits.Set(uint(id))
 							useStr = true
-							fmt.Fprintln(os.Stderr, "Found:", id, s)
+							// fmt.Fprintln(os.Stderr, "Found:", id, s)
 							break
 						}
 					}
