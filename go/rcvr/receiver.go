@@ -19,9 +19,11 @@ import (
 )
 
 type Receiver struct {
-	rcvr     C.receiver_handle
-	store    C.storage_handle
-	lock     sync.Mutex
+	rcvr       C.receiver_handle
+	store      C.storage_handle
+	lock       sync.Mutex
+	shouldStop bool
+
 	Address  string
 	IP       *net.IPAddr
 	Host     string
@@ -42,14 +44,28 @@ type Stats struct {
 	MCastPacketsRecv   uint64
 	MCastPacketsSec    uint64
 	MCastMinLatency    float64
-	MCastMaxLatency    float64
 	MCastMeanLatency   float64
+	MCastMaxLatency    float64
 	MCastStdDevLatency float64
 	lastUpdate         time.Time
 }
 
+func (r *Receiver) Stop() error {
+	r.shouldStop = true
+	err := r.stop()
+	if err != nil {
+		log.Println("Failed to stop:", r.Address, "reason:", err)
+		return err
+	}
+	return nil
+}
+
 func (r *Receiver) Start() {
 	for {
+		if r.shouldStop {
+			log.Println("Exiting update loop, stop signaled")
+			return
+		}
 		if !r.Alive {
 			r.reset(false)
 		} else {
@@ -70,6 +86,11 @@ func (r *Receiver) reset(doLock bool) error {
 	if doLock {
 		r.lock.Lock()
 		defer r.lock.Unlock()
+	}
+	if r.shouldStop {
+		err := fmt.Errorf("Can't reset, stop signaled for: %s", r.Address)
+		log.Println(err)
+		return err
 	}
 	r.Status = "Resetting"
 	if r.rcvr != nil {
@@ -93,21 +114,28 @@ func (r *Receiver) reset(doLock bool) error {
 }
 
 func (r *Receiver) updateStats() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if !r.Alive {
+		return
+	}
 	var s Stats
-	s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
-	s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
-	s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
-	s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
-	s.MCastPacketsRecv = uint64(C.receiver_get_mcast_packets_recv(r.rcvr))
-	s.MCastMinLatency = float64(C.receiver_get_mcast_min_latency(r.rcvr))
-	s.MCastMaxLatency = float64(C.receiver_get_mcast_max_latency(r.rcvr))
-	s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
-	s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
-	s.lastUpdate = time.Now()
-	dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
-	s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
-	s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
-	s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
+	if r != nil {
+		s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
+		s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
+		s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
+		s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
+		s.MCastPacketsRecv = uint64(C.receiver_get_mcast_packets_recv(r.rcvr))
+		s.MCastMinLatency = float64(C.receiver_get_mcast_min_latency(r.rcvr))
+		s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
+		s.MCastMaxLatency = float64(C.receiver_get_mcast_max_latency(r.rcvr))
+		s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
+		s.lastUpdate = time.Now()
+		dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
+		s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
+		s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
+		s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
+	}
 	r.Stats = s
 }
 
@@ -138,7 +166,24 @@ func newReceiver(addr string) (*Receiver, error) {
 		FileName: fmt.Sprintf("%s-%s", file, addr),
 	}, nil
 }
-
+func (r *Receiver) stop() error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.rcvr != nil {
+		if C.receiver_is_running(r.rcvr) != 0 {
+			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
+				r.Status = "Stop Failed, reason: " + err.Error()
+				return err
+			}
+		}
+		C.receiver_destroy(&r.rcvr)
+		log.Println("Stopped:", r.Address)
+	} else {
+		log.Println("Wasn't actually running:", r.Address)
+	}
+	r.Alive = false
+	return nil
+}
 func (r *Receiver) start() error {
 	fn := C.CString(r.FileName)
 	tcp_addr := C.CString(r.IP.String())
