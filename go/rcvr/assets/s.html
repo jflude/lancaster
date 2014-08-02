@@ -1,0 +1,61 @@
+<html>
+	<head>
+		<title>Receiver Status</title>
+		<meta http-equiv="refresh" content="1;url=/s">
+		<style>
+			table, th,td {
+				border:1px solid black;
+				border-collapse:collapse;
+				padding:15px;
+				border-spacing:5px;
+			}
+		</style>
+	</head>
+	<body>
+	<table style="width:300px">
+		<tr>
+		  <th colspan="3"></th>
+		  <th colspan="3">Data Rate (s)</th>
+		  <th colspan="4">Multicast Latency (µs)</th>
+		  <th colspan="3">Total</th>
+		</tr>
+		<tr>
+		  <th>Source</th>
+		  <th>Gaps</th>
+		  <th>HighWater Id</th>
+		  <th>TCP Bytes</th> 
+		  <th>MCAST Packets</th>
+		  <th>MCAST Bytes</th>
+		  <th>Min</th>
+		  <th>Max</th>
+		  <th>Mean</th>
+		  <th>StdDev</th>
+		  <th>TCP Bytes</th> 
+		  <th>MCAST Bytes</th>
+		  <th>MCAST Packets</th>
+		</tr>
+		{{range $addr, $rec := .Receivers}}  
+		{{ $s := $rec.Stats }}
+		<tr>
+			<td>{{$addr}}<br/><a href="/s?reset={{$addr}}">reset</a></td>
+			{{ if $rec.Alive }}
+			<td>{{$s.GapCount}}</td>
+			<td>{{$s.HighWaterId}}</td>
+			<td>{{$s.TcpBytesSec | bytes}}</td> 
+			<td>{{$s.MCastPacketsSec | int64 | commas}}</td>
+			<td>{{$s.MCastBytesSec | bytes}}</td>
+			<td>{{$s.MCastMinLatency | micros}}</td>
+			<td>{{$s.MCastMaxLatency | micros}}</td>
+			<td>{{$s.MCastMeanLatency | micros}}</td>
+			<td>{{$s.MCastStdDevLatency | micros | _2dec }}</td>
+			<td>{{$s.TcpBytesRecv | bytes}}</td> 
+			<td>{{$s.MCastBytesRecv | bytes}}</td>
+			<td>{{$s.MCastPacketsRecv | int64 | commas}}</td>
+			{{ else }}
+			<td colspan="12" align="center">{{$rec.Status}}</td>
+			{{ end }}
+		</tr>
+		{{end}}
+	</table>
+	</body>
+</html>
