@@ -26,7 +26,7 @@ struct segment_t
 	identifier base_id;
 	identifier max_id;
 	identifier high_water_id;
-	volatile int high_water_ver;
+	volatile long high_water_ver;
 	spin_lock_t time_lock;
 	time_t send_recv_time;
 	size_t q_mask;
@@ -487,6 +487,11 @@ identifier storage_get_high_water_id(storage_handle store)
 status storage_set_high_water_id(storage_handle store, identifier id)
 {
 	int ver, n = 0;
+	/* our id is lower or same as store max id
+	   any reason this doesn't work? */
+	if (id <= store->seg->high_water_id) 
+		return OK;
+
 	if (!store->is_seg_owner) {
 		errno = EPERM;
 		error_errno("storage_high_water_id");
