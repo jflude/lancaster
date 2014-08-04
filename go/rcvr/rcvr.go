@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 )
 
 var qSize uint
@@ -43,14 +42,12 @@ func main() {
 		State.Receivers[r.Address] = r
 	}
 	http.HandleFunc("/status", statusHandler)
-	http.HandleFunc("/", httpHandler)
-	go http.ListenAndServe(httpAddr, nil)
-	for {
-		time.Sleep(time.Second)
-		// for _, r := range State.Receivers {
-		// r.updateStats()
-		// }
-	}
+	http.HandleFunc("/add", addHandler)
+	http.HandleFunc("/remove", removeHandler)
+	http.HandleFunc("/s", httpHandler)
+	http.Handle("/", http.FileServer(http.Dir("assets")))
+	// This blocks forever
+	http.ListenAndServe(httpAddr, nil)
 }
 
 func reset(addr string) error {
@@ -64,6 +61,53 @@ func reset(addr string) error {
 	}
 	return fmt.Errorf("No such connection: %s", addr)
 }
+func removeHandler(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	h := q["host"]
+	if len(h) == 0 {
+		http.Error(w, "Must specify 'host' parameter", 400)
+		return
+	}
+	host := h[0]
+	rec, ok := State.Receivers[host]
+	if !ok {
+		http.Error(w, "Not found", 404)
+		return
+	}
+	err := rec.Stop()
+	if err != nil {
+		log.Println("Failed to remove host:", w, err)
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	delete(State.Receivers, host)
+	fmt.Fprint(w, "ok")
+	log.Println("Removed:", host)
+}
+func addHandler(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	h := q["host"]
+	if len(h) == 0 {
+		http.Error(w, "Must specify 'host' parameter", 400)
+		return
+	}
+	host := h[0]
+	if _, ok := State.Receivers[host]; ok {
+		http.Error(w, "Already exists", 400)
+		return
+	}
+
+	rec, err := newReceiver(host)
+	if err != nil {
+		log.Println("Failed to add host:", w, err)
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	go rec.Start()
+	State.Receivers[rec.Address] = rec
+	fmt.Fprint(w, "ok")
+	log.Println("Added:", host)
+}
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(State.Receivers)
 }
@@ -73,7 +117,7 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 	if resetAddr != "" {
 		reset(resetAddr)
 	}
-	a, err := Asset("index.html")
+	a, err := Asset("s.html")
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return

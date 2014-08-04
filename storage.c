@@ -26,7 +26,7 @@ struct segment_t
 	identifier base_id;
 	identifier max_id;
 	identifier high_water_id;
-	volatile int high_water_ver;
+	volatile long high_water_ver;
 	volatile int time_lock;
 	time_t send_recv_time;
 	size_t q_mask;
