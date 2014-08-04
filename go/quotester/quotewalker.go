@@ -88,7 +88,6 @@ func tailQuotes(watchKeys []string) {
 	var rSize = C.storage_get_record_size(store)
 	var vOffset = uintptr(C.storage_get_value_offset(store))
 	var rBaseId = C.storage_get_base_id(store)
-	// log.Println(C.storage_get_high_water_id(store))
 	log.Println("Queue size:", qCapacity)
 	if hasWatch {
 		log.Println("Filtering for:", watchKeys)

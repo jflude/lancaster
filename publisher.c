@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
 		FAILED(storage_reset(store)) ||
-		FAILED(sender_create(&sender, store, HEARTBEAT_SEC, MAX_AGE_USEC, CONFLATE_PKT,
+		FAILED(sender_create(&sender, store, HEARTBEAT_USEC, MAX_AGE_USEC, CONFLATE_PKT,
 							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)))
 		error_report_fatal();
 
@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
 			if (FAILED(st = storage_get_record(store, id, &rec)))
 				goto finish;
 
-			d = record_get_value(rec);
+			d = record_get_value_ref(rec);
 
 			seq = record_write_lock(rec);
 			d->bidSize = n++;
@@ -83,11 +83,10 @@ int main(int argc, char* argv[])
 						size_t tcp_c2 = sender_get_tcp_bytes_sent(sender);
 						size_t mcast_c2 = sender_get_mcast_bytes_sent(sender);
 
-						printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, HW: %ld, TCP KB/sec: %.2f, MCAST KB/sec: %.2f            \r",
+						printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f            \r",
 							   sender_get_subscriber_count(sender),
 							   (pkt_c2 - pkt_c) / elapsed,
 							   sender_get_tcp_gap_count(sender),
-							   (long) storage_get_high_water_id(store),
 							   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
 							   (mcast_c2 - mcast_c) / 1024.0 / elapsed);
 

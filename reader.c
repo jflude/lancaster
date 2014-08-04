@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 			if (FAILED(st = storage_get_record(store, id, &rec)))
 				goto finish;
 
-			d = record_get_value(rec);
+			d = record_get_value_ref(rec);
 			do {
 				seq = record_read_lock(rec);
 				bid_qty = d->bidSize;

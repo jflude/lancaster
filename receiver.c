@@ -42,12 +42,22 @@ struct receiver_t
 	storage_handle store;
 	size_t mcast_mtu;
 	sequence next_seq;
-	time_t last_mcast_recv;
-	time_t last_tcp_recv;
-	int heartbeat_sec;
+	microsec_t last_mcast_recv;
+	microsec_t last_tcp_recv;
+	microsec_t heartbeat_usec;
 	struct sockaddr_in mcast_addr;
 	struct receiver_stats_t stats;
 };
+
+static void* mcast_quit(receiver_handle me, status st)
+{
+	status st2 = sock_close(me->mcast_sock);
+	if (!FAILED(st))
+		st = st2;
+
+	sock_destroy(&me->mcast_sock);
+	return (void*) (long) st;
+}
 
 static void* mcast_func(thread_handle thr)
 {
@@ -56,7 +66,10 @@ static void* mcast_func(thread_handle thr)
 	char* buf = alloca(me->mcast_mtu);
 	sequence* recv_seq = (sequence*) buf;
 	microsec_t* recv_stamp = (microsec_t*) (recv_seq + 1);
-	status st = OK, st2;
+	status st, st2;
+
+	if (FAILED(st = clock_time(&me->last_mcast_recv)))
+		return mcast_quit(me, st);
 
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
@@ -65,7 +78,10 @@ static void* mcast_func(thread_handle thr)
 
 		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
-			if ((time(NULL) - me->last_mcast_recv) > me->heartbeat_sec) {
+			if (FAILED(st = clock_time(&now)))
+				break;
+
+			if ((now - me->last_mcast_recv) > me->heartbeat_usec) {
 				error_heartbeat("mcast_func");
 				st = HEARTBEAT;
 				break;
@@ -95,8 +111,10 @@ static void* mcast_func(thread_handle thr)
 			}
 		}
 
-		me->last_mcast_recv = time(NULL);
-		storage_set_send_recv_time(me->store, me->last_mcast_recv);
+		if (FAILED(st2 = storage_set_send_recv_time(me->store, me->last_mcast_recv = now))) {
+			st = st2;
+			break;
+		}
 
 		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.mcast_bytes_recv += st;
@@ -137,11 +155,10 @@ static void* mcast_func(thread_handle thr)
 				goto finish;
 
 			record_write_lock(rec);
-			memcpy(record_get_value(rec), id + 1, val_size);
+			memcpy(record_get_value_ref(rec), id + 1, val_size);
 			record_set_sequence(rec, *recv_seq);
 
-			if (FAILED(st = storage_set_high_water_id(me->store, *id)) ||
-				FAILED(st = storage_write_queue(me->store, *id)))
+			if (FAILED(st = storage_write_queue(me->store, *id)))
 				goto finish;
 		}
 
@@ -180,12 +197,7 @@ static void* mcast_func(thread_handle thr)
 	}
 
 finish:
-	st2 = sock_close(me->mcast_sock);
-	if (!FAILED(st))
-		st = st2;
-
-	sock_destroy(&me->mcast_sock);
-	return (void*) (long) st;
+	return mcast_quit(me, st);
 }
 
 static status tcp_read(receiver_handle me, char* buf, size_t sz)
@@ -201,7 +213,11 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 
 		st = sock_read(me->tcp_sock, buf, sz);
 		if (st == BLOCKED) {
-			if ((time(NULL) - me->last_tcp_recv) > me->heartbeat_sec) {
+			microsec_t now;
+			if (FAILED(st = clock_time(&now)))
+				break;
+
+			if ((now - me->last_tcp_recv) > me->heartbeat_usec) {
 				error_heartbeat("tcp_func");
 				st = HEARTBEAT;
 				break;
@@ -218,19 +234,33 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 		sz -= st;
 		bytes_in += st;
 
+		if (FAILED(st = clock_time(&me->last_tcp_recv)))
+			break;
+
 		st = TRUE;
 	}
 
 	if (bytes_in > 0) {
-		me->last_tcp_recv = time(NULL);
-		storage_set_send_recv_time(me->store, me->last_tcp_recv);
-
+		status st2;
 		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.tcp_bytes_recv += bytes_in;
 		SPIN_UNLOCK(&me->stats.lock, no_ver);
+
+		if (FAILED(st2 = storage_set_send_recv_time(me->store, me->last_tcp_recv)))
+			return st2;
 	}
 
 	return st;
+}
+
+static void* tcp_quit(receiver_handle me, status st)
+{
+	status st2 = sock_close(me->tcp_sock);
+	if (!FAILED(st))
+		st = st2;
+
+	sock_destroy(&me->tcp_sock);
+	return (void*) (long) st;
 }
 
 static void* tcp_func(thread_handle thr)
@@ -242,7 +272,10 @@ static void* tcp_func(thread_handle thr)
 
 	sequence* recv_seq = (sequence*) buf;
 	identifier* id = (identifier*) (recv_seq + 1);
-	status st = OK, st2;
+	status st;
+
+	if (FAILED(st = clock_time(&me->last_tcp_recv)))
+		return tcp_quit(me, st);
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
@@ -272,27 +305,21 @@ static void* tcp_func(thread_handle thr)
 			continue;
 		}
 
-		memcpy(record_get_value(rec), id + 1, val_size);
+		memcpy(record_get_value_ref(rec), id + 1, val_size);
 		record_set_sequence(rec, *recv_seq);
 
-		if (FAILED(st = storage_set_high_water_id(me->store, *id)) ||
-			FAILED(st = storage_write_queue(me->store, *id)))
+		if (FAILED(st = storage_write_queue(me->store, *id)))
 			break;
 	}
 
-	st2 = sock_close(me->tcp_sock);
-	if (!FAILED(st))
-		st = st2;
-
-	sock_destroy(&me->tcp_sock);
-	return (void*) (long) st;
+	return tcp_quit(me, st);
 }
 
 status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
 	char buf[128], mcast_addr[32];
-	int proto_ver, mcast_port, hb_sec;
-	long base_id, max_id, max_age_usec;
+	int proto_ver, mcast_port;
+	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
 	status st;
 
@@ -315,8 +342,8 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %d",
-				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &max_age_usec, &hb_sec);
+	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %ld",
+				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &max_age_usec, &hb_usec);
 
 	if (st == EOF) {
 		errno = EPROTO;
@@ -333,10 +360,9 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
-	(*precv)->heartbeat_sec = 2 * hb_sec + 1;
+	(*precv)->heartbeat_usec = 5 * hb_usec / 2;
 	(*precv)->stats.mcast_min_latency = DBL_MAX;
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
-	(*precv)->last_tcp_recv = (*precv)->last_mcast_recv = time(NULL);
 
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, q_capacity, base_id, max_id, val_size)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
