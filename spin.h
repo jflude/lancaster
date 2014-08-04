@@ -1,4 +1,4 @@
-/* spin lock */
+/* read and write spin (versioning) locks */
 
 #ifndef SPIN_H
 #define SPIN_H
@@ -6,29 +6,41 @@
 #include "sync.h"
 #include "yield.h"
 
-#define MAX_RELAXES 8191
+#define MAX_SPINS 8191
 
-typedef volatile int spin_lock_t;
-
-#define SPIN_CREATE(p) \
-	SPIN_UNLOCK(p)
-
-#define SPIN_TRY_LOCK(p) \
-	SYNC_BOOL_COMPARE_AND_SWAP(p, 0, 1)
-
-#define SPIN_LOCK(p) \
+#define SPIN_CREATE(lock) \
 	do { \
-		int n = 0; \
-		while (!SPIN_TRY_LOCK(p)) \
-			if ((++n & MAX_RELAXES) != 0) \
+		SYNC_LOCK_RELEASE(lock); \
+	} while (0);
+
+#define SPIN_READ_LOCK(lock, ver) \
+	do { \
+		int no_ver, n = 0; \
+		(void) no_ver; \
+		while ((ver = *(lock)) < 0) \
+			if ((++n & MAX_SPINS) != 0) \
 				CPU_RELAX(); \
 			else \
 				yield(); \
-	} while (0)
+	} while (0);
 
-#define SPIN_UNLOCK(p) \
+#define SPIN_WRITE_LOCK(lock, old_ver) \
 	do { \
-		SYNC_LOCK_RELEASE(p); \
-	} while (0)
+		int no_ver, n = 0; \
+		(void) no_ver; \
+		while ((old_ver = SYNC_FETCH_AND_OR(lock, -1)) < 0) \
+			if ((++n & MAX_SPINS) != 0) \
+				CPU_RELAX(); \
+			else \
+				yield(); \
+	} while (0);
+
+#define SPIN_UNLOCK(lock, new_ver) \
+	do { \
+		int no_ver = 0; \
+		(void) no_ver; \
+		SYNC_SYNCHRONIZE(); \
+		*(lock) = new_ver; \
+	} while (0);
 
 #endif

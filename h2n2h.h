@@ -17,7 +17,9 @@
 
 #else
 
+#ifndef MAKE_DEPEND
 #error unrecognised value for __BYTE_ORDER
+#endif
 
 #endif
 

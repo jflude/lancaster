@@ -20,4 +20,7 @@ The multicast address in the publisher command above is safe for testing.
 
 The subscriber process is generic - it will work for any kind of data sent from a publisher, without recompilation.
 
+POSIX shared memory can be used instead of a memory-mapped file - specify the name of the memory segment with a
+prefix of shm:, eg. "shm:/my_segment".
+
 Any questions, bug reports, suggested improvements etc. - please contact Justin Flude <jflude@peak6.com>

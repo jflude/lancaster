@@ -17,7 +17,7 @@
 
 struct sender_stats_t
 {
-	spin_lock_t lock;
+	volatile int lock;
 	size_t tcp_gap_count;
 	size_t tcp_bytes_sent;
 	size_t mcast_bytes_sent;
@@ -38,7 +38,7 @@ struct sender_t
 	sequence min_store_seq;
 	time_t last_mcast_send;
 	boolean conflate_pkt;
-	spin_lock_t mcast_lock;
+	volatile int mcast_lock;
 	int heartbeat_sec;
 	microsec_t max_age_usec;
 	microsec_t* time_stored_at;
@@ -87,10 +87,10 @@ static status write_accum(sender_handle me)
 	me->last_mcast_send = time(NULL);
 	storage_set_send_recv_time(me->store, me->last_mcast_send);
 
-	SPIN_LOCK(&me->stats.lock);
+	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	me->stats.mcast_bytes_sent += sz;
 	me->stats.mcast_packets_sent++;
-	SPIN_UNLOCK(&me->stats.lock);
+	SPIN_UNLOCK(&me->stats.lock, no_ver);
 
 	accum_clear(me->mcast_accum);
 
@@ -239,9 +239,9 @@ static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
 	if (sent_sz > 0) {
 		req_param->last_tcp_send = time(NULL);
 
-		SPIN_LOCK(&req_param->me->stats.lock);
+		SPIN_WRITE_LOCK(&req_param->me->stats.lock, no_ver);
 		req_param->me->stats.tcp_bytes_sent += sent_sz;
-		SPIN_UNLOCK(&req_param->me->stats.lock);
+		SPIN_UNLOCK(&req_param->me->stats.lock, no_ver);
 	}
 
 	return st;
@@ -375,9 +375,9 @@ read_all:
 	if (gap_inc == 0)
 		return OK;
 
-	SPIN_LOCK(&me->stats.lock);
+	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	me->stats.tcp_gap_count += gap_inc;
-	SPIN_UNLOCK(&me->stats.lock);
+	SPIN_UNLOCK(&me->stats.lock, no_ver);
 
 	if (req_param->range.high <= me->min_store_seq)
 		return OK;
@@ -413,7 +413,7 @@ static status tcp_event_func(poll_handle poller, sock_handle sock, short* revent
 static status mcast_check_heartbeat_or_stale(sender_handle me)
 {
 	status st = OK;
-	SPIN_LOCK(&me->mcast_lock);
+	SPIN_WRITE_LOCK(&me->mcast_lock, no_ver);
 
 	if (accum_is_stale(me->mcast_accum))
 		st = write_accum(me);
@@ -424,7 +424,7 @@ static status mcast_check_heartbeat_or_stale(sender_handle me)
 			st = write_accum(me);
 	}
 
-	SPIN_UNLOCK(&me->mcast_lock);
+	SPIN_UNLOCK(&me->mcast_lock, no_ver);
 	return st;
 }
 
@@ -473,7 +473,6 @@ static void* tcp_func(thread_handle thr)
 	if (!FAILED(st))
 		st = st2;
 
-	thread_has_stopped(thr);
 	return (void*) (long) st;
 }
 
@@ -587,9 +586,9 @@ status sender_record_changed(sender_handle send, record_handle rec)
 	}
 
 	if (poll_get_count(send->poller) > 1) {
-		SPIN_LOCK(&send->mcast_lock);
+		SPIN_WRITE_LOCK(&send->mcast_lock, no_ver);
 		st = mcast_on_write(send, rec);
-		SPIN_UNLOCK(&send->mcast_lock);
+		SPIN_UNLOCK(&send->mcast_lock, no_ver);
 	}
 
 	return st;
@@ -598,9 +597,9 @@ status sender_record_changed(sender_handle send, record_handle rec)
 status sender_flush(sender_handle send)
 {
 	status st;
-	SPIN_LOCK(&send->mcast_lock);
+	SPIN_WRITE_LOCK(&send->mcast_lock, no_ver);
 	st = write_accum(send);
-	SPIN_UNLOCK(&send->mcast_lock);
+	SPIN_UNLOCK(&send->mcast_lock, no_ver);
 	return st;
 }
 
@@ -630,9 +629,9 @@ status sender_stop(sender_handle send)
 static size_t get_stat(sender_handle me, const size_t* pval)
 {
 	size_t n;
-	SPIN_LOCK(&me->stats.lock);
+	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	n = *pval;
-	SPIN_UNLOCK(&me->stats.lock);
+	SPIN_UNLOCK(&me->stats.lock, no_ver);
 	return n;
 }
 

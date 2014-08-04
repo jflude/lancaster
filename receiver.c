@@ -22,7 +22,7 @@
 
 struct receiver_stats_t
 {
-	spin_lock_t lock;
+	volatile int lock;
 	size_t tcp_gap_count;
 	size_t tcp_bytes_recv;
 	size_t mcast_bytes_recv;
@@ -98,12 +98,12 @@ static void* mcast_func(thread_handle thr)
 		me->last_mcast_recv = time(NULL);
 		storage_set_send_recv_time(me->store, me->last_mcast_recv);
 
-		SPIN_LOCK(&me->stats.lock);
+		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.mcast_bytes_recv += st;
 		me->stats.mcast_packets_recv++;
 
 		if ((unsigned) st < (sizeof(*recv_seq) + sizeof(*recv_stamp))) {
-			SPIN_UNLOCK(&me->stats.lock);
+			SPIN_UNLOCK(&me->stats.lock, no_ver);
 			errno = EPROTO;
 			error_errno("mcast_func");
 			st = BAD_PROTOCOL;
@@ -121,7 +121,7 @@ static void* mcast_func(thread_handle thr)
 		if (latency > me->stats.mcast_max_latency)
 			me->stats.mcast_max_latency = latency;
 
-		SPIN_UNLOCK(&me->stats.lock);
+		SPIN_UNLOCK(&me->stats.lock, no_ver);
 
 		*recv_seq = ntohll(*recv_seq);
 		if (*recv_seq < me->next_seq)
@@ -171,9 +171,9 @@ static void* mcast_func(thread_handle thr)
 				sz -= st;
 			}
 
-			SPIN_LOCK(&me->stats.lock);
+			SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 			me->stats.tcp_gap_count++;
-			SPIN_UNLOCK(&me->stats.lock);
+			SPIN_UNLOCK(&me->stats.lock, no_ver);
 		}
 
 		me->next_seq++;
@@ -185,8 +185,6 @@ finish:
 		st = st2;
 
 	sock_destroy(&me->mcast_sock);
-
-	thread_has_stopped(thr);
 	return (void*) (long) st;
 }
 
@@ -227,9 +225,9 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 		me->last_tcp_recv = time(NULL);
 		storage_set_send_recv_time(me->store, me->last_tcp_recv);
 
-		SPIN_LOCK(&me->stats.lock);
+		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.tcp_bytes_recv += bytes_in;
-		SPIN_UNLOCK(&me->stats.lock);
+		SPIN_UNLOCK(&me->stats.lock, no_ver);
 	}
 
 	return st;
@@ -287,8 +285,6 @@ static void* tcp_func(thread_handle thr)
 		st = st2;
 
 	sock_destroy(&me->tcp_sock);
-
-	thread_has_stopped(thr);
 	return (void*) (long) st;
 }
 
@@ -406,18 +402,18 @@ status receiver_stop(receiver_handle recv)
 static size_t get_long_stat(receiver_handle me, const size_t* pval)
 {
 	size_t n;
-	SPIN_LOCK(&me->stats.lock);
+	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	n = *pval;
-	SPIN_UNLOCK(&me->stats.lock);
+	SPIN_UNLOCK(&me->stats.lock, no_ver);
 	return n;
 }
 
 static size_t get_double_stat(receiver_handle me, const double* pval)
 {
 	double n;
-	SPIN_LOCK(&me->stats.lock);
+	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	n = *pval;
-	SPIN_UNLOCK(&me->stats.lock);
+	SPIN_UNLOCK(&me->stats.lock, no_ver);
 	return n;
 }
 
@@ -459,8 +455,8 @@ double receiver_get_mcast_mean_latency(receiver_handle recv)
 double receiver_get_mcast_stddev_latency(receiver_handle recv)
 {
 	double n;
-	SPIN_LOCK(&recv->stats.lock);
+	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
 	n = (recv->stats.mcast_packets_recv > 1 ? sqrt(recv->stats.mcast_M2_latency / (recv->stats.mcast_packets_recv - 1)) : 0);
-	SPIN_UNLOCK(&recv->stats.lock);
+	SPIN_UNLOCK(&recv->stats.lock, no_ver);
 	return n;
 }
