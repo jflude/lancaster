@@ -36,7 +36,6 @@ type Receiver struct {
 
 type Stats struct {
 	GapCount           uint64
-	HighWaterId        int64
 	TcpBytesRecv       uint64
 	TcpBytesSec        uint64
 	MCastBytesRecv     uint64
@@ -121,7 +120,6 @@ func (r *Receiver) updateStats() {
 	}
 	var s Stats
 	if r != nil {
-		s.HighWaterId = int64(C.storage_get_high_water_id(r.store))
 		s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
 		s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
 		s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))

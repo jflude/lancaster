@@ -24,3 +24,6 @@ reader
 *.bak
 *.swo
 *.swp
+
+# etc
+DEPEND.mk

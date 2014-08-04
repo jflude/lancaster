@@ -4,7 +4,7 @@
 #define DATUM_H
 
 #define MAX_ID 1000000
-#define HEARTBEAT_SEC 10
+#define HEARTBEAT_USEC 100000
 #define CONFLATE_PKT TRUE
 #define MAX_AGE_USEC 1000
 

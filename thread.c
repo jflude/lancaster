@@ -6,11 +6,21 @@
 
 struct thread_t
 {
-	pthread_t thr;
+	pthread_t sys_thr;
+	thread_func func;
 	void* param;
+	void* property;
 	volatile boolean running;
 	volatile boolean stopping;
 };
+
+static void* wrapper_fn(void* param)
+{
+	thread_handle thr = param;
+	void* result = thr->func(thr);
+	thr->running = FALSE;
+	return result;
+}
 
 status thread_create(thread_handle* pthr, thread_func fn, void* param)
 {
@@ -24,10 +34,12 @@ status thread_create(thread_handle* pthr, thread_func fn, void* param)
 	if (!*pthr)
 		return NO_MEMORY;
 
-	(*pthr)->stopping = (*pthr)->running = FALSE;
+	(*pthr)->func = fn;
 	(*pthr)->param = param;
+	(*pthr)->property = NULL;
+	(*pthr)->running = (*pthr)->stopping = FALSE;
 
-	e = pthread_create(&(*pthr)->thr, NULL, (void* (*)(void*)) fn, *pthr);
+	e = pthread_create(&(*pthr)->sys_thr, NULL, wrapper_fn, *pthr);
 	if (e) {
 		errno = e;
 		error_errno("pthread_create");
@@ -59,12 +71,22 @@ void* thread_get_param(thread_handle thr)
 	return thr->param;
 }
 
+void* thread_get_property(thread_handle thr)
+{
+	return thr->property;
+}
+
+void thread_set_property(thread_handle thr, void* prop)
+{
+	thr->property = prop;
+}
+
 status thread_stop(thread_handle thr, void** presult)
 {
 	int e;
 	thr->stopping = TRUE;
 
-	e = pthread_join(thr->thr, presult);
+	e = pthread_join(thr->sys_thr, presult);
 	if (e && e != ESRCH) {
 		errno = e;
 		error_errno("pthread_join");
@@ -83,9 +105,4 @@ boolean thread_is_running(thread_handle thr)
 boolean thread_is_stopping(thread_handle thr)
 {
 	return thr->stopping;
-}
-
-void thread_has_stopped(thread_handle thr)
-{
-	thr->running = FALSE;
 }

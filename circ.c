@@ -2,19 +2,19 @@
 #include "error.h"
 #include "sync.h"
 #include "xalloc.h"
-#include "yield.h"
 
 struct circ_t
 {
-	unsigned mask;
-	unsigned read_from;
-	unsigned write_to;
+	size_t mask;
+	long read_from;
+	long write_to;
 	void* buf[1];
 };
 
-status circ_create(circ_handle* pcirc, unsigned capacity)
+status circ_create(circ_handle* pcirc, size_t capacity)
 {
-	if (!pcirc || capacity == 0 || (capacity & (capacity - 1)) != 0) {
+	/* capacity must be a power of 2 */
+	if (!pcirc || capacity < 2 || (capacity & (capacity - 1)) != 0) {
 		error_invalid_arg("circ_create");
 		return FAIL;
 	}
@@ -39,24 +39,28 @@ void circ_destroy(circ_handle* pcirc)
 	*pcirc = NULL;
 }
 
-unsigned circ_get_count(circ_handle circ)
+size_t circ_get_count(circ_handle circ)
 {
 	return circ->write_to - circ->read_from;
 }
 
 status circ_insert(circ_handle circ, void* val)
 {
-	if ((circ->write_to - circ->read_from) == (circ->mask + 1))
+	long n;
+	if ((size_t) (circ->write_to - circ->read_from) == (circ->mask + 1))
 		return BLOCKED;
 
-	circ->buf[circ->write_to & circ->mask] = val;
-	++circ->write_to;
-	SYNC_SYNCHRONIZE();
+	do {
+		n = circ->write_to;
+		circ->buf[n & circ->mask] = val;
+	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&circ->write_to, n, n + 1));
+
 	return OK;
 }
 
 status circ_remove(circ_handle circ, void** pval)
 {
+	long n;
 	if (!pval) {
 		error_invalid_arg("circ_remove");
 		return FAIL;
@@ -65,7 +69,10 @@ status circ_remove(circ_handle circ, void** pval)
 	if (circ->write_to == circ->read_from)
 		return BLOCKED;
 
-	*pval = circ->buf[circ->read_from & circ->mask];
-	++circ->read_from;
+	do {
+		n = circ->read_from;
+		*pval = circ->buf[n & circ->mask];
+	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&circ->read_from, n, n + 1));
+
 	return OK;
 }

@@ -1,9 +1,11 @@
 #include "storage.h"
+#include "clock.h"
 #include "error.h"
 #include "spin.h"
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -25,10 +27,9 @@ struct segment_t
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
-	identifier high_water_id;
-	volatile long high_water_ver;
-	spin_lock_t time_lock;
-	time_t send_recv_time;
+	microsec_t last_created;
+	microsec_t last_send_recv;
+	volatile int send_recv_ver;
 	size_t q_mask;
 	long q_head;
 	identifier change_q[1];
@@ -48,8 +49,8 @@ struct storage_t
 
 static void clear_change_q(storage_handle store)
 {
-	SPIN_CREATE(&store->seg->time_lock);
-	store->seg->send_recv_time = 0;
+	SPIN_CREATE(&store->seg->send_recv_ver);
+	store->seg->last_send_recv = 0;
 
 	store->seg->q_head = 0;
 	if (store->seg->q_mask != -1u)
@@ -153,8 +154,6 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->seg->val_size = val_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
-	(*pstore)->seg->high_water_id = -1;
-	SPIN_CREATE(&(*pstore)->seg->high_water_ver);
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
@@ -162,7 +161,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->seg->q_mask = q_capacity - 1;
 	clear_change_q(*pstore);
 
-	return OK;
+	return clock_time(&(*pstore)->seg->last_created);
 }
 
 status storage_open(storage_handle* pstore, const char* mmap_file)
@@ -328,6 +327,38 @@ size_t storage_get_value_offset(storage_handle store)
 	return offsetof(struct record_t, val);
 }
 
+microsec_t storage_get_creation_time(storage_handle store)
+{
+	return store->seg->last_created;
+}
+
+microsec_t storage_get_send_recv_time(storage_handle store)
+{
+	microsec_t t;
+	int ver;
+	do {
+		SPIN_READ_LOCK(&store->seg->send_recv_ver, ver);
+		t = store->seg->last_send_recv;
+	} while (ver != store->seg->send_recv_ver);
+
+	return t;
+}
+
+status storage_set_send_recv_time(storage_handle store, microsec_t when)
+{
+	int ver;
+	if (!store->is_seg_owner) {
+		errno = EPERM;
+		error_errno("storage_set_send_recv_time");
+		return FAIL;
+	}
+
+	SPIN_WRITE_LOCK(&store->seg->send_recv_ver, ver);
+	store->seg->last_send_recv = when;
+	SPIN_UNLOCK(&store->seg->send_recv_ver, (ver + 1) & INT_MAX);
+	return OK;
+}
+
 const identifier* storage_get_queue_base_ref(storage_handle store)
 {
 	return store->seg->change_q;
@@ -373,31 +404,25 @@ status storage_write_queue(storage_handle store, identifier id)
 		store->seg->change_q[n & store->seg->q_mask] = id;
 	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&store->seg->q_head, n, n + 1));
 
+	if (store->seg->q_head < 0) {
+		errno = EOVERFLOW;
+		error_errno("storage_write_queue");
+		return FAIL;
+	}
+
 	return OK;
-}
-
-time_t storage_get_send_recv_time(storage_handle store)
-{
-	time_t t;
-	SPIN_LOCK(&store->seg->time_lock);
-	t = store->seg->send_recv_time;
-	SPIN_UNLOCK(&store->seg->time_lock);
-	return t;
-}
-
-void storage_set_send_recv_time(storage_handle store, time_t when)
-{
-	SPIN_LOCK(&store->seg->time_lock);
-	if (when > store->seg->send_recv_time)
-		store->seg->send_recv_time = when;
-
-	SPIN_UNLOCK(&store->seg->time_lock);
 }
 
 status storage_get_id(storage_handle store, record_handle rec, identifier* pident)
 {
-	if (!pident || rec < store->array || rec >= store->limit) {
+	if (!pident) {
 		error_invalid_arg("storage_get_id");
+		return FAIL;
+	}
+
+	if (rec < store->array || rec >= store->limit) {
+		errno = EBADSLT;
+		error_errno("storage_get_id");
 		return FAIL;
 	}
 
@@ -407,8 +432,14 @@ status storage_get_id(storage_handle store, record_handle rec, identifier* piden
 
 status storage_get_record(storage_handle store, identifier id, record_handle* prec)
 {
-	if (!prec || id < store->seg->base_id || id >= store->seg->max_id) {
-		error_invalid_arg("storage_lookup");
+	if (!prec) {
+		error_invalid_arg("storage_get_record");
+		return FAIL;
+	}
+
+	if (id < store->seg->base_id || id >= store->seg->max_id) {
+		errno = EBADSLT;
+		error_errno("storage_get_record");
 		return FAIL;
 	}
 
@@ -424,12 +455,7 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 		return FAIL;
 	}
 
-	if (prev)
-		prev = RECORD_ADDR(store, prev, 1);
-	else
-		prev = store->array;
-
-	for (; prev < store->limit; prev = RECORD_ADDR(store, prev, 1)) {
+	for (prev = (prev ? RECORD_ADDR(store, prev, 1) : store->array); prev < store->limit; prev = RECORD_ADDR(store, prev, 1)) {
 		st = iter_fn(prev, param);
 		if (FAILED(st) || !st)
 			break;
@@ -450,7 +476,6 @@ status storage_sync(storage_handle store)
 
 status storage_reset(storage_handle store)
 {
-	identifier high_id;
 	if (!store->is_seg_owner) {
 		errno = EPERM;
 		error_errno("storage_reset");
@@ -458,61 +483,11 @@ status storage_reset(storage_handle store)
 	}
 
 	clear_change_q(store);
-
-	high_id = storage_get_high_water_id(store);
-	if (high_id >= 0)
-		memset(store->array, 0, (high_id - store->seg->base_id) * store->seg->rec_size);
-
+	memset(store->array, 0, (char*) store->limit - (char*) store->array);
 	return OK;
 }
 
-identifier storage_get_high_water_id(storage_handle store)
-{
-	identifier id;
-	int ver;
-	do {
-		int n = 0;
-		while ((ver = store->seg->high_water_ver) < 0)
-			if ((++n & MAX_RELAXES) != 0)
-				CPU_RELAX();
-			else
-				yield();
-
-		id = store->seg->high_water_id;
-	} while (ver != store->seg->high_water_ver);
-
-	return id;
-}
-
-status storage_set_high_water_id(storage_handle store, identifier id)
-{
-	int ver, n = 0;
-	/* our id is lower or same as store max id
-	   any reason this doesn't work? */
-	if (id <= store->seg->high_water_id) 
-		return OK;
-
-	if (!store->is_seg_owner) {
-		errno = EPERM;
-		error_errno("storage_high_water_id");
-		return FAIL;
-	}
-
-	while ((ver = SYNC_FETCH_AND_OR(&store->seg->high_water_ver, ~(1u >> 1))) < 0)
-		if ((++n & MAX_RELAXES) != 0)
-			CPU_RELAX();
-		else
-			yield();
-
-	if (id > store->seg->high_water_id)
-		store->seg->high_water_id = id;
-
-	SYNC_SYNCHRONIZE();
-	store->seg->high_water_ver = ver + 1;
-	return OK;
-}
-
-void* record_get_value(record_handle rec)
+void* record_get_value_ref(record_handle rec)
 {
 	return rec->val;
 }
@@ -524,16 +499,15 @@ sequence record_get_sequence(record_handle rec)
 
 void record_set_sequence(record_handle rec, sequence seq)
 {
-	SYNC_SYNCHRONIZE();
-	rec->seq = seq;
+	SPIN_UNLOCK(&rec->seq, seq);
 }
 
-void* record_get_conflated(record_handle rec)
+void* record_get_conflated_ref(record_handle rec)
 {
 	return rec->confl;
 }
 
-void record_set_conflated(record_handle rec, void* confl)
+void record_set_conflated_ref(record_handle rec, void* confl)
 {
 	rec->confl = confl;
 }
@@ -541,27 +515,13 @@ void record_set_conflated(record_handle rec, void* confl)
 sequence record_read_lock(record_handle rec)
 {
 	sequence seq;
-	int n = 0;
-
-	while ((seq = rec->seq) < 0)
-		if ((++n & MAX_RELAXES) != 0)
-			CPU_RELAX();
-		else
-			yield();
-
+	SPIN_READ_LOCK(&rec->seq, seq);
 	return seq;
 }
 
 sequence record_write_lock(record_handle rec)
 {
 	sequence seq;
-	int n = 0;
-
-	while ((seq = SYNC_FETCH_AND_OR(&rec->seq, SEQUENCE_MIN)) < 0)
-		if ((++n & MAX_RELAXES) != 0)
-			CPU_RELAX();
-		else
-			yield();
-
+	SPIN_WRITE_LOCK(&rec->seq, seq);
 	return seq;
 }

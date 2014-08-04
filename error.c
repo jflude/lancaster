@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static spin_lock_t capture_lock;
+static volatile int capture_lock;
 static error_func custom_fn;
 static char last_desc[128], saved_desc[128];
 static int last_code, saved_code;
@@ -14,26 +14,27 @@ static boolean is_saved;
 
 static void capture(const char* func, int code)
 {
-	SPIN_LOCK(&capture_lock);
+	error_func fn;
+	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
+	fn = custom_fn;
 	last_code = code;
 	sprintf(last_desc, "%s: %s\n", func, strerror(last_code));
 
-	if (custom_fn)
-		custom_fn(last_code, last_desc);
-
-	SPIN_UNLOCK(&capture_lock);
+	SPIN_UNLOCK(&capture_lock, no_ver);
+	if (fn)
+		fn(code, last_desc);
 }
 
 error_func error_set_func(error_func new_fn)
 {
 	error_func old_fn;
-	SPIN_LOCK(&capture_lock);
+	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
 	old_fn = custom_fn;
 	custom_fn = new_fn;
 
-	SPIN_UNLOCK(&capture_lock);
+	SPIN_UNLOCK(&capture_lock, no_ver);
 	return old_fn;
 }
 
@@ -49,21 +50,22 @@ const char* error_last_desc(void)
 
 void error_eof(const char* func)
 {
+	error_func fn;
 	if (!func) {
 		error_invalid_arg("error_eof");
 		error_report_fatal();
 		return;
 	}
 
-	SPIN_LOCK(&capture_lock);
+	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
+	fn = custom_fn;
 	last_code = EOF;
 	sprintf(last_desc, "%s: end of file\n", func);
 
-	if (custom_fn)
-		custom_fn(last_code, last_desc);
-
-	SPIN_UNLOCK(&capture_lock);
+	SPIN_UNLOCK(&capture_lock, no_ver);
+	if (fn)
+		fn(EOF, last_desc);
 }
 
 void error_errno(const char* func)
@@ -112,7 +114,7 @@ void error_unimplemented(const char* func)
 
 void error_save_last(void)
 {
-	SPIN_LOCK(&capture_lock);
+	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
 	if (!is_saved) {
 		saved_code = last_code;
@@ -120,12 +122,12 @@ void error_save_last(void)
 		is_saved = TRUE;
 	}
 
-	SPIN_UNLOCK(&capture_lock);
+	SPIN_UNLOCK(&capture_lock, no_ver);
 }
 
 void error_restore_last(void)
 {
-	SPIN_LOCK(&capture_lock);
+	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
 	if (is_saved) {
 		last_code = saved_code;
@@ -133,11 +135,11 @@ void error_restore_last(void)
 		is_saved = FALSE;
 	}
 
-	SPIN_UNLOCK(&capture_lock);
+	SPIN_UNLOCK(&capture_lock, no_ver);
 }
 
 void error_report_fatal(void)
 {
-	fputs(error_last_desc(), stderr);
+	fputs(last_desc, stderr);
 	exit(EXIT_FAILURE);
 }

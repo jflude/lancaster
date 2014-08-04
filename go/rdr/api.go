@@ -41,7 +41,7 @@ func runWithAPI() {
 				return
 			}
 
-			d := (*C.datum)(C.record_get_value(rec))
+			d := (*C.datum)(C.record_get_value_ref(rec))
 
 			for {
 				seq := C.record_read_lock(rec)
