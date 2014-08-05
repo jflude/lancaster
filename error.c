@@ -7,35 +7,16 @@
 #include <string.h>
 
 static volatile int capture_lock;
-static error_func custom_fn;
 static char last_desc[128], saved_desc[128];
 static int last_code, saved_code;
 static boolean is_saved;
 
 static void capture(const char* func, const char* msg, int code)
 {
-	error_func fn;
 	SPIN_WRITE_LOCK(&capture_lock, no_ver);
-
-	fn = custom_fn;
 	last_code = code;
 	sprintf(last_desc, "%s: %s\n", func, (msg ? msg : strerror(last_code)));
-
 	SPIN_UNLOCK(&capture_lock, no_ver);
-	if (fn)
-		fn(code, last_desc);
-}
-
-error_func error_set_func(error_func new_fn)
-{
-	error_func old_fn;
-	SPIN_WRITE_LOCK(&capture_lock, no_ver);
-
-	old_fn = custom_fn;
-	custom_fn = new_fn;
-
-	SPIN_UNLOCK(&capture_lock, no_ver);
-	return old_fn;
 }
 
 int error_last_code(void)
@@ -46,6 +27,18 @@ int error_last_code(void)
 const char* error_last_desc(void)
 {
 	return last_desc;
+}
+
+void error_reset(void)
+{
+	last_code = 0;
+	last_desc[0] = '\0';
+}
+
+void error_report_fatal(void)
+{
+	fputs(last_desc, stderr);
+	exit(EXIT_FAILURE);
 }
 
 void error_eof(const char* func)
@@ -127,10 +120,4 @@ void error_restore_last(void)
 	}
 
 	SPIN_UNLOCK(&capture_lock, no_ver);
-}
-
-void error_report_fatal(void)
-{
-	fputs(last_desc, stderr);
-	exit(EXIT_FAILURE);
 }

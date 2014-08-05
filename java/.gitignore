@@ -5,3 +5,8 @@ build/
 *.iws
 out/
 *.store
+.classpath
+.project
+.settings
+core
+bin

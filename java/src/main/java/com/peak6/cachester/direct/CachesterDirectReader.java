@@ -5,7 +5,7 @@ import java.util.Collection;
 
 import sun.misc.Unsafe;
 
-import com.peak6.cachester.CachesterStorage;
+import com.peak6.cachester.CachesterStorageLoader;
 import com.peak6.cachester.direct.update.NewRecordListener;
 import com.peak6.cachester.direct.update.RecordAccessor;
 import com.peak6.cachester.direct.update.RecordUpdateListener;
@@ -221,7 +221,7 @@ public class CachesterDirectReader {
     private Pointer initializeStore() {
         PointerByReference storeReference = new PointerByReference();
         verbosePrint("Opening store at '%s'%n", path);
-        exitOnError(CachesterStorage.INSTANCE.storage_open(storeReference, path));
+        exitOnError(CachesterStorageLoader.getInstance().storage_open(storeReference, path));
         return storeReference.getValue();
     }
 
@@ -231,7 +231,7 @@ public class CachesterDirectReader {
             @Override
             public void run() {
                 verbosePrint("Shutdown hook running! Destroying store at '%s'%n", path);
-                CachesterStorage.INSTANCE.storage_destroy(store);
+                CachesterStorageLoader.getInstance().storage_destroy(store);
             }
         });
     }
@@ -274,7 +274,7 @@ public class CachesterDirectReader {
         if (status == 0) {
             return status;
         }
-        System.err.printf("Error: %s %n", CachesterStorage.INSTANCE.error_last_desc());
+        System.err.printf("Error: %s %n", CachesterStorageLoader.getInstance().error_last_desc());
         System.err.flush();
         System.exit(1);
         return status;

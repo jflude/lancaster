@@ -25,5 +25,9 @@ reader
 *.swo
 *.swp
 
+# Build files
+.gradle
+
 # etc
 DEPEND.mk
+

@@ -1,6 +1,7 @@
 package com.peak6.cachester.direct;
 
 import com.peak6.cachester.CachesterStorage;
+import com.peak6.cachester.CachesterStorageLoader;
 import com.sun.jna.Pointer;
 
 public class CachesterStoreMetadata {
@@ -17,16 +18,17 @@ public class CachesterStoreMetadata {
     private final long recordArrayAddr;
 
     public CachesterStoreMetadata(Pointer store) {
-        this.queueCapacity = CachesterStorage.INSTANCE.storage_get_queue_capacity(store);
+        CachesterStorage storage = CachesterStorageLoader.getInstance();
+        this.queueCapacity = storage.storage_get_queue_capacity(store);
         this.queueMask = queueCapacity - 1;
-        this.recordSize = CachesterStorage.INSTANCE.storage_get_record_size(store);
-        this.valueSize = CachesterStorage.INSTANCE.storage_get_value_size(store);
-        this.valueOffset = CachesterStorage.INSTANCE.storage_get_value_offset(store);
-        this.baseId = CachesterStorage.INSTANCE.storage_get_base_id(store);
-        this.maxId = CachesterStorage.INSTANCE.storage_get_max_id(store);
-        this.changeQueueHeadAddr = CachesterStorage.INSTANCE.storage_get_queue_head_ref(store);
-        this.changeQueueAddr = CachesterStorage.INSTANCE.storage_get_queue_base_ref(store);
-        this.recordArrayAddr = CachesterStorage.INSTANCE.storage_get_array(store);
+        this.recordSize = storage.storage_get_record_size(store);
+        this.valueSize = storage.storage_get_value_size(store);
+        this.valueOffset = storage.storage_get_value_offset(store);
+        this.baseId = storage.storage_get_base_id(store);
+        this.maxId = storage.storage_get_max_id(store);
+        this.changeQueueHeadAddr = storage.storage_get_queue_head_ref(store);
+        this.changeQueueAddr = storage.storage_get_queue_base_ref(store);
+        this.recordArrayAddr = storage.storage_get_array(store);
     }
 
     public final int getQueueCapacity() {
