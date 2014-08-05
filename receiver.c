@@ -71,6 +71,9 @@ static void* mcast_func(thread_handle thr)
 	if (FAILED(st = clock_time(&me->last_mcast_recv)))
 		return mcast_quit(me, st);
 
+	if (me->heartbeat_usec < 1000000)
+		me->last_mcast_recv += 1000000;
+
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
 		microsec_t now;
@@ -218,7 +221,7 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 				break;
 
 			if ((now - me->last_tcp_recv) > me->heartbeat_usec) {
-				error_heartbeat("tcp_func");
+				error_heartbeat("tcp_read");
 				st = HEARTBEAT;
 				break;
 			}
@@ -276,6 +279,9 @@ static void* tcp_func(thread_handle thr)
 
 	if (FAILED(st = clock_time(&me->last_tcp_recv)))
 		return tcp_quit(me, st);
+
+	if (me->heartbeat_usec < 1000000)
+		me->last_tcp_recv += 1000000;
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;

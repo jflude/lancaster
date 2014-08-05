@@ -441,7 +441,10 @@ static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, sho
 static void* tcp_func(thread_handle thr)
 {
 	sender_handle me = thread_get_param(thr);
-	status st = OK, st2;
+	status st, st2;
+
+	if (FAILED(st = clock_time(&me->last_mcast_send)))
+		return (void*) (long) st;
 
 	while (!thread_is_stopping(thr))
 		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
@@ -543,7 +546,6 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(st = clock_time(&(*psend)->last_mcast_send)) ||
 		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, *psend))) {
 		sender_destroy(psend);
 		return st;
