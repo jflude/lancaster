@@ -20,6 +20,8 @@
 #define HEARTBEAT_SEQ -1
 #define WILL_QUIT_SEQ -2
 
+#define MIN_HB_PADDING 2000000
+
 struct receiver_stats_t
 {
 	volatile int lock;
@@ -70,6 +72,9 @@ static void* mcast_func(thread_handle thr)
 
 	if (FAILED(st = clock_time(&me->last_mcast_recv)))
 		return mcast_quit(me, st);
+
+	if (me->heartbeat_usec < MIN_HB_PADDING)
+		me->last_mcast_recv += MIN_HB_PADDING;
 
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
@@ -218,7 +223,7 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 				break;
 
 			if ((now - me->last_tcp_recv) > me->heartbeat_usec) {
-				error_heartbeat("tcp_func");
+				error_heartbeat("tcp_read");
 				st = HEARTBEAT;
 				break;
 			}
@@ -276,6 +281,9 @@ static void* tcp_func(thread_handle thr)
 
 	if (FAILED(st = clock_time(&me->last_tcp_recv)))
 		return tcp_quit(me, st);
+
+	if (me->heartbeat_usec < MIN_HB_PADDING)
+		me->last_tcp_recv += MIN_HB_PADDING;
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;

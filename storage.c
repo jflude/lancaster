@@ -47,20 +47,21 @@ struct storage_t
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 #define MAGIC_NUMBER 0x0C0FFEE0
 
-static void clear_change_q(storage_handle store)
+static status clear_change_q(storage_handle store)
 {
-	SPIN_CREATE(&store->seg->send_recv_ver);
-	store->seg->last_send_recv = 0;
-
 	store->seg->q_head = 0;
 	if (store->seg->q_mask != -1u)
 		memset(store->seg->change_q, -1, sizeof(store->seg->change_q[0]) * (store->seg->q_mask + 1));
+
+	SPIN_CREATE(&store->seg->send_recv_ver);
+	return clock_time(&store->seg->last_send_recv);
 }
 
 status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags, size_t q_capacity,
 					  identifier base_id, identifier max_id, size_t val_size)
 {
 	/* q_capacity must be a power of 2 */
+	status st;
 	size_t rec_sz, hdr_sz, seg_sz;
 	if (!pstore || max_id <= base_id || val_size == 0 || open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
@@ -159,7 +160,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
 
 	(*pstore)->seg->q_mask = q_capacity - 1;
-	clear_change_q(*pstore);
+	if (FAILED(st = clear_change_q(*pstore)))
+		return st;
 
 	return clock_time(&(*pstore)->seg->last_created);
 }
@@ -271,6 +273,7 @@ void storage_destroy(storage_handle* pstore)
 		return;
 
 	if ((*pstore)->is_seg_owner && (*pstore)->seg) {
+		(*pstore)->seg->owner_pid = 0;
 		if ((*pstore)->seg->mmap_size > 0) {
 			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
 				error_errno("munmap");
@@ -482,9 +485,8 @@ status storage_reset(storage_handle store)
 		return FAIL;
 	}
 
-	clear_change_q(store);
 	memset(store->array, 0, (char*) store->limit - (char*) store->array);
-	return OK;
+	return clear_change_q(store);
 }
 
 void* record_get_value_ref(record_handle rec)

@@ -4,9 +4,9 @@
 #define DATUM_H
 
 #define MAX_ID 1000000
-#define HEARTBEAT_USEC 100000
+#define HEARTBEAT_USEC 500000
 #define CONFLATE_PKT TRUE
-#define MAX_AGE_USEC 1000
+#define MAX_AGE_USEC 10000
 
 #ifdef __cplusplus
 extern "C" {
