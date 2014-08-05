@@ -6,6 +6,7 @@
 #include "clock.h"
 #include "status.h"
 #include <stddef.h>
+#include <limits.h>
 #include <sys/types.h>
 
 #define STORAGE_VERSION 1
@@ -25,8 +26,8 @@ typedef status (*storage_iterate_func)(record_handle, void*);
 typedef long identifier;
 typedef long sequence;
 
-#define SEQUENCE_MAX (1uL >> 1)  /* assumes two's complement */
-#define SEQUENCE_MIN (~SEQUENCE_MAX)
+#define SEQUENCE_MIN LONG_MIN
+#define SEQUENCE_MAX LONG_MAX
 
 struct storage_seq_range_t { sequence low; sequence high; };
 

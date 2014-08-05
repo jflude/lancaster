@@ -5,7 +5,6 @@
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
