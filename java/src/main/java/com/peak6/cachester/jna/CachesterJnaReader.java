@@ -1,6 +1,6 @@
 package com.peak6.cachester.jna;
 
-import com.peak6.cachester.CachesterStorage;
+import com.peak6.cachester.CachesterStorageLoader;
 import com.peak6.cachester.QuoteRecord;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
@@ -46,7 +46,7 @@ public class CachesterJnaReader {
         int numGapsDetected = 0;
 
         while (true) {
-            long newHead = CachesterStorage.INSTANCE.storage_get_queue_head(store);
+            long newHead = CachesterStorageLoader.getInstance().storage_get_queue_head(store);
 
             verbosePrint("Read new head %d%n", newHead);
 
@@ -111,7 +111,7 @@ public class CachesterJnaReader {
 
     private long readChangeQueueIdAt(long changeQueueAddr) {
         verbosePrint("Reading at %d%n", changeQueueAddr);
-        long id = CachesterStorage.INSTANCE.storage_read_queue(store, changeQueueAddr);
+        long id = CachesterStorageLoader.getInstance().storage_read_queue(store, changeQueueAddr);
         verbosePrint("Read %d from %d%n", id, changeQueueAddr);
         return id;
     }
@@ -119,34 +119,34 @@ public class CachesterJnaReader {
     private Pointer initializeStore() {
         PointerByReference storeReference = new PointerByReference();
         verbosePrint("Opening store at '%s'%n", path);
-        exitOnError(CachesterStorage.INSTANCE.storage_open(storeReference, path));
+        exitOnError(CachesterStorageLoader.getInstance().storage_open(storeReference, path));
         return storeReference.getValue();
     }
 
     private long readQueueCapacity() {
         verbosePrint("Reading queue capacity");
-        long queueCapacity = CachesterStorage.INSTANCE.storage_get_queue_capacity(store);
+        long queueCapacity = CachesterStorageLoader.getInstance().storage_get_queue_capacity(store);
         verbosePrint("Queue capacity is %d%n", queueCapacity);
         return queueCapacity;
     }
 
     private QuoteRecord readRecord(long index) {
         verbosePrint("Looking up record at %d%n", index);
-        exitOnError(CachesterStorage.INSTANCE.storage_get_record(store, index, recordReference));
+        exitOnError(CachesterStorageLoader.getInstance().storage_get_record(store, index, recordReference));
         Pointer record = recordReference.getValue();
 
         QuoteRecord quoteRecord = new QuoteRecord();
 
-        long recordSequence = CachesterStorage.INSTANCE.record_read_lock(record);
+        long recordSequence = CachesterStorageLoader.getInstance().record_read_lock(record);
         while(recordSequence < 0) {
-            recordSequence = CachesterStorage.INSTANCE.record_read_lock(record);
+            recordSequence = CachesterStorageLoader.getInstance().record_read_lock(record);
         }
         do {
 //          quoteRecord.bid = swapEndiannessDouble(record.getDouble(8));
 //          quoteRecord.ask = swapEndiannessDouble(record.getDouble(16));
           quoteRecord.bidQuantity = record.getInt(32);
           quoteRecord.askQuantity = record.getInt(36);
-        } while(CachesterStorage.INSTANCE.record_read_lock(record) != recordSequence);
+        } while(CachesterStorageLoader.getInstance().record_read_lock(record) != recordSequence);
         return quoteRecord;
     }
 
@@ -156,7 +156,7 @@ public class CachesterJnaReader {
             @Override
             public void run() {
                 verbosePrint("Shutdown hook running! Destroying store at '%s'%n", path);
-                CachesterStorage.INSTANCE.storage_destroy(store);
+                CachesterStorageLoader.getInstance().storage_destroy(store);
             }
         });
     }
@@ -199,7 +199,7 @@ public class CachesterJnaReader {
         if (status == 0) {
             return status;
         }
-        System.err.printf("Error: %s %n", CachesterStorage.INSTANCE.error_last_desc());
+        System.err.printf("Error: %s %n", CachesterStorageLoader.getInstance().error_last_desc());
         System.err.flush();
         System.exit(1);
         return status;
