@@ -49,6 +49,7 @@ func main() {
 			findQuotes(args)
 		}
 	}
+	<-fsComplete
 }
 
 func chkStatus(status C.status) error {

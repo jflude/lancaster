@@ -115,8 +115,8 @@ func findQuotes(keys []string) {
 			}
 		}
 	}
-
 }
+
 func tailQuotes(watchKeys []string) {
 	var hasWatch = len(watchKeys) > 0
 	var watchBits bitset.BitSet

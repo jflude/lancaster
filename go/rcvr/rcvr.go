@@ -46,6 +46,9 @@ func main() {
 	http.HandleFunc("/remove", removeHandler)
 	http.HandleFunc("/s", httpHandler)
 	http.Handle("/", http.FileServer(http.Dir("assets")))
+	if enableMMD {
+		initMMD()
+	}
 	// This blocks forever
 	http.ListenAndServe(httpAddr, nil)
 }

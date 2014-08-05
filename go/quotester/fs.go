@@ -14,14 +14,17 @@ import (
 )
 
 var mountPoint string
+var fsComplete chan struct{}
 
 func init() {
-	flag.StringVar(&mountPoint, "mount", "", "Path to mount as quotefs")
+	fsComplete = make(chan struct{})
+	flag.StringVar(&mountPoint, "fs", "", "Path to mount as quotefs")
 }
 
 func startFS() error {
 	if mountPoint == "" {
 		log.Println("QuoteFS disabled")
+		close(fsComplete)
 		return nil
 	}
 	log.Println("Creating QuoteFS @", mountPoint)
@@ -105,22 +108,22 @@ type Dir struct {
 }
 
 func (d Dir) Attr() fuse.Attr {
-	log.Println("Attr:", d.inode)
+	// log.Println("Attr:", d.inode)
 	return fuse.Attr{Inode: d.inode, Mode: os.ModeDir | 0555}
 }
 
 func (d Dir) ReadDir(intr fs.Intr) ([]fuse.Dirent, fuse.Error) {
-	log.Println("READ DIR")
-
+	start := time.Now()
 	ret := make([]fuse.Dirent, 0, len(d.qfs.nameToNode))
 	for k, v := range d.qfs.nameToNode {
 		ret = append(ret, fuse.Dirent{Inode: v.inode, Name: k, Type: fuse.DT_File})
 	}
+	log.Println("Read dir returned", len(ret), "in", time.Now().Sub(start))
 	return ret, nil
 }
 
 func (d Dir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
-	log.Println("Lookup", name)
+	// log.Println("Lookup", name)
 	f, ok := d.qfs.nameToNode[name]
 	// inode, ok := d.fs.nameToNode[name]
 	if !ok {
@@ -137,12 +140,12 @@ type QuoteFile struct {
 }
 
 func (f QuoteFile) Attr() fuse.Attr {
-	log.Println("ATTR", f.inode)
+	// log.Println("ATTR", f.inode)
 	return fuse.Attr{Inode: f.inode, Mode: 0555, Size: uint64(100)}
 }
 
 func (f QuoteFile) ReadAll(intr fs.Intr) ([]byte, fuse.Error) {
-	log.Println("ReadAll")
+	// log.Println("ReadAll")
 	var q Quote
 	err := getQuote(f.index, &q)
 	if err != nil {
