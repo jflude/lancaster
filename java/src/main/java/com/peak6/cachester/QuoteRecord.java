@@ -5,4 +5,11 @@ public class QuoteRecord {
     public double ask;
     public int bidQuantity;
     public int askQuantity;
+
+    @Override
+    public String toString() {
+        return "QuoteRecord [bid=" + bid + ", ask=" + ask + ", bidQuantity=" + bidQuantity + ", askQuantity="
+                + askQuantity + "]";
+    }
+
 }

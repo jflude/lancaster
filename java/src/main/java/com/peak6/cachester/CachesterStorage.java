@@ -1,14 +1,10 @@
 package com.peak6.cachester;
 
 import com.sun.jna.Library;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 
 public interface CachesterStorage extends Library {
-    CachesterStorage INSTANCE = (CachesterStorage)
-            Native.loadLibrary("/home/mvanderpluym/sandbox/cachester/libcachester.so",
-                    CachesterStorage.class);
 
     int storage_create(PointerByReference storeReferece, String path, int queue, int dunno, int records, int recordSz);
 

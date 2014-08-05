@@ -2,7 +2,7 @@ package com.peak6.cachester.mapped;
 
 import java.io.IOException;
 
-import com.peak6.cachester.CachesterStorage;
+import com.peak6.cachester.CachesterStorageLoader;
 import com.peak6.cachester.QuoteRecord;
 
 public class CachesterMappedReader {
@@ -166,7 +166,7 @@ public class CachesterMappedReader {
         if (status == 0) {
             return status;
         }
-        System.err.printf("Error: %s %n", CachesterStorage.INSTANCE.error_last_desc());
+        System.err.printf("Error: %s %n", CachesterStorageLoader.getInstance().error_last_desc());
         System.err.flush();
         System.exit(1);
         return status;

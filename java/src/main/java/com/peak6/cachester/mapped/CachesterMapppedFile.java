@@ -7,7 +7,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
-import com.peak6.cachester.CachesterStorage;
+import com.peak6.cachester.CachesterStorageLoader;
 
 public class CachesterMapppedFile {
 
@@ -158,7 +158,7 @@ public class CachesterMapppedFile {
         if (status == 0) {
             return status;
         }
-        System.err.printf("Error: %s %n", CachesterStorage.INSTANCE.error_last_desc());
+        System.err.printf("Error: %s %n", CachesterStorageLoader.getInstance().error_last_desc());
         System.err.flush();
         System.exit(1);
         return status;
