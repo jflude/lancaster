@@ -12,14 +12,14 @@ static char last_desc[128], saved_desc[128];
 static int last_code, saved_code;
 static boolean is_saved;
 
-static void capture(const char* func, int code)
+static void capture(const char* func, const char* msg, int code)
 {
 	error_func fn;
 	SPIN_WRITE_LOCK(&capture_lock, no_ver);
 
 	fn = custom_fn;
 	last_code = code;
-	sprintf(last_desc, "%s: %s\n", func, strerror(last_code));
+	sprintf(last_desc, "%s: %s\n", func, (msg ? msg : strerror(last_code)));
 
 	SPIN_UNLOCK(&capture_lock, no_ver);
 	if (fn)
@@ -50,22 +50,13 @@ const char* error_last_desc(void)
 
 void error_eof(const char* func)
 {
-	error_func fn;
 	if (!func) {
 		error_invalid_arg("error_eof");
 		error_report_fatal();
 		return;
 	}
 
-	SPIN_WRITE_LOCK(&capture_lock, no_ver);
-
-	fn = custom_fn;
-	last_code = EOF;
-	sprintf(last_desc, "%s: end of file\n", func);
-
-	SPIN_UNLOCK(&capture_lock, no_ver);
-	if (fn)
-		fn(EOF, last_desc);
+	capture(func, "end of file", EOF);
 }
 
 void error_errno(const char* func)
@@ -76,7 +67,7 @@ void error_errno(const char* func)
 		return;
 	}
 
-	capture(func, errno);
+	capture(func, NULL, errno);
 }
 
 void error_heartbeat(const char* func)
@@ -87,7 +78,7 @@ void error_heartbeat(const char* func)
 		return;
 	}
 
-	capture(func, ETIMEDOUT);
+	capture(func, NULL, ETIMEDOUT);
 }
 
 void error_invalid_arg(const char* func)
@@ -98,7 +89,7 @@ void error_invalid_arg(const char* func)
 		return;
 	}
 
-	capture(func, EINVAL);
+	capture(func, NULL, EINVAL);
 }
 
 void error_unimplemented(const char* func)
@@ -109,7 +100,7 @@ void error_unimplemented(const char* func)
 		return;
 	}
 
-	capture(func, ENOSYS);
+	capture(func, NULL, ENOSYS);
 }
 
 void error_save_last(void)
