@@ -71,6 +71,8 @@ angular.module('cachesterApp', [])
         $timeout(updateStatus,1000);
       }).error(function(data,status){
         console.log(status,data)
+        $scope.alive = {}
+        $scopy.dead = {}
         $timeout(updateStatus,1000);
       });
     };

@@ -30,11 +30,14 @@ func main() {
 		os.Exit(1)
 	}
 	cs = C.CString(args[0])
-	if err := err(C.storage_open(&store, cs)); err != nil {
+	if err := chkStatus(C.storage_open(&store, cs)); err != nil {
 		log.Fatal("Failed to open store", err)
 	}
 	defer func() { C.storage_destroy(&store) }()
-
+	err := startFS()
+	if err != nil {
+		log.Fatal("Failed to start QuoteFS:", err)
+	}
 	args = args[1:]
 
 	if tail {
@@ -48,7 +51,7 @@ func main() {
 	}
 }
 
-func err(status C.status) error {
+func chkStatus(status C.status) error {
 	if status == 0 {
 		return nil
 	}
