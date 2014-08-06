@@ -72,7 +72,7 @@ angular.module('cachesterApp', [])
       }).error(function(data,status){
         $scope.alive = {}
         $scope.dead = {}
-        $timeout(updateStatus,1000);
+        $timeout(updateStatus,2500);
       });
     };
     updateStatus();
