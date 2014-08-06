@@ -9,6 +9,13 @@
 #include <string.h>
 #include <time.h>
 
+static void syntax(const char* prog)
+{
+	fprintf(stderr, "Syntax: %s [-v|--verbose] [TCP address] [TCP port] "
+			"[change queue size] [storage file or segment]\n", prog);
+	exit(EXIT_FAILURE);
+}
+
 int main(int argc, char* argv[])
 {
 	receiver_handle recv;
@@ -21,12 +28,13 @@ int main(int argc, char* argv[])
 	size_t pkt_c, tcp_c, mcast_c;
 	time_t t1;
 
-	if (argc < 5 || argc > 6) {
-		fprintf(stderr, "Syntax: %s [-v|--verbose] [tcp address] [tcp port] [change queue size] [storage file]\n", argv[0]);
-		return 1;
-	}
+	if (argc < 5 || argc > 6)
+		syntax(argv[0]);
 
 	if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
+		if (argc != 6)
+			syntax(argv[0]);
+
 		verbose = TRUE;
 		n++;
 	}
@@ -36,7 +44,8 @@ int main(int argc, char* argv[])
 	q_capacity = atoi(argv[n++]);
 	storage_file = argv[n++];
 
-	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
+	if (FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
 		error_report_fatal();
 
@@ -81,12 +90,14 @@ int main(int argc, char* argv[])
 	if (verbose)
 		putchar('\n');
 
-	if (FAILED(st) || FAILED(receiver_stop(recv)))
+	if (FAILED(st) ||
+		FAILED(receiver_stop(recv)))
 		error_report_fatal();
 
 	receiver_destroy(&recv);
 
-	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+	if (FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 	
 	return 0;

@@ -71,7 +71,7 @@ void error_heartbeat(const char* func)
 		return;
 	}
 
-	capture(func, NULL, ETIMEDOUT);
+	capture(func, "no heartbeat", HEARTBEAT);
 }
 
 void error_invalid_arg(const char* func)

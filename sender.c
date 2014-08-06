@@ -11,9 +11,6 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
-#define HEARTBEAT_SEQ -1
-#define WILL_QUIT_SEQ -2
-
 struct sender_stats_t
 {
 	volatile int lock;
@@ -80,6 +77,7 @@ static status write_accum(sender_handle me)
 		return st;
 
 	*me->time_stored_at = htonll(now);
+
 	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)) ||
 		FAILED(st = storage_set_send_recv_time(me->store, me->last_mcast_send = now)))
 		return st;
@@ -105,8 +103,9 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 	status st = OK;
 
 	/* if the packet is full or stale, immediately send it */
-	if ((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
-		 (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) &&
+	if (((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
+		  (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
+		 accum_is_stale(me->mcast_accum)) &&
 		FAILED(st = write_accum(me)))
 		return st;
 		
@@ -121,24 +120,22 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
 		memcpy(record_get_conflated_ref(rec), record_get_value_ref(rec), me->val_size);
 	else {
-		sequence seq;
 		identifier id, id2;
 		if (FAILED(st = storage_get_id(me->store, rec, &id)))
 			return st;
 
 		id2 = htonll(id);
-		seq = record_write_lock(rec);
-
 		if (!FAILED(st = accum_store(me->mcast_accum, &id2, sizeof(id2), NULL))) {
 			void* rec_stored_at;
+			sequence seq = record_write_lock(rec);
 			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, &rec_stored_at))) {
 				seq = me->next_seq;
 				if (me->conflate_pkt)
 					record_set_conflated_ref(rec, rec_stored_at);
 			}
-		}
 
-		record_set_sequence(rec, seq);
+			record_set_sequence(rec, seq);
+		}
 	}
 
 	return st;
@@ -405,10 +402,14 @@ static status mcast_check_heartbeat_or_stale(sender_handle me)
 	else if (poll_get_count(me->poller) > 1) {
 		microsec_t now;
 		if (!FAILED(st = clock_time(&now)) && (now - me->last_mcast_send) >= me->heartbeat_usec) {
-			sequence hb_seq = htonll(HEARTBEAT_SEQ);
-			if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
-				!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
+			if (!accum_is_empty(me->mcast_accum))
 				st = write_accum(me);
+			else {
+				sequence hb_seq = htonll(-me->next_seq);
+				if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
+					!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
+					st = write_accum(me);
+			}
 		}
 	}
 

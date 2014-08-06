@@ -17,10 +17,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#define HEARTBEAT_SEQ -1
-#define WILL_QUIT_SEQ -2
-
-#define MIN_HB_PADDING 2000000
+#define MIN_HB_PAD_USEC 2000000
 
 struct receiver_stats_t
 {
@@ -46,7 +43,7 @@ struct receiver_t
 	sequence next_seq;
 	microsec_t last_mcast_recv;
 	microsec_t last_tcp_recv;
-	microsec_t heartbeat_usec;
+	microsec_t timeout_usec;
 	struct sockaddr_in mcast_addr;
 	struct receiver_stats_t stats;
 };
@@ -73,20 +70,20 @@ static void* mcast_func(thread_handle thr)
 	if (FAILED(st = clock_time(&me->last_mcast_recv)))
 		return mcast_quit(me, st);
 
-	if (me->heartbeat_usec < MIN_HB_PADDING)
-		me->last_mcast_recv += MIN_HB_PADDING;
+	if (me->timeout_usec < MIN_HB_PAD_USEC)
+		me->last_mcast_recv += MIN_HB_PAD_USEC;
 
 	while (!thread_is_stopping(thr)) {
 		const char *p, *last;
-		microsec_t now;
-		double latency, delta;
+		microsec_t now, latency;
+		double delta;
 
 		st = sock_recvfrom(me->mcast_sock, buf, me->mcast_mtu);
 		if (st == BLOCKED) {
 			if (FAILED(st = clock_time(&now)))
 				break;
 
-			if ((now - me->last_mcast_recv) > me->heartbeat_usec) {
+			if ((now - me->last_mcast_recv) > me->timeout_usec) {
 				error_heartbeat("mcast_func");
 				st = HEARTBEAT;
 				break;
@@ -145,26 +142,30 @@ static void* mcast_func(thread_handle thr)
 			me->stats.mcast_max_latency = latency;
 
 		SPIN_UNLOCK(&me->stats.lock, no_ver);
-
 		*recv_seq = ntohll(*recv_seq);
-		if (*recv_seq < me->next_seq)
-			continue;
 
-		last = buf + st;
-		for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
-			record_handle rec;
-			identifier* id = (identifier*) p;
+		if (*recv_seq < 0)
+			*recv_seq = -*recv_seq;
+		else {
+			if (*recv_seq < me->next_seq)
+				continue;
 
-			*id = ntohll(*id);
-			if (FAILED(st = storage_get_record(me->store, *id, &rec)))
-				goto finish;
+			last = buf + st;
+			for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
+				record_handle rec;
+				identifier* id = (identifier*) p;
 
-			record_write_lock(rec);
-			memcpy(record_get_value_ref(rec), id + 1, val_size);
-			record_set_sequence(rec, *recv_seq);
+				*id = ntohll(*id);
+				if (FAILED(st = storage_get_record(me->store, *id, &rec)))
+					goto finish;
 
-			if (FAILED(st = storage_write_queue(me->store, *id)))
-				goto finish;
+				record_write_lock(rec);
+				memcpy(record_get_value_ref(rec), id + 1, val_size);
+				record_set_sequence(rec, *recv_seq);
+
+				if (FAILED(st = storage_write_queue(me->store, *id)))
+					goto finish;
+			}
 		}
 
 		if (*recv_seq > me->next_seq) {
@@ -222,7 +223,7 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 			if (FAILED(st = clock_time(&now)))
 				break;
 
-			if ((now - me->last_tcp_recv) > me->heartbeat_usec) {
+			if ((now - me->last_tcp_recv) > me->timeout_usec) {
 				error_heartbeat("tcp_read");
 				st = HEARTBEAT;
 				break;
@@ -282,8 +283,8 @@ static void* tcp_func(thread_handle thr)
 	if (FAILED(st = clock_time(&me->last_tcp_recv)))
 		return tcp_quit(me, st);
 
-	if (me->heartbeat_usec < MIN_HB_PADDING)
-		me->last_tcp_recv += MIN_HB_PADDING;
+	if (me->timeout_usec < MIN_HB_PAD_USEC)
+		me->last_tcp_recv += MIN_HB_PAD_USEC;
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
@@ -368,7 +369,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
-	(*precv)->heartbeat_usec = 5 * hb_usec / 2;
+	(*precv)->timeout_usec = 5 * hb_usec / 2;
 	(*precv)->stats.mcast_min_latency = DBL_MAX;
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
 

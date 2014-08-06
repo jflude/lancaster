@@ -9,11 +9,11 @@
 #include <limits.h>
 #include <sys/types.h>
 
-#define STORAGE_VERSION 1
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define STORAGE_VERSION 1
 
 struct storage_t;
 typedef struct storage_t* storage_handle;
@@ -28,6 +28,9 @@ typedef long sequence;
 
 #define SEQUENCE_MIN LONG_MIN
 #define SEQUENCE_MAX LONG_MAX
+
+#define HEARTBEAT_SEQ -1
+#define WILL_QUIT_SEQ -2
 
 struct storage_seq_range_t { sequence low; sequence high; };
 
