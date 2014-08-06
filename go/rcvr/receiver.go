@@ -194,6 +194,7 @@ func (r *Receiver) start() error {
 	r.store = C.receiver_get_storage(r.rcvr)
 	log.Println("Started receiver:", r.Address, " file:", r.FileName)
 	r.Alive = true
+	r.Status = "Connected"
 	return nil
 }
 
