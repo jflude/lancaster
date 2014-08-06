@@ -70,8 +70,9 @@ angular.module('cachesterApp', [])
         }
         $timeout(updateStatus,1000);
       }).error(function(data,status){
-        console.log(status,data)
-        $timeout(updateStatus,1000);
+        $scope.alive = {}
+        $scope.dead = {}
+        $timeout(updateStatus,2500);
       });
     };
     updateStatus();

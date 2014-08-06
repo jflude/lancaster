@@ -41,8 +41,55 @@ func (q *Quote) ask() float64 {
 }
 func (q *Quote) String() string {
 	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-28s %-15s  %9d %4d x %03.2f @ %0.2f x %d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f @ %0.2f x %-6d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
 }
+func getQuote(record int, q *Quote) error {
+	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	var rSize = C.storage_get_record_size(store)
+	var vOffset = uintptr(C.storage_get_value_offset(store))
+	var rBaseId = int(C.storage_get_base_id(store))
+	uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((record - rBaseId))))
+	raddr := (unsafe.Pointer)(uraddr)
+	for {
+		seq := *((*C.uint)(raddr))
+		if seq == 0 {
+			return fmt.Errorf("No such record: %d", record)
+		} else if seq < 0 {
+			continue
+		}
+		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		d := (*Quote)(vaddr)
+		*q = *d
+		nseq := *((*C.uint)(raddr))
+		if seq == nseq {
+			return nil
+		}
+		log.Println("Version stomp:", nseq, "!=", seq, "for record:", record)
+	}
+}
+
+func getKeys(start int) (map[string]int, int) {
+	var maxRecords = int(C.storage_get_max_id(store))
+	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	var rSize = C.storage_get_record_size(store)
+	var vOffset = uintptr(C.storage_get_value_offset(store))
+	var rBaseId = int(C.storage_get_base_id(store))
+	ret := make(map[string]int)
+	x := start
+	for ; x < maxRecords; x++ {
+		uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
+		raddr := (unsafe.Pointer)(uraddr)
+		seq := *((*C.uint)(raddr))
+		if seq < 1 {
+			return ret, x
+		}
+		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		d := (*Quote)(vaddr)
+		ret[d.key()] = x
+	}
+	return ret, x
+}
+
 func findQuotes(keys []string) {
 	// Used to grab the record itself
 	var maxRecords = int(C.storage_get_max_id(store))
@@ -68,8 +115,8 @@ func findQuotes(keys []string) {
 			}
 		}
 	}
-
 }
+
 func tailQuotes(watchKeys []string) {
 	var hasWatch = len(watchKeys) > 0
 	var watchBits bitset.BitSet
