@@ -17,12 +17,14 @@ func initMMD() {
 	if err != nil {
 		log.Panic(err)
 	}
-	resp, err := con.Call("serviceregistry", map[string]interface{}{
-		"action": "registerLocal",
-		"name":   "cachester",
+	err = con.RegisterLocalService("cachester.local", func(c *mmd.MMDConn, ch *mmd.MMDChan, cc *mmd.ChannelCreate) {
+		err := ch.Close(State.Receivers)
+		if err != nil {
+			log.Println("Failed to service request:", err, "request was:", cc)
+		}
 	})
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Println("Registration result:", resp)
+	log.Println("Registered as mmd service")
 }
