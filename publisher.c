@@ -51,6 +51,7 @@ int main(int argc, char* argv[])
 	if (FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
+		FAILED(storage_set_description(store, "TEST")) ||
 		FAILED(storage_reset(store)) ||
 		FAILED(sender_create(&sender, store, hb, MAX_AGE_USEC, CONFLATE_PKT,
 							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)))

@@ -326,8 +326,8 @@ static void* tcp_func(thread_handle thr)
 
 status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity, const char* tcp_addr, int tcp_port)
 {
-	char buf[128], mcast_addr[32];
-	int proto_ver, mcast_port;
+	char buf[512], mcast_addr[32];
+	int mcast_port, proto_ver, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
 	status st;
@@ -351,8 +351,9 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %ld",
-				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu, &base_id, &max_id, &val_size, &max_age_usec, &hb_usec);
+	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %ld %n",
+				&proto_ver, mcast_addr, &mcast_port, &(*precv)->mcast_mtu,
+				&base_id, &max_id, &val_size, &max_age_usec, &hb_usec, &proto_len);
 
 	if (st == EOF) {
 		errno = EPROTO;
@@ -366,6 +367,9 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 		return BAD_PROTOCOL;
 	}
 
+	if (buf[proto_len] != '\0')
+		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
+
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
@@ -374,6 +378,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
 
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, q_capacity, base_id, max_id, val_size)) ||
+		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_reuseaddr((*precv)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||

@@ -49,6 +49,9 @@ int main(int argc, char* argv[])
 		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
 		error_report_fatal();
 
+	if (verbose)
+		printf("DESC: \"%s\"\n", storage_get_description(receiver_get_storage(recv)));
+
 	t1 = time(NULL);
 	pkt_c = receiver_get_mcast_packets_recv(recv);
 	tcp_c = receiver_get_tcp_bytes_recv(recv);

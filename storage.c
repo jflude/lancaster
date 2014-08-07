@@ -29,6 +29,7 @@ struct segment_t
 	microsec_t last_created;
 	microsec_t last_send_recv;
 	volatile int send_recv_ver;
+	char description[256];
 	size_t q_mask;
 	long q_head;
 	identifier change_q[1];
@@ -154,6 +155,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->seg->val_size = val_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
+
+	BZERO((*pstore)->seg->description);
 
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, max_id - base_id);
@@ -327,6 +330,34 @@ size_t storage_get_value_offset(storage_handle store)
 {
 	(void) store;
 	return offsetof(struct record_t, val);
+}
+
+const char* storage_get_description(storage_handle store)
+{
+	return store->seg->description;
+}
+
+status storage_set_description(storage_handle store, const char* desc)
+{
+	if (!desc) {
+		error_invalid_arg("storage_set_description");
+		return FAIL;
+	}
+
+	if (!store->is_seg_owner) {
+		errno = EPERM;
+		error_errno("storage_set_description");
+		return FAIL;
+	}
+
+	if (strlen(desc) >= sizeof(store->seg->description)) {
+		errno = ENOBUFS;
+		error_errno("storage_set_description");
+		return FAIL;
+	}
+
+	strcpy(store->seg->description, desc);
+	return OK;
 }
 
 microsec_t storage_get_creation_time(storage_handle store)

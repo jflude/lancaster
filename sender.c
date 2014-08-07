@@ -39,7 +39,6 @@ struct sender_t
 	microsec_t max_age_usec;
 	microsec_t* time_stored_at;
 	struct sender_stats_t stats;
-	int hello_len;
 	char hello_str[128];
 };
 
@@ -170,8 +169,13 @@ static status tcp_on_accept(sender_handle me, sock_handle sock)
 	sock_handle accepted;
 	struct tcp_req_param_t* req_param;
 
+	char buf[512];
+	strcpy(buf, me->hello_str);
+	strcat(buf, storage_get_description(me->store));
+	strcat(buf, "\r\n");
+
 	if (FAILED(st = sock_accept(sock, &accepted)) ||
-		FAILED(st = sock_write(accepted, me->hello_str, me->hello_len)))
+		FAILED(st = sock_write(accepted, buf, strlen(buf))))
 		return st;
 
 	req_param = XMALLOC(struct tcp_req_param_t);
@@ -527,12 +531,12 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 		return st;
 	}
 
-	(*psend)->hello_len = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-								  STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
-								  (long) storage_get_base_id(store), (long) storage_get_max_id(store),
-								  storage_get_value_size(store), max_age_usec, (*psend)->heartbeat_usec);
+	st = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
+				 (long) storage_get_base_id(store), (long) storage_get_max_id(store),
+				 storage_get_value_size(store), max_age_usec, (*psend)->heartbeat_usec);
 
-	if ((*psend)->hello_len < 0) {
+	if (st < 0) {
 		error_errno("sprintf");
 		sender_destroy(psend);
 		return FAIL;
