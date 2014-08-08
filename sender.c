@@ -140,6 +140,31 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 	return st;
 }
 
+static status mcast_check_heartbeat_or_stale(sender_handle me)
+{
+	status st = OK;
+	SPIN_WRITE_LOCK(&me->mcast_lock, no_ver);
+
+	if (accum_is_stale(me->mcast_accum))
+		st = write_accum(me);
+	else if (poll_get_count(me->poller) > 1) {
+		microsec_t now;
+		if (!FAILED(st = clock_time(&now)) && (now - me->last_mcast_send) >= me->heartbeat_usec) {
+			if (!accum_is_empty(me->mcast_accum))
+				st = write_accum(me);
+			else {
+				sequence hb_seq = htonll(-me->next_seq);
+				if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
+					!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
+					st = write_accum(me);
+			}
+		}
+	}
+
+	SPIN_UNLOCK(&me->mcast_lock, no_ver);
+	return st;
+}
+
 static status tcp_close_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	status st;
@@ -271,8 +296,7 @@ static status tcp_on_write_iter_fn(record_handle rec, void* param)
 	req_param->next_send = req_param->send_buf;
 	req_param->remain_send = req_param->pkt_size;
 
-	st = tcp_on_write_remaining(req_param);
-	return FAILED(st) ? st : TRUE;
+	return tcp_on_write_remaining(req_param);
 }
 
 static status tcp_on_write(sender_handle me, sock_handle sock)
@@ -300,7 +324,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 		return OK;
 	else if (st == EOF || st == TIMEDOUT)
 		return tcp_on_hup(me, sock);
-	else if (!FAILED(st)) {
+	else if (st) {
 		req_param->curr_rec = NULL;
 		me->min_store_seq = req_param->min_store_seq_seen;
 		st = poll_set_event(me->poller, sock, POLLIN);
@@ -396,31 +420,6 @@ static status tcp_event_func(poll_handle poller, sock_handle sock, short* revent
 	return OK;
 }
 
-static status mcast_check_heartbeat_or_stale(sender_handle me)
-{
-	status st = OK;
-	SPIN_WRITE_LOCK(&me->mcast_lock, no_ver);
-
-	if (accum_is_stale(me->mcast_accum))
-		st = write_accum(me);
-	else if (poll_get_count(me->poller) > 1) {
-		microsec_t now;
-		if (!FAILED(st = clock_time(&now)) && (now - me->last_mcast_send) >= me->heartbeat_usec) {
-			if (!accum_is_empty(me->mcast_accum))
-				st = write_accum(me);
-			else {
-				sequence hb_seq = htonll(-me->next_seq);
-				if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
-					!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
-					st = write_accum(me);
-			}
-		}
-	}
-
-	SPIN_UNLOCK(&me->mcast_lock, no_ver);
-	return st;
-}
-
 static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, short* events, void* param)
 {
 	sender_handle me = param;
@@ -460,6 +459,10 @@ static void* tcp_func(thread_handle thr)
 			break;
 
 	st2 = poll_remove(me->poller, me->listen_sock);
+	if (!FAILED(st))
+		st = st2;
+
+	st2 = sock_close(me->listen_sock);
 	if (!FAILED(st))
 		st = st2;
 
@@ -615,10 +618,6 @@ status sender_stop(sender_handle send)
 	status st2, st = thread_stop(send->tcp_thr, &p);
 	if (!FAILED(st))
 		st = (long) p;
-
-	st2 = sock_close(send->listen_sock);
-	if (!FAILED(st))
-		st = st2;
 
 	st2 = sock_close(send->mcast_sock);
 	if (!FAILED(st))
