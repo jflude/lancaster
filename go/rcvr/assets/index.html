@@ -40,6 +40,7 @@
     </tr>
      <tr ng-repeat="(host,rec) in alive" >
       <td>{{host}}<br/>
+      {{rec.Description}}<br/>
         <a href="/s?reset={{host}}">reset</a>
         <button ng-click="removeHost(host)">Remove</button>
       </td>
