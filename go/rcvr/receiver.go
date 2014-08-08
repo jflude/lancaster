@@ -19,10 +19,11 @@ import (
 )
 
 type Receiver struct {
-	rcvr       C.receiver_handle
-	store      C.storage_handle
-	lock       sync.Mutex
-	shouldStop bool
+	rcvr        C.receiver_handle
+	store       C.storage_handle
+	Description string
+	lock        sync.Mutex
+	shouldStop  bool
 
 	Address  string
 	IP       *net.IPAddr
@@ -193,6 +194,8 @@ func (r *Receiver) start() error {
 	}
 	r.store = C.receiver_get_storage(r.rcvr)
 	log.Println("Started receiver:", r.Address, " file:", r.FileName)
+
+	r.Description = C.GoString(C.storage_get_description(r.store))
 	r.Alive = true
 	r.Status = "Connected"
 	return nil
