@@ -419,7 +419,7 @@ storage_handle receiver_get_storage(receiver_handle recv)
 
 boolean receiver_is_running(receiver_handle recv)
 {
-	return (recv->tcp_thr && thread_is_running(recv->tcp_thr)) && (recv->mcast_thr && thread_is_running(recv->mcast_thr));
+	return recv->tcp_thr && recv->mcast_thr && thread_is_running(recv->tcp_thr) && thread_is_running(recv->mcast_thr);
 }
 
 status receiver_stop(receiver_handle recv)

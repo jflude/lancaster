@@ -66,8 +66,9 @@ int main(int argc, char* argv[])
 				size_t tcp_c2 = receiver_get_tcp_bytes_recv(recv);
 				size_t mcast_c2 = receiver_get_mcast_bytes_recv(recv);
 
-				printf("PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f, "
+				printf("%s: PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f, "
 					   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, STD/us: %.2f           \r",
+					   storage_file,
 					   (pkt_c2 - pkt_c) / elapsed,
 					   receiver_get_tcp_gap_count(recv),
 					   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
