@@ -18,12 +18,12 @@ import (
 
 type Quote struct {
 	keyBytes   [32]byte
+	exchangeTS uint64
+	opraSeq    uint32
 	bidPrice   int64
 	askPrice   int64
 	bidSize    int32
 	askSize    int32
-	exchangeTS uint64
-	opraSeq    uint32
 }
 
 func (q *Quote) key() string {
@@ -209,7 +209,7 @@ func tailQuotes(watchKeys []string) {
 				fmt.Println("Version stomp", seq, "!=", nseq)
 			}
 			if useStr {
-				fmt.Println(j, j&qMask, str)
+				fmt.Println(id, j, j&qMask, str)
 			}
 		}
 		old_head = new_head
