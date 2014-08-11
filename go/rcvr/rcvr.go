@@ -44,7 +44,6 @@ func main() {
 	http.HandleFunc("/status", statusHandler)
 	http.HandleFunc("/add", addHandler)
 	http.HandleFunc("/remove", removeHandler)
-	http.HandleFunc("/s", httpHandler)
 	http.Handle("/", http.FileServer(http.Dir("assets")))
 	if enableMMD {
 		initMMD()
@@ -113,29 +112,6 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 }
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(State.Receivers)
-}
-func httpHandler(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	resetAddr := arg(q, "reset")
-	if resetAddr != "" {
-		reset(resetAddr)
-	}
-	a, err := Asset("s.html")
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	rootTemplate := template.New("root").Funcs(funcMap)
-	t, err := rootTemplate.Parse(string(a))
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	err = t.Execute(w, &State)
-	if err != nil {
-		log.Println(err)
-		// http.Error(w, err.Error(), 500)
-	}
 }
 
 func arg(v url.Values, name string) string {
