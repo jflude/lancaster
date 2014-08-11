@@ -98,10 +98,8 @@ func (r *Receiver) Start() {
 	defer waitFor.Done()
 	defer r.stop()
 	for {
-		log.Println(r.Address)
 		select {
 		case cmd := <-r.cmds:
-			log.Println("Received cmd:", cmd)
 			switch cmd {
 			case STOP:
 				return
@@ -134,6 +132,7 @@ func (r *Receiver) reset() error {
 	if r.rcvr != nil {
 		r.Alive = C.receiver_is_running(r.rcvr) != 0
 		if r.Alive {
+			log.Println("Resetting:", r.Address)
 			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
 				r.Status = "Stop Failed, reason: " + err.Error()
 				return err
