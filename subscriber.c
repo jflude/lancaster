@@ -7,7 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+
+#define DISPLAY_DELAY_USEC 1000000
 
 static void syntax(const char* prog)
 {
@@ -26,7 +27,7 @@ int main(int argc, char* argv[])
 	int q_capacity, n = 1;
 	boolean verbose = FALSE;
 	size_t pkt_c, tcp_c, mcast_c;
-	time_t t1;
+	microsec_t last_print;
 
 	if (argc < 5 || argc > 6)
 		syntax(argv[0]);
@@ -46,44 +47,45 @@ int main(int argc, char* argv[])
 
 	if (FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)))
+		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)) ||
+		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	if (verbose)
-		printf("DESC: \"%s\"\n", storage_get_description(receiver_get_storage(recv)));
-
-	t1 = time(NULL);
 	pkt_c = receiver_get_mcast_packets_recv(recv);
 	tcp_c = receiver_get_tcp_bytes_recv(recv);
 	mcast_c = receiver_get_mcast_bytes_recv(recv);
 
 	while (receiver_is_running(recv) && !signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		if (verbose) {
-			time_t t2 = time(NULL);
-			if (t2 != t1) {
-				time_t elapsed = t2 - t1;
+			microsec_t now, elapsed;
+			if (FAILED(st = clock_time(&now)))
+				break;
+
+			elapsed = now - last_print;
+			if (elapsed >= DISPLAY_DELAY_USEC) {
+				double secs = elapsed / 1000000.0;
 				size_t pkt_c2 = receiver_get_mcast_packets_recv(recv);
 				size_t tcp_c2 = receiver_get_tcp_bytes_recv(recv);
 				size_t mcast_c2 = receiver_get_mcast_bytes_recv(recv);
 
-				printf("%s: PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f, "
+				printf("\"%.8s\", PKTS/sec: %.2f, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f, "
 					   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, STD/us: %.2f           \r",
-					   storage_file,
-					   (pkt_c2 - pkt_c) / elapsed,
+					   storage_get_description(receiver_get_storage(recv)),
+					   (pkt_c2 - pkt_c) / secs,
 					   receiver_get_tcp_gap_count(recv),
-					   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
-					   (mcast_c2 - mcast_c) / 1024.0 / elapsed,
+					   (tcp_c2 - tcp_c) / secs / 1024,
+					   (mcast_c2 - mcast_c) / secs / 1024,
 					   receiver_get_mcast_min_latency(recv),
 					   receiver_get_mcast_mean_latency(recv),
 					   receiver_get_mcast_max_latency(recv),
 					   receiver_get_mcast_stddev_latency(recv));
 
-				t1 = t2;
+				fflush(stdout);
+
+				last_print = now;
 				pkt_c = pkt_c2;
 				tcp_c = tcp_c2;
 				mcast_c = mcast_c2;
-
-				fflush(stdout);
 			}
 		}
 

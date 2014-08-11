@@ -8,7 +8,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+
+#define DISPLAY_DELAY_USEC 1000000
+#define SCATTER_UPDATES
+
+#ifdef SCATTER_UPDATES
+#include "twist.h"
+static twist_handle twister;
+#endif
+
+static storage_handle store;
+static sender_handle sender;
+static size_t pkt1, tcp1, mcast1;
+static microsec_t last_print;
+static int delay;
+static boolean verbose;
 
 static void syntax(const char* prog)
 {
@@ -17,18 +31,68 @@ static void syntax(const char* prog)
 	exit(EXIT_FAILURE);
 }
 
+static status update(identifier id, long n)
+{
+	record_handle rec;
+	struct datum_t* d;
+	sequence seq;
+	microsec_t now;
+	status st = OK;
+
+	if (!sender_is_running(sender) || signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+		return FALSE;
+
+	if (FAILED(st = storage_get_record(store, id, &rec)) || FAILED(st = clock_time(&now)))
+		return st;
+
+	d = record_get_value_ref(rec);
+	seq = record_write_lock(rec);
+
+	d->ts = now;
+	d->xyz = n;
+
+	record_set_sequence(rec, seq);
+	if (FAILED(st = sender_record_changed(sender, rec)))
+		return st;
+
+	if (verbose) {
+		microsec_t elapsed = now - last_print;
+		if (elapsed >= DISPLAY_DELAY_USEC) {
+			double secs = elapsed / 1000000.0;
+			size_t pkt2 = sender_get_mcast_packets_sent(sender);
+			size_t tcp2 = sender_get_tcp_bytes_sent(sender);
+			size_t mcast2 = sender_get_mcast_bytes_sent(sender);
+
+			printf("\"%.8s\", SUBS: %lu, PKTS/sec: %.2f, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f            \r",
+				   storage_get_description(store),
+				   sender_get_subscriber_count(sender),
+				   (pkt2 - pkt1) / secs,
+				   sender_get_tcp_gap_count(sender),
+				   (tcp2 - tcp1) / secs / 1024,
+				   (mcast2 - mcast1) / secs / 1024);
+
+			fflush(stdout);
+
+			last_print = now;
+			pkt1 = pkt2;
+			tcp1 = tcp2;
+			mcast1 = mcast2;
+		}
+	}
+
+	if (delay > 0 && FAILED(st = clock_sleep(delay)))
+		return st;
+
+	return TRUE;
+}
+
 int main(int argc, char* argv[])
 {
-	storage_handle store = NULL;
-	sender_handle sender;
 	status st = OK;
-	int delay, hb, n = 1;
-	identifier id;
+	int hb, n = 1;
+	long xyz;
 	const char* mcast_addr, *tcp_addr;
 	int mcast_port, tcp_port;
-	boolean verbose = FALSE;
-	size_t pkt_c, tcp_c, mcast_c;
-	time_t t1;
 
 	if (argc < 7 || argc > 8)
 		syntax(argv[0]);
@@ -48,70 +112,38 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[n++];
 	tcp_port = atoi(argv[n++]);
 
-	if (FAILED(signal_add_handler(SIGINT)) ||
-		FAILED(signal_add_handler(SIGTERM)) ||
+	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, 0, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
-		FAILED(storage_set_description(store, "TEST")) ||
-		FAILED(storage_reset(store)) ||
+		FAILED(storage_set_description(store, "TEST")) || FAILED(storage_reset(store)) ||
 		FAILED(sender_create(&sender, store, hb, MAX_AGE_USEC, CONFLATE_PKT,
-							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)))
+							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)) ||
+		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	t1 = time(NULL);
-	pkt_c = sender_get_mcast_packets_sent(sender);
-	tcp_c = sender_get_tcp_bytes_sent(sender);
-	mcast_c = sender_get_mcast_bytes_sent(sender);
+#ifdef SCATTER_UPDATES
+	if (FAILED(st = twist_create(&twister)))
+		return st;
 
-	n = 0;
-	for (;;)
-		for (id = 0; id < MAX_ID; ++id) {
-			record_handle rec;
-			struct datum_t* d;
-			sequence seq;
+	twist_seed(twister, (unsigned) last_print);
+#endif
 
-			if (!sender_is_running(sender) || signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+	pkt1 = sender_get_mcast_packets_sent(sender);
+	tcp1 = sender_get_tcp_bytes_sent(sender);
+	mcast1 = sender_get_mcast_bytes_sent(sender);
+
+	xyz = 0;
+	for (;;) {
+		identifier id;
+#ifdef SCATTER_UPDATES
+		id = twist_rand(twister) % MAX_ID;
+		if (FAILED(st = update(id, xyz++)) || !st)
+			goto finish;
+#else
+		for (id = 0; id < MAX_ID; ++id)
+			if (FAILED(st = update(id, xyz++)) || !st)
 				goto finish;
-
-			if (FAILED(st = storage_get_record(store, id, &rec)))
-				goto finish;
-
-			d = record_get_value_ref(rec);
-
-			seq = record_write_lock(rec);
-			d->bidSize = n++;
-			d->askSize = n++;
-			record_set_sequence(rec, seq);
-
-			if (FAILED(st = sender_record_changed(sender, rec)))
-				goto finish;
-
-			if (verbose) {
-				time_t t2 = time(NULL);
-				if (t2 != t1) {
-					time_t elapsed = t2 - t1;
-					size_t pkt_c2 = sender_get_mcast_packets_sent(sender);
-					size_t tcp_c2 = sender_get_tcp_bytes_sent(sender);
-					size_t mcast_c2 = sender_get_mcast_bytes_sent(sender);
-
-					printf("SUBS: %lu, PKTS/sec: %ld, GAPS: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f            \r",
-						   sender_get_subscriber_count(sender),
-						   (pkt_c2 - pkt_c) / elapsed,
-						   sender_get_tcp_gap_count(sender),
-						   (tcp_c2 - tcp_c) / 1024.0 / elapsed,
-						   (mcast_c2 - mcast_c) / 1024.0 / elapsed);
-				
-					fflush(stdout);
-
-					t1 = t2;
-					pkt_c = pkt_c2;
-					tcp_c = tcp_c2;
-					mcast_c = mcast_c2;
-				}
-			}
-
-			if (delay > 0 && FAILED(st = clock_sleep(delay)))
-				goto finish;
-		}
+#endif
+	}
 
 finish:
 	if (verbose)
@@ -123,6 +155,10 @@ finish:
 
 	sender_destroy(&sender);
 	storage_destroy(&store);
+
+#ifdef SCATTER_UPDATES
+	twist_destroy(&twister);
+#endif
 
 	if (FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM)))

@@ -3,8 +3,10 @@
 #ifndef DATUM_H
 #define DATUM_H
 
+#include "clock.h"
+
 #define MAX_ID 1000000
-#define CONFLATE_PKT TRUE
+#define CONFLATE_PKT FALSE
 #define MAX_AGE_USEC 10000
 
 #ifdef __cplusplus
@@ -13,11 +15,8 @@ extern "C" {
 
 struct datum_t
 {
-	long bidPrice;
-	long askPrice;
-	int bidSize;
-	int askSize;
-	unsigned long opraSeq;
+	microsec_t ts;
+	long xyz;
 };
 
 typedef struct datum_t datum;
