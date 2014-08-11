@@ -31,7 +31,12 @@ angular.module('cachesterApp', [])
       });
       delete $scope.alive[host];
       delete $scope.dead[host];
-      $scope.host = "";
+      // $scope.host = "";
+    }
+    $scope.resetHost = function(host){
+      $http.get("/reset?host="+host).then(function(r){
+        console.log("Reset",r.status,r.data);
+      });
     }
     var update = function(src, dest){
       for (var k in src){
