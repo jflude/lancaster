@@ -31,6 +31,7 @@ struct sock_t
 
 status sock_create(sock_handle* psock, int type, const char* address, int port)
 {
+	int rcvBuf = 1024*64; /* default to 64k, should be an option. */
 	if (!psock || !address || port < 0) {
 		error_invalid_arg("sock_create");
 		return FAIL;
@@ -57,7 +58,10 @@ status sock_create(sock_handle* psock, int type, const char* address, int port)
 		sock_destroy(psock);
 		return FAIL;
 	}
-
+	if (setsockopt((*psock)->fd, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
 	(*psock)->addr.sin_family = AF_INET;
 	(*psock)->addr.sin_port = htons(port);
 	return OK;
