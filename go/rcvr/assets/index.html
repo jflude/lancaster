@@ -41,7 +41,7 @@
      <tr ng-repeat="(host,rec) in alive" >
       <td>{{host}}<br/>
       {{rec.Description}}<br/>
-        <a href="/?reset={{host}}">reset</a>
+        <button ng-click="resetHost(host)">Reset</a>
         <button ng-click="removeHost(host)">Remove</button>
       </td>
       <td>{{rec.Stats.GapCount}}</td>

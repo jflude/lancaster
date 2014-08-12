@@ -14,16 +14,21 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+)
+
+type Command int
+
+const (
+	STOP  Command = iota
+	RESET         = iota
 )
 
 type Receiver struct {
 	rcvr        C.receiver_handle
 	store       C.storage_handle
 	Description string
-	lock        sync.Mutex
-	shouldStop  bool
+	cmds        chan Command
 
 	Address  string
 	IP       *net.IPAddr
@@ -50,94 +55,6 @@ type Stats struct {
 	lastUpdate         time.Time
 }
 
-func (r *Receiver) Stop() error {
-	r.shouldStop = true
-	err := r.stop()
-	if err != nil {
-		log.Println("Failed to stop:", r.Address, "reason:", err)
-		return err
-	}
-	return nil
-}
-
-func (r *Receiver) Start() {
-	for {
-		if r.shouldStop {
-			log.Println("Exiting update loop, stop signaled")
-			return
-		}
-		if !r.Alive {
-			r.reset(false)
-		} else {
-			r.Alive = C.receiver_is_running(r.rcvr) != 0
-			if !r.Alive {
-				r.Stats = Stats{}
-				r.Status = "Not Running"
-				str := C.GoString(C.error_last_desc())
-				log.Println(r.Address, "died, last error:", str)
-			} else {
-				r.updateStats()
-			}
-		}
-		time.Sleep(time.Second)
-	}
-}
-func (r *Receiver) reset(doLock bool) error {
-	if doLock {
-		r.lock.Lock()
-		defer r.lock.Unlock()
-	}
-	if r.shouldStop {
-		err := fmt.Errorf("Can't reset, stop signaled for: %s", r.Address)
-		log.Println(err)
-		return err
-	}
-	r.Status = "Resetting"
-	if r.rcvr != nil {
-		r.Alive = C.receiver_is_running(r.rcvr) != 0
-		if r.Alive {
-			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
-				r.Status = "Stop Failed, reason: " + err.Error()
-				return err
-			}
-			r.Alive = false
-		}
-		C.receiver_destroy(&r.rcvr)
-	}
-
-	err := r.start()
-	if err != nil {
-		r.Status = "Start Failed, reason: " + err.Error()
-		return err
-	}
-	return nil
-}
-
-func (r *Receiver) updateStats() {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	if !r.Alive {
-		return
-	}
-	var s Stats
-	if r != nil {
-		s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
-		s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
-		s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
-		s.MCastPacketsRecv = uint64(C.receiver_get_mcast_packets_recv(r.rcvr))
-		s.MCastMinLatency = float64(C.receiver_get_mcast_min_latency(r.rcvr))
-		s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
-		s.MCastMaxLatency = float64(C.receiver_get_mcast_max_latency(r.rcvr))
-		s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
-		s.lastUpdate = time.Now()
-		dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
-		s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
-		s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
-		s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
-	}
-	r.Stats = s
-}
-
 func newReceiver(addr string) (*Receiver, error) {
 	parts := strings.Split(addr, ":")
 	if len(parts) != 2 {
@@ -162,12 +79,78 @@ func newReceiver(addr string) (*Receiver, error) {
 		IP:       ip,
 		Port:     port,
 		Alive:    false,
+		cmds:     make(chan Command, 1),
 		FileName: fmt.Sprintf("%s-%s", file, addr),
 	}, nil
 }
+
+func (r *Receiver) Reset() error {
+	r.cmds <- RESET
+	return nil
+}
+func (r *Receiver) Stop() error {
+	r.cmds <- STOP
+	return nil
+}
+
+func (r *Receiver) Start() {
+	waitFor.Add(1)
+	defer waitFor.Done()
+	defer r.stop()
+	for {
+		select {
+		case cmd := <-r.cmds:
+			switch cmd {
+			case STOP:
+				return
+			case RESET:
+				r.reset()
+			}
+		case <-STOP_RUNNING:
+			return
+		case <-time.After(time.Second):
+			if !r.Alive {
+				r.reset()
+			} else {
+				r.Alive = C.receiver_is_running(r.rcvr) != 0
+				if !r.Alive {
+					r.Stats = Stats{}
+					r.Status = "Not Running"
+					str := C.GoString(C.error_last_desc())
+					log.Println(r.Address, "died, last error:", str)
+				} else {
+					r.updateStats()
+				}
+			}
+		}
+	}
+	log.Println("Exiting receiver for:", r.Host)
+}
+
+func (r *Receiver) reset() error {
+	r.Status = "Resetting"
+	if r.rcvr != nil {
+		r.Alive = C.receiver_is_running(r.rcvr) != 0
+		if r.Alive {
+			log.Println("Resetting:", r.Address)
+			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
+				r.Status = "Stop Failed, reason: " + err.Error()
+				return err
+			}
+			r.Alive = false
+		}
+		C.receiver_destroy(&r.rcvr)
+	}
+
+	err := r.start()
+	if err != nil {
+		r.Status = "Start Failed, reason: " + err.Error()
+		return err
+	}
+	return nil
+}
+
 func (r *Receiver) stop() error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
 	if r.rcvr != nil {
 		if C.receiver_is_running(r.rcvr) != 0 {
 			if err := chkStatus(C.receiver_stop(r.rcvr)); err != nil {
@@ -207,4 +190,27 @@ func chkStatus(status C.status) error {
 	}
 	str := strings.TrimSpace(C.GoString(C.error_last_desc()))
 	return fmt.Errorf("%d: %s", status, errors.New(str))
+}
+
+func (r *Receiver) updateStats() {
+	if !r.Alive {
+		return
+	}
+	var s Stats
+	if r != nil {
+		s.GapCount = uint64(C.receiver_get_tcp_gap_count(r.rcvr))
+		s.TcpBytesRecv = uint64(C.receiver_get_tcp_bytes_recv(r.rcvr))
+		s.MCastBytesRecv = uint64(C.receiver_get_mcast_bytes_recv(r.rcvr))
+		s.MCastPacketsRecv = uint64(C.receiver_get_mcast_packets_recv(r.rcvr))
+		s.MCastMinLatency = float64(C.receiver_get_mcast_min_latency(r.rcvr))
+		s.MCastMeanLatency = float64(C.receiver_get_mcast_mean_latency(r.rcvr))
+		s.MCastMaxLatency = float64(C.receiver_get_mcast_max_latency(r.rcvr))
+		s.MCastStdDevLatency = float64(C.receiver_get_mcast_stddev_latency(r.rcvr))
+		s.lastUpdate = time.Now()
+		dur := uint64(s.lastUpdate.Sub(r.Stats.lastUpdate).Seconds())
+		s.TcpBytesSec = (s.TcpBytesRecv - r.Stats.TcpBytesRecv) / dur
+		s.MCastPacketsSec = (s.MCastPacketsRecv - r.Stats.MCastPacketsRecv) / dur
+		s.MCastBytesSec = (s.MCastBytesRecv - r.Stats.MCastBytesRecv) / dur
+	}
+	r.Stats = s
 }
