@@ -48,8 +48,8 @@ static status update(identifier id, long n)
 	d = record_get_value_ref(rec);
 	seq = record_write_lock(rec);
 
-	d->ts = now;
 	d->xyz = n;
+	d->ts = now;
 
 	record_set_sequence(rec, seq);
 	if (FAILED(st = sender_record_changed(sender, rec)))
@@ -136,21 +136,18 @@ int main(int argc, char* argv[])
 		identifier id;
 #ifdef SCATTER_UPDATES
 		id = twist_rand(twister) % MAX_ID;
-		if (FAILED(st = update(id, xyz++)) || !st)
-			goto finish;
 #else
 		for (id = 0; id < MAX_ID; ++id)
+#endif
 			if (FAILED(st = update(id, xyz++)) || !st)
 				goto finish;
-#endif
 	}
 
 finish:
 	if (verbose)
 		putchar('\n');
 
-	if (FAILED(st) ||
-		FAILED(sender_stop(sender)))
+	if (FAILED(st) || FAILED(sender_stop(sender)))
 		error_report_fatal();
 
 	sender_destroy(&sender);
@@ -160,8 +157,7 @@ finish:
 	twist_destroy(&twister);
 #endif
 
-	if (FAILED(signal_remove_handler(SIGINT)) ||
-		FAILED(signal_remove_handler(SIGTERM)))
+	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 
 	return 0;

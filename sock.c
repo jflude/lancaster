@@ -309,7 +309,7 @@ loop:
 #endif
 		error_errno("accept");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -336,7 +336,7 @@ status sock_connect(sock_handle sock)
 		if (errno == ECONNREFUSED)
 			return EOF;
 		else if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -372,7 +372,7 @@ loop:
 
 		error_errno("write");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -408,7 +408,7 @@ loop:
 
 		error_errno("read");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -449,7 +449,7 @@ loop:
 
 		error_errno("sendto");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -487,7 +487,7 @@ loop:
 
 		error_errno("recvfrom");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}

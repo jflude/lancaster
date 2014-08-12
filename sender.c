@@ -65,14 +65,9 @@ static status write_accum(sender_handle me)
 	const void* data;
 	size_t sz;
 	microsec_t now;
+	status st;
 
-	status st = accum_get_batched(me->mcast_accum, &data, &sz);
-	if (FAILED(st))
-		return st;
-	else if (!st)
-		return OK;
-
-	if (FAILED(clock_time(&now)))
+	if (FAILED(st = accum_get_batched(me->mcast_accum, &data, &sz)) || !st || FAILED(clock_time(&now)))
 		return st;
 
 	*me->time_stored_at = htonll(now);
@@ -308,7 +303,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 		st = tcp_on_write_remaining(req_param);
 		if (st == BLOCKED)
 			return OK;
-		else if (st == EOF || st == TIMEDOUT)
+		else if (st == EOF || st == TIMED_OUT)
 			return tcp_on_hup(me, sock);
 		else if (FAILED(st))
 			return st;
@@ -322,7 +317,7 @@ static status tcp_on_write(sender_handle me, sock_handle sock)
 	st = storage_iterate(me->store, tcp_on_write_iter_fn, req_param->curr_rec, req_param);
 	if (st == BLOCKED)
 		return OK;
-	else if (st == EOF || st == TIMEDOUT)
+	else if (st == EOF || st == TIMED_OUT)
 		return tcp_on_hup(me, sock);
 	else if (st) {
 		req_param->curr_rec = NULL;
@@ -352,7 +347,7 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 				return OK;
 
 			st = sock_read(sock, p, sz);
-			if (st == EOF || st == TIMEDOUT)
+			if (st == EOF || st == TIMED_OUT)
 				return tcp_on_hup(me, sock);
 			else if (st == BLOCKED) {
 				if (sz == sizeof(range))

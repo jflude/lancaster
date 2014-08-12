@@ -14,7 +14,7 @@ typedef int status;
 /* #define EOF -1 */
 #define FAIL -2
 #define BLOCKED -3
-#define TIMEDOUT -4
+#define TIMED_OUT -4
 #define HEARTBEAT -5
 #define NO_MEMORY -6
 #define BAD_PROTOCOL -7

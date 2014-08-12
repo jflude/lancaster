@@ -142,8 +142,8 @@ static void* mcast_func(thread_handle thr)
 			me->stats.mcast_max_latency = latency;
 
 		SPIN_UNLOCK(&me->stats.lock, no_ver);
-		*recv_seq = ntohll(*recv_seq);
 
+		*recv_seq = ntohll(*recv_seq);
 		if (*recv_seq < 0)
 			*recv_seq = -*recv_seq;
 		else {
