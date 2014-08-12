@@ -21,6 +21,11 @@
 #define ifr_mtu ifr_metric
 #endif
 
+#ifdef __STRICT_ANSI__
+FILE* popen(const char* command, const char* type);
+int pclose(FILE* stream);
+#endif
+
 struct sock_t
 {
 	int fd;
