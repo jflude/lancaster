@@ -21,6 +21,11 @@
 #define ifr_mtu ifr_metric
 #endif
 
+#ifdef __STRICT_ANSI__
+FILE* popen(const char* command, const char* type);
+int pclose(FILE* stream);
+#endif
+
 struct sock_t
 {
 	int fd;
@@ -313,7 +318,7 @@ loop:
 #endif
 		error_errno("accept");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -340,7 +345,7 @@ status sock_connect(sock_handle sock)
 		if (errno == ECONNREFUSED)
 			return EOF;
 		else if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -376,7 +381,7 @@ loop:
 
 		error_errno("write");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -412,7 +417,7 @@ loop:
 
 		error_errno("read");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -453,7 +458,7 @@ loop:
 
 		error_errno("sendto");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}
@@ -491,7 +496,7 @@ loop:
 
 		error_errno("recvfrom");
 		if (errno == ETIMEDOUT)
-			return TIMEDOUT;
+			return TIMED_OUT;
 		else
 			return FAIL;
 	}

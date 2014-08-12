@@ -45,8 +45,7 @@ int main(int argc, char* argv[])
 	q_capacity = atoi(argv[n++]);
 	storage_file = argv[n++];
 
-	if (FAILED(signal_add_handler(SIGINT)) ||
-		FAILED(signal_add_handler(SIGTERM)) ||
+	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&recv, storage_file, q_capacity, tcp_addr, tcp_port)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
@@ -96,14 +95,12 @@ int main(int argc, char* argv[])
 	if (verbose)
 		putchar('\n');
 
-	if (FAILED(st) ||
-		FAILED(receiver_stop(recv)))
+	if (FAILED(st) || FAILED(receiver_stop(recv)))
 		error_report_fatal();
 
 	receiver_destroy(&recv);
 
-	if (FAILED(signal_remove_handler(SIGINT)) ||
-		FAILED(signal_remove_handler(SIGTERM)))
+	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 	
 	return 0;
