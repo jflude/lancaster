@@ -17,7 +17,7 @@ func runDirect() {
 	var storeOwner = C.storage_get_owner_pid(store)
 	var qSize = int(qCapacity)
 	var qMask = qSize - 1
-	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_ref(store))))
+	var qHeadPtr = (*C.long)((unsafe.Pointer(C.storage_get_queue_head_ref(store))))
 	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(store))
 	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
 	// Used to grab the record itself
@@ -26,9 +26,10 @@ func runDirect() {
 	var rSize = C.storage_get_record_size(store)
 	var vOffset = uintptr(C.storage_get_value_offset(store))
 	var rBaseId = C.storage_get_base_id(store)
-	var new_head, old_head int
+	var old_head = int((*(qHeadPtr)))
+	var new_head = old_head
 	c := '/'
-	var nextSize = C.int(0)
+	var lastXyz = C.long(0)
 	x := 0
 	for {
 		new_head = int(*(qHeadPtr))
@@ -47,13 +48,15 @@ func runDirect() {
 			}
 			// fmt.Println("sleep", new_head)
 			continue
+		} else if old_head > new_head {
+			log.Println(old_head, ">", new_head)
+			continue
 		}
 		if (new_head - old_head) > qSize {
 			old_head = new_head - qSize
 			c = '*'
 		}
-		var askSz C.int
-		var bidSz C.int
+		var xyz C.long
 		for j := old_head; j < new_head; j++ {
 			id := qArr[j&qMask]
 			if id == -1 {
@@ -64,14 +67,14 @@ func runDirect() {
 			raddr := (unsafe.Pointer)(uraddr)
 			vaddr := (unsafe.Pointer)(uraddr + vOffset)
 			d := (*C.datum)(vaddr)
+			var seq C.uint
 			for {
-				seq := *((*C.uint)(raddr))
+				seq = *((*C.uint)(raddr))
 				if seq < 0 {
 					fmt.Println("locked")
 					continue
 				}
-				bidSz = d.bidSize
-				askSz = d.askSize
+				xyz = d.xyz
 				nseq := *((*C.uint)(raddr))
 				if seq == nseq {
 					break
@@ -79,12 +82,13 @@ func runDirect() {
 				fmt.Println("Version stomp", seq, "!=", nseq)
 			}
 
-			if bidSz != nextSize || askSz != nextSize+1 {
+			if xyz != lastXyz+1 {
 				if c == '.' {
 					c = '!'
 				}
+				log.Println("\nid", id, "xyz", lastXyz, xyz, "diff:", (xyz - lastXyz), "qpos:", j, "masked:", j&qMask, "seq", seq)
 			}
-			nextSize = askSz + 1
+			lastXyz = xyz
 		}
 		old_head = new_head
 		x++

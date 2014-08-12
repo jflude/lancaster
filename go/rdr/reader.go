@@ -15,7 +15,7 @@ import (
 )
 
 var store C.storage_handle
-var qCapacity C.uint
+var qCapacity C.size_t
 var rSize C.uint
 
 func main() {
