@@ -181,6 +181,7 @@ func tailQuotes(watchKeys []string) {
 				if hasWatch {
 					for _, k := range watchKeys {
 						if strings.HasPrefix(s, k) {
+							// log.Println("Found key:", s, k)
 							watchBits.Set(uint(id))
 							useStr = true
 							// fmt.Fprintln(os.Stderr, "Found:", id, s)
@@ -188,13 +189,18 @@ func tailQuotes(watchKeys []string) {
 						}
 					}
 				}
-			} else if hasWatch && watchBits.Test(uint(id)) {
-				useStr = true
+			} else if hasWatch {
+				if watchBits.Test(uint(id)) {
+					useStr = true
+				} else {
+					continue
+				}
 			}
 
 			str := ""
+			var seq C.uint
 			for {
-				seq := *((*C.uint)(raddr))
+				seq = *((*C.uint)(raddr))
 				if seq < 0 {
 					fmt.Println("locked")
 					continue
@@ -206,10 +212,11 @@ func tailQuotes(watchKeys []string) {
 				if seq == nseq {
 					break
 				}
-				fmt.Println("Version stomp", seq, "!=", nseq)
+				fmt.Println("Version stomp", seq, "!=", nseq, raddr)
 			}
 			if useStr {
-				fmt.Println(id, j, j&qMask, str)
+				fmt.Println(id, str)
+				// fmt.Println(id, seq, raddr, j, j&qMask, str)
 			}
 		}
 		old_head = new_head
