@@ -478,16 +478,14 @@ static void* tcp_func(thread_handle thr)
 
 static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
 {
-	char* device;
+	char device[256];
 	status st;
 
-	if (!FAILED(st = sock_get_interface(dest_ip, &device))) {
-		if (!FAILED(st = sock_get_mtu(sock, device, pmtu)))
-			*pmtu -= IP_OVERHEAD + UDP_OVERHEAD;
+	if (FAILED(st = sock_get_device(dest_ip, device, sizeof(device))) ||
+		FAILED(st = sock_get_mtu(sock, device, pmtu)))
+		return st;
 
-		xfree(device);
-	}
-
+	*pmtu -= IP_OVERHEAD + UDP_OVERHEAD;
 	return st;
 }
 
@@ -523,6 +521,17 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 	(*psend)->heartbeat_usec = hb_usec;
 	(*psend)->conflate_pkt = conflate_packet;
 
+	if (FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
+		FAILED(st = sock_reuseaddr((*psend)->listen_sock, 1)) ||
+		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
+		(tcp_port == 0 && FAILED(st = sock_update_address((*psend)->listen_sock)))) {
+		sender_destroy(psend);
+		return st;
+	}
+
+	if (mcast_port == 0)
+		mcast_port = ntohs(sock_get_address((*psend)->listen_sock)->sin_port);
+
 	if (FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = get_udp_mtu((*psend)->mcast_sock, mcast_addr, &(*psend)->mcast_mtu))) {
 		sender_destroy(psend);
@@ -544,9 +553,6 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 		FAILED(st = sock_reuseaddr((*psend)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
 		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
-		FAILED(st = sock_reuseaddr((*psend)->listen_sock, 1)) ||
-		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
 		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, *psend))) {
@@ -574,6 +580,11 @@ void sender_destroy(sender_handle* psend)
 
 	xfree(*psend);
 	*psend = NULL;
+}
+
+int sender_get_listen_port(sender_handle send)
+{
+	return ntohs(sock_get_address(send->listen_sock)->sin_port);
 }
 
 status sender_record_changed(sender_handle send, record_handle rec)

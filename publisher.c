@@ -120,6 +120,9 @@ int main(int argc, char* argv[])
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
+	if (tcp_port == 0 && verbose)
+		printf("listening on port %d\n", sender_get_listen_port(sender));
+
 #ifdef SCATTER_UPDATES
 	if (FAILED(st = twist_create(&twister)))
 		return st;
