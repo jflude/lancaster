@@ -107,27 +107,46 @@ const struct sockaddr_in* sock_get_address(sock_handle sock)
 
 status sock_get_address_text(sock_handle sock, char* text, size_t text_sz)
 {
+	char buf[256];
 	if (!text || text_sz == 0) {
 		error_invalid_arg("sock_get_address_text");
 		return FAIL;
 	}
 
-	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, text, text_sz)) {
+	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, buf, sizeof(buf))) {
 		error_errno("inet_ntop");
+		return FAIL;
+	}
+
+	if (strlen(buf) >= text_sz) {
+		errno = ENOBUFS;
+		error_errno("sock_get_address_text");
+		return FAIL;
+	}
+
+	strcpy(text, buf);
+	return OK;
+}
+
+status sock_update_address(sock_handle sock)
+{
+	socklen_t len = sizeof(sock->addr);
+	if (getsockname(sock->fd, (struct sockaddr*) &sock->addr, &len) == -1) {
+		error_errno("sock_update_address");
 		return FAIL;
 	}
 
 	return OK;
 }
 
-status sock_get_interface(const char* dest_address, char** pdevice)
+status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz)
 {
 	char out[256], cmd[256] = "ip route get ";
 	FILE* f;
 	int n;
 
-	if (!dest_address || !pdevice) {
-		error_invalid_arg("sock_get_interface");
+	if (!dest_address || !pdevice || device_sz == 0) {
+		error_invalid_arg("sock_get_device");
 		return FAIL;
 	}
 
@@ -152,7 +171,7 @@ loop:
 
 	if (n != 1) {
 		errno = EILSEQ;
-		error_errno("sock_get_interface");
+		error_errno("sock_get_device");
 		return FAIL;
 	}
 
@@ -161,8 +180,14 @@ loop:
 		return FAIL;
 	}
 
-	*pdevice = xstrdup(out);
-	return *pdevice ? OK : NO_MEMORY;
+	if (strlen(out) >= device_sz) {
+		errno = ENOBUFS;
+		error_errno("sock_get_device");
+		return FAIL;
+	}
+
+	strcpy(pdevice, out);
+	return OK;
 }
 
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
@@ -182,6 +207,36 @@ status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 	}
 
 	*pmtu = ifr.ifr_mtu;
+	return OK;
+}
+
+status sock_mcast_bind(sock_handle sock)
+{
+	struct ip_mreq mreq;
+	if (bind(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
+		error_errno("bind");
+		return FAIL;
+	}
+
+	mreq.imr_multiaddr.s_addr = sock->addr.sin_addr.s_addr;
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_mcast_set_ttl(sock_handle sock, int ttl)
+{
+	char val = ttl;
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
 	return OK;
 }
 
@@ -212,64 +267,6 @@ status sock_nonblock(sock_handle sock)
 status sock_reuseaddr(sock_handle sock, int reuse)
 {
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_shutdown(sock_handle sock, int how)
-{
-	if (shutdown(sock->fd, how) == -1) {
-		error_errno("shutdown");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_close(sock_handle sock)
-{
-	if (sock->is_open) {
-	loop:
-		if (close(sock->fd) == -1) {
-			if (errno == EINTR)
-				goto loop;
-			
-			error_errno("close");
-			return FAIL;
-		}
-
-		sock->is_open = FALSE;
-	}
-
-	return OK;
-}
-
-status sock_mcast_bind(sock_handle sock)
-{
-	struct ip_mreq mreq;
-	if (bind(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
-		error_errno("bind");
-		return FAIL;
-	}
-
-	mreq.imr_multiaddr.s_addr = sock->addr.sin_addr.s_addr;
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_mcast_set_ttl(sock_handle sock, int ttl)
-{
-	char val = ttl;
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
 		error_errno("setsockopt");
 		return FAIL;
 	}
@@ -507,4 +504,32 @@ loop:
 	}
 
 	return count;
+}
+
+status sock_shutdown(sock_handle sock, int how)
+{
+	if (shutdown(sock->fd, how) == -1) {
+		error_errno("shutdown");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_close(sock_handle sock)
+{
+	if (sock->is_open) {
+	loop:
+		if (close(sock->fd) == -1) {
+			if (errno == EINTR)
+				goto loop;
+
+			error_errno("close");
+			return FAIL;
+		}
+
+		sock->is_open = FALSE;
+	}
+
+	return OK;
 }

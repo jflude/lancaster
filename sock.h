@@ -24,19 +24,19 @@ void sock_destroy(sock_handle* psock);
 void* sock_get_property(sock_handle sock);
 void sock_set_property(sock_handle sock, void* prop);
 int sock_get_descriptor(sock_handle sock);
+
 const struct sockaddr_in* sock_get_address(sock_handle sock);
-
 status sock_get_address_text(sock_handle sock, char* text, size_t text_sz);
-status sock_get_interface(const char* dest_address, char** pdevice);
-status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
+status sock_update_address(sock_handle sock);
 
-status sock_nonblock(sock_handle sock);
-status sock_reuseaddr(sock_handle sock, int reuse);
-status sock_shutdown(sock_handle sock, int how);
-status sock_close(sock_handle sock);
+status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz);
+status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 
 status sock_mcast_bind(sock_handle sock);
 status sock_mcast_set_ttl(sock_handle sock, int ttl);
+
+status sock_nonblock(sock_handle sock);
+status sock_reuseaddr(sock_handle sock, int reuse);
 
 status sock_listen(sock_handle sock, int backlog);
 status sock_accept(sock_handle sock, sock_handle* new_h);
@@ -46,6 +46,9 @@ status sock_write(sock_handle sock, const void* data, size_t data_sz);
 status sock_read(sock_handle sock, void* data, size_t data_sz);
 status sock_sendto(sock_handle sock, const void* data, size_t data_sz);
 status sock_recvfrom(sock_handle sock, void* data, size_t data_sz);
+
+status sock_shutdown(sock_handle sock, int how);
+status sock_close(sock_handle sock);
 
 #ifdef __cplusplus
 }
