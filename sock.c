@@ -127,7 +127,7 @@ status sock_get_address_text(sock_handle sock, char* text, size_t text_sz)
 status sock_update_address(sock_handle sock)
 {
 	socklen_t len = sizeof(sock->addr);
-	if (getsockname(sock->fd, &sock->addr, &len) == -1) {
+	if (getsockname(sock->fd, (struct sockaddr*) &sock->addr, &len) == -1) {
 		error_errno("sock_update_address");
 		return FAIL;
 	}
