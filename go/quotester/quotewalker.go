@@ -43,6 +43,31 @@ func (q *Quote) String() string {
 	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
 	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f @ %0.2f x %-6d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
 }
+
+type Print struct {
+	keyBytes   [32]byte
+	exchangeTS uint64
+	opraSeq    uint32
+	lastPrice  int64
+	lastSize   int32
+	flags      byte
+}
+
+func (p *Print) key() string {
+	i := bytes.IndexByte(p.keyBytes[:], 0)
+	if i < 0 {
+		return string(p.keyBytes[:])
+	}
+	return string(p.keyBytes[:i])
+}
+func (p *Print) price() float64 {
+	return float64(p.lastPrice) / 10000.0
+}
+func (p *Print) String() string {
+	t := time.Unix(int64(p.exchangeTS/1000000), int64((p.exchangeTS%1000000)*1000))
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, p.price())
+}
+
 func getQuote(record int, q *Quote) error {
 	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
 	var rSize = C.storage_get_record_size(store)
@@ -106,14 +131,30 @@ func findQuotes(keys []string) {
 			return
 		}
 		vaddr := (unsafe.Pointer)(uraddr + vOffset)
-		d := (*Quote)(vaddr)
-		recKey := d.key()
+
+		// d := (*Quote)(vaddr)
+		// recKey := d.key()
+		recKey := getkey(vaddr)
 		for _, k := range keys {
 			if strings.HasPrefix(recKey, k) {
-				fmt.Println(d)
+				fmt.Println(getstring(vaddr))
 				break
 			}
 		}
+	}
+}
+func getstring(vaddr unsafe.Pointer) string {
+	if usePrints {
+		return ((*Print)(vaddr)).String()
+	} else {
+		return ((*Quote)(vaddr)).String()
+	}
+}
+func getkey(vaddr unsafe.Pointer) string {
+	if usePrints {
+		return ((*Print)(vaddr)).key()
+	} else {
+		return ((*Quote)(vaddr)).key()
 	}
 }
 
@@ -168,13 +209,13 @@ func tailQuotes(watchKeys []string) {
 			uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((id - rBaseId))))
 			raddr := (unsafe.Pointer)(uraddr)
 			vaddr := (unsafe.Pointer)(uraddr + vOffset)
-			d := (*Quote)(vaddr)
+			// d := (*Quote)(vaddr)
 			// Not checking for lock contention on this part as the ID is known to only be written once per slot
 			// if we've been told about the record, it must have been written at least once.
 			key := keys[id]
 			useStr := !hasWatch
 			if key == nil {
-				s := d.key()
+				s := getkey(vaddr) //d.key()
 				key = &s
 				keys[id] = key
 				// fmt.Fprintln(os.Stderr, "newKey :", id, s)
@@ -206,7 +247,7 @@ func tailQuotes(watchKeys []string) {
 					continue
 				}
 				if useStr {
-					str = d.String()
+					str = getstring(vaddr) //d.String()
 				}
 				nseq := *((*C.uint)(raddr))
 				if seq == nseq {
@@ -215,7 +256,7 @@ func tailQuotes(watchKeys []string) {
 				fmt.Println("Version stomp", seq, "!=", nseq, raddr)
 			}
 			if useStr {
-				fmt.Println(id, str)
+				fmt.Println(str)
 				// fmt.Println(id, seq, raddr, j, j&qMask, str)
 			}
 		}

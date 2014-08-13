@@ -16,6 +16,8 @@ import (
 
 var store C.storage_handle
 var tail bool
+var description string
+var usePrints bool
 
 func init() {
 	flag.BoolVar(&tail, "t", false, "Tail feed")
@@ -34,6 +36,9 @@ func main() {
 		log.Fatal("Failed to open store", err)
 	}
 	defer func() { C.storage_destroy(&store) }()
+	description = C.GoString(C.storage_get_description(store))
+	usePrints = description == "PRINTS"
+	log.Println("Description:", description)
 	err := startFS()
 	if err != nil {
 		log.Fatal("Failed to start QuoteFS:", err)
