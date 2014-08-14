@@ -16,8 +16,6 @@ extern "C" {
 struct sock_t;
 typedef struct sock_t* sock_handle;
 
-struct sockaddr_in;
-
 status sock_create(sock_handle* psock, int type, const char* address, int port);
 void sock_destroy(sock_handle* psock);
 
@@ -25,19 +23,21 @@ void* sock_get_property(sock_handle sock);
 void sock_set_property(sock_handle sock, void* prop);
 int sock_get_descriptor(sock_handle sock);
 
-const struct sockaddr_in* sock_get_address(sock_handle sock);
-status sock_get_address_text(sock_handle sock, char* text, size_t text_sz);
-status sock_update_address(sock_handle sock);
+long sock_get_address(sock_handle sock);
+int sock_get_port(sock_handle sock);
+status sock_get_text(long address, int port, char* text, size_t text_sz);
+status sock_update_local_address(sock_handle sock);
+status sock_update_remote_address(sock_handle sock);
 
 status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz);
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 
+status sock_set_nonblock(sock_handle sock);
+status sock_set_reuseaddr(sock_handle sock, int reuse);
+status sock_set_rcvbuf(sock_handle sock, size_t buf_sz);
+status sock_set_mcast_ttl(sock_handle sock, int ttl);
+
 status sock_mcast_bind(sock_handle sock);
-status sock_mcast_set_ttl(sock_handle sock, int ttl);
-
-status sock_nonblock(sock_handle sock);
-status sock_reuseaddr(sock_handle sock, int reuse);
-
 status sock_listen(sock_handle sock, int backlog);
 status sock_accept(sock_handle sock, sock_handle* new_h);
 status sock_connect(sock_handle sock);

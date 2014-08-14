@@ -4,6 +4,7 @@
 #define SENDER_H
 
 #include "clock.h"
+#include "sock.h"
 #include "storage.h"
 
 #ifdef __cplusplus
@@ -18,7 +19,8 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 					 const char* tcp_addr, int tcp_port);
 void sender_destroy(sender_handle* psend);
 
-int sender_get_listen_port(sender_handle send);
+storage_handle sender_get_storage(sender_handle send);
+sock_handle sender_get_listen_socket(sender_handle send);
 
 status sender_record_changed(sender_handle send, record_handle rec);
 status sender_flush(sender_handle send);

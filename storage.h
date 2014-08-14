@@ -49,6 +49,7 @@ size_t storage_get_record_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
 size_t storage_get_value_offset(storage_handle store);
 
+const char* storage_get_file(storage_handle store);
 const char* storage_get_description(storage_handle store);
 status storage_set_description(storage_handle store, const char* desc);
 

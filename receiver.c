@@ -14,10 +14,9 @@
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
-#define MIN_HB_PAD_USEC 2000000
+#define RECV_BUFSIZ (64 * 1024)
+#define MIN_HB_PAD_USEC (2 * 1000 * 1000)
 
 struct receiver_stats_t
 {
@@ -44,7 +43,8 @@ struct receiver_t
 	microsec_t last_mcast_recv;
 	microsec_t last_tcp_recv;
 	microsec_t timeout_usec;
-	struct sockaddr_in mcast_addr;
+	long orig_mcast_addr;
+	int orig_mcast_port;
 	struct receiver_stats_t stats;
 };
 
@@ -101,16 +101,15 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
-		if (me->next_seq == 1)
-			me->mcast_addr = *sock_get_address(me->mcast_sock);
-		else {
-			const struct sockaddr_in* addr = sock_get_address(me->mcast_sock);
-			if (addr->sin_addr.s_addr != me->mcast_addr.sin_addr.s_addr || addr->sin_port != me->mcast_addr.sin_port) {
-				errno = EEXIST;
-				error_errno("mcast_func");
-				st = FAIL;
-				break;
-			}
+		if (me->next_seq == 1) {
+			me->orig_mcast_addr = sock_get_address(me->mcast_sock);
+			me->orig_mcast_port = sock_get_port(me->mcast_sock);
+		} else if (sock_get_address(me->mcast_sock) != me->orig_mcast_addr ||
+				   sock_get_port(me->mcast_sock) != me->orig_mcast_port) {
+			errno = EEXIST;
+			error_errno("mcast_func");
+			st = FAIL;
+			break;
 		}
 
 		if (FAILED(st2 = storage_set_send_recv_time(me->store, me->last_mcast_recv = now))) {
@@ -380,10 +379,11 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, q_capacity, base_id, max_id, val_size)) ||
 		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
-		FAILED(st = sock_reuseaddr((*precv)->mcast_sock, 1)) ||
+		FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) ||
+		FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*precv)->mcast_sock)) ||
-		FAILED(st = sock_nonblock((*precv)->mcast_sock)) ||
-		FAILED(st = sock_nonblock((*precv)->tcp_sock)) ||
+		FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) ||
+		FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) ||
 		FAILED(st = thread_create(&(*precv)->tcp_thr, tcp_func, *precv)) ||
 		FAILED(st = thread_create(&(*precv)->mcast_thr, mcast_func, *precv))) {
 		receiver_destroy(precv);

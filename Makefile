@@ -1,5 +1,6 @@
 SRCS = \
 accum.c \
+advert.c \
 circ.c \
 clock.c \
 dump.c \

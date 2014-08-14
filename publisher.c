@@ -1,14 +1,19 @@
 /* test publisher */
 
+#include "advert.h"
 #include "clock.h"
 #include "datum.h"
 #include "error.h"
 #include "sender.h"
+#include "sock.h"
 #include "signals.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define ADVERT_ADDRESS "227.1.1.227"
+#define ADVERT_PORT 11227
+#define DEFAULT_TTL 64
 #define DISPLAY_DELAY_USEC 1000000
 #define SCATTER_UPDATES
 
@@ -88,6 +93,7 @@ static status update(identifier id, long n)
 
 int main(int argc, char* argv[])
 {
+	advert_handle adv;
 	status st = OK;
 	int hb, n = 1;
 	long xyz;
@@ -116,12 +122,14 @@ int main(int argc, char* argv[])
 		FAILED(storage_create(&store, NULL, 0, 0, 0, MAX_ID, sizeof(struct datum_t))) ||
 		FAILED(storage_set_description(store, "TEST")) || FAILED(storage_reset(store)) ||
 		FAILED(sender_create(&sender, store, hb, MAX_AGE_USEC, CONFLATE_PKT,
-							 mcast_addr, mcast_port, 64, tcp_addr, tcp_port)) ||
+							 mcast_addr, mcast_port, DEFAULT_TTL, tcp_addr, tcp_port)) ||
+		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
+		FAILED(advert_publish(adv, sender)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
 	if (tcp_port == 0)
-		printf("listening on port %d\n", sender_get_listen_port(sender));
+		printf("listening on port %d\n", sock_get_port(sender_get_listen_socket(sender)));
 
 #ifdef SCATTER_UPDATES
 	if (FAILED(st = twist_create(&twister)))
@@ -150,9 +158,10 @@ finish:
 	if (verbose)
 		putchar('\n');
 
-	if (FAILED(st) || FAILED(sender_stop(sender)))
+	if (FAILED(st) || FAILED(advert_retract(adv, sender)) || FAILED(advert_stop(adv)) || FAILED(sender_stop(sender)))
 		error_report_fatal();
 
+	advert_destroy(&adv);
 	sender_destroy(&sender);
 	storage_destroy(&store);
 

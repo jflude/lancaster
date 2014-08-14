@@ -138,12 +138,16 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 			return FAIL;
 		}
 
-		(*pstore)->mmap_file = xstrdup(mmap_file);
-
 		if (close(fd) == -1) {
 			error_errno("close");
 			storage_destroy(pstore);
 			return FAIL;
+		}
+
+		(*pstore)->mmap_file = xstrdup(mmap_file);
+		if (!(*pstore)->mmap_file) {
+			storage_destroy(pstore);
+			return NO_MEMORY;
 		}
 	}
 
@@ -264,6 +268,12 @@ status storage_open(storage_handle* pstore, const char* mmap_file)
 		return FAIL;
 	}
 
+	(*pstore)->mmap_file = xstrdup(mmap_file);
+	if (!(*pstore)->mmap_file) {
+		storage_destroy(pstore);
+		return NO_MEMORY;
+	}
+
 	(*pstore)->array = (void*) (((char*) (*pstore)->seg) + (*pstore)->seg->hdr_size);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->array, (*pstore)->seg->max_id - (*pstore)->seg->base_id);
 	return OK;
@@ -281,12 +291,11 @@ void storage_destroy(storage_handle* pstore)
 				error_errno("munmap");
 			else if (strncmp((*pstore)->mmap_file, "shm:", 4) == 0 && shm_unlink((*pstore)->mmap_file + 4) == -1)
 				error_errno("shm_unlink");
-
-			xfree((*pstore)->mmap_file);
 		} else
 			xfree((*pstore)->seg);
 	}
 
+	xfree((*pstore)->mmap_file);
 	xfree(*pstore);
 	*pstore = NULL;
 }
@@ -330,6 +339,11 @@ size_t storage_get_value_offset(storage_handle store)
 {
 	(void) store;
 	return offsetof(struct record_t, val);
+}
+
+const char* storage_get_file(storage_handle store)
+{
+	return store->mmap_file;
 }
 
 const char* storage_get_description(storage_handle store)

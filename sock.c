@@ -36,7 +36,6 @@ struct sock_t
 
 status sock_create(sock_handle* psock, int type, const char* address, int port)
 {
-	int rcvBuf = 1024*64; /* default to 64k, should be an option. */
 	if (!psock || !address || port < 0) {
 		error_invalid_arg("sock_create");
 		return FAIL;
@@ -63,10 +62,7 @@ status sock_create(sock_handle* psock, int type, const char* address, int port)
 		sock_destroy(psock);
 		return FAIL;
 	}
-	if (setsockopt((*psock)->fd, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+
 	(*psock)->addr.sin_family = AF_INET;
 	(*psock)->addr.sin_port = htons(port);
 	return OK;
@@ -100,39 +96,63 @@ int sock_get_descriptor(sock_handle sock)
 	return sock->fd;
 }
 
-const struct sockaddr_in* sock_get_address(sock_handle sock)
+long sock_get_address(sock_handle sock)
 {
-	return &sock->addr;
+	return ntohl(sock->addr.sin_addr.s_addr);
 }
 
-status sock_get_address_text(sock_handle sock, char* text, size_t text_sz)
+int sock_get_port(sock_handle sock)
 {
-	char buf[256];
+	return ntohs(sock->addr.sin_port);
+}
+
+status sock_get_text(long address, int port, char* text, size_t text_sz)
+{
+	char a_buf[256], p_buf[16];
+	struct in_addr ia;
 	if (!text || text_sz == 0) {
-		error_invalid_arg("sock_get_address_text");
+		error_invalid_arg("sock_get_text");
 		return FAIL;
 	}
 
-	if (!inet_ntop(AF_INET, &sock->addr.sin_addr, buf, sizeof(buf))) {
+	ia.s_addr = (in_addr_t) address;
+	if (!inet_ntop(AF_INET, &ia, a_buf, sizeof(a_buf))) {
 		error_errno("inet_ntop");
 		return FAIL;
 	}
 
-	if (strlen(buf) >= text_sz) {
-		errno = ENOBUFS;
-		error_errno("sock_get_address_text");
+	if (sprintf(p_buf, ":%d", port) < 0) {
+		error_errno("sock_get_text");
 		return FAIL;
 	}
 
-	strcpy(text, buf);
+	if (strlen(a_buf) + strlen(p_buf) >= text_sz) {
+		errno = ENOBUFS;
+		error_errno("sock_get_text");
+		return FAIL;
+	}
+
+	strcpy(text, a_buf);
+	strcat(text, p_buf);
 	return OK;
 }
 
-status sock_update_address(sock_handle sock)
+status sock_update_local_address(sock_handle sock)
 {
 	socklen_t len = sizeof(sock->addr);
 	if (getsockname(sock->fd, (struct sockaddr*) &sock->addr, &len) == -1) {
-		error_errno("sock_update_address");
+		error_errno("getsockname");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_update_remote_address(sock_handle sock)
+{
+	socklen_t len = sizeof(sock->addr);
+	if (getpeername(sock->fd, (struct sockaddr*) &sock->addr, &len) == -1) {
+		error_errno("getpeername");
 		return FAIL;
 	}
 
@@ -210,37 +230,7 @@ status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 	return OK;
 }
 
-status sock_mcast_bind(sock_handle sock)
-{
-	struct ip_mreq mreq;
-	if (bind(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
-		error_errno("bind");
-		return FAIL;
-	}
-
-	mreq.imr_multiaddr.s_addr = sock->addr.sin_addr.s_addr;
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_mcast_set_ttl(sock_handle sock, int ttl)
-{
-	char val = ttl;
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
-
-	return OK;
-}
-
-status sock_nonblock(sock_handle sock)
+status sock_set_nonblock(sock_handle sock)
 {
 	int flags;
 #ifdef O_NONBLOCK
@@ -264,9 +254,50 @@ status sock_nonblock(sock_handle sock)
 	return OK;
 }
 
-status sock_reuseaddr(sock_handle sock, int reuse)
+status sock_set_reuseaddr(sock_handle sock, int reuse)
 {
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_set_mcast_ttl(sock_handle sock, int ttl)
+{
+	char val = ttl;
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_set_rcvbuf(sock_handle sock, size_t buf_sz)
+{
+	int val = buf_sz;
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1) {
+		error_errno("setsockopt");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+status sock_mcast_bind(sock_handle sock)
+{
+	struct ip_mreq mreq;
+	if (bind(sock->fd, (struct sockaddr*) &sock->addr, sizeof(sock->addr)) == -1) {
+		error_errno("bind");
+		return FAIL;
+	}
+
+	mreq.imr_multiaddr.s_addr = sock->addr.sin_addr.s_addr;
+	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
 		error_errno("setsockopt");
 		return FAIL;
 	}

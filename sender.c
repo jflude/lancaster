@@ -224,7 +224,7 @@ static status tcp_on_accept(sender_handle me, sock_handle sock)
 	req_param->me = me;
 
 	if (FAILED(st = clock_time(&req_param->last_tcp_send)) ||
-		FAILED(st = sock_nonblock(accepted)))
+		FAILED(st = sock_set_nonblock(accepted)))
 		return st;
 
 	return poll_add(me->poller, accepted, POLLIN);
@@ -529,15 +529,15 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 	(*psend)->conflate_pkt = conflate_packet;
 
 	if (FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
-		FAILED(st = sock_reuseaddr((*psend)->listen_sock, 1)) ||
+		FAILED(st = sock_set_reuseaddr((*psend)->listen_sock, 1)) ||
 		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
-		(tcp_port == 0 && FAILED(st = sock_update_address((*psend)->listen_sock)))) {
+		(tcp_port == 0 && FAILED(st = sock_update_local_address((*psend)->listen_sock)))) {
 		sender_destroy(psend);
 		return st;
 	}
 
 	if (mcast_port == 0)
-		mcast_port = ntohs(sock_get_address((*psend)->listen_sock)->sin_port);
+		mcast_port = sock_get_port((*psend)->listen_sock);
 
 	if (FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = get_udp_mtu((*psend)->mcast_sock, mcast_addr, &(*psend)->mcast_mtu))) {
@@ -557,9 +557,9 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 	}
 
 	if (FAILED(st = accum_create(&(*psend)->mcast_accum, (*psend)->mcast_mtu, max_age_usec)) ||
-		FAILED(st = sock_reuseaddr((*psend)->mcast_sock, 1)) ||
+		FAILED(st = sock_set_reuseaddr((*psend)->mcast_sock, 1)) ||
 		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
-		FAILED(st = sock_mcast_set_ttl((*psend)->mcast_sock, mcast_ttl)) ||
+		FAILED(st = sock_set_mcast_ttl((*psend)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
 		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
 		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, *psend))) {
@@ -589,9 +589,14 @@ void sender_destroy(sender_handle* psend)
 	*psend = NULL;
 }
 
-int sender_get_listen_port(sender_handle send)
+storage_handle sender_get_storage(sender_handle send)
 {
-	return ntohs(sock_get_address(send->listen_sock)->sin_port);
+	return send->store;
+}
+
+sock_handle sender_get_listen_socket(sender_handle send)
+{
+	return send->listen_sock;
 }
 
 status sender_record_changed(sender_handle send, record_handle rec)
