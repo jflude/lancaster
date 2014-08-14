@@ -445,13 +445,20 @@ static void* tcp_func(thread_handle thr)
 	if (FAILED(st = clock_time(&me->last_mcast_send)))
 		return (void*) (long) st;
 
-	while (!thread_is_stopping(thr))
+	while (!thread_is_stopping(thr)) {
 		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
 			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, me)) ||
-			FAILED(st = poll_events(me->poller, 0)) ||
-			(st > 0 && FAILED(st = poll_process_events(me->poller, tcp_event_func, me))) ||
-			FAILED(st = clock_sleep(me->max_age_usec < me->heartbeat_usec ? me->max_age_usec : me->heartbeat_usec)))
+			FAILED(st = poll_events(me->poller, 0)))
 			break;
+
+		if (st > 0) {
+			if (FAILED(st = poll_process_events(me->poller, tcp_event_func, me)))
+				break;
+		} else {
+			if (FAILED(st = clock_sleep(me->max_age_usec < me->heartbeat_usec ? me->max_age_usec : me->heartbeat_usec)))
+				break;
+		}
+	}
 
 	st2 = poll_remove(me->poller, me->listen_sock);
 	if (!FAILED(st))

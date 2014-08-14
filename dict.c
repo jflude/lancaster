@@ -14,7 +14,7 @@ static int sym2id_hash_fn(table_key key)
 	const char* p = key;
 	int c, h = 5381;
 
-	while ((c = *p++) != 0)
+	while ((c = *p++) != '\0')
 		h = ((h << 5) + h) ^ c;
 
 	return h;
