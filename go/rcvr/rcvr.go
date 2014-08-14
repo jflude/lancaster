@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -47,12 +49,7 @@ func main() {
 		fail("Expected -file")
 	}
 	for _, host := range flag.Args() {
-		r, err := newReceiver(host)
-		if err != nil {
-			fail(err)
-		}
-		go r.Start()
-		State.Receivers[r.Address] = r
+		addReceivers(host)
 	}
 	http.HandleFunc("/status", statusHandler)
 	http.HandleFunc("/add", addHandler)
@@ -69,6 +66,43 @@ func main() {
 	log.Println("Shutdown complete")
 }
 
+func addReceivers(addr string) error {
+	parts := strings.Split(addr, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("Expected host:port, but got: %s", addr)
+	}
+
+	var begin int
+	var end int
+	var err error
+	prange := strings.SplitN(parts[1], "-", 2)
+	if len(prange) == 2 {
+		begin, err = strconv.Atoi(prange[0])
+		if err != nil {
+			return err
+		}
+		end, err = strconv.Atoi(prange[1])
+		if err != nil {
+			return err
+		}
+
+	} else {
+		begin, err := strconv.Atoi(prange[0])
+		if err != nil {
+			return err
+		}
+		end = begin
+	}
+	for x := begin; x <= end; x++ {
+		r, err := newReceiver(fmt.Sprintf("%s:%d", parts[0], x))
+		if err != nil {
+			fail(err)
+		}
+		go r.Start()
+		State.Receivers[r.Address] = r
+	}
+	return nil
+}
 func reset(addr string) error {
 	r, ok := State.Receivers[addr]
 	if ok {

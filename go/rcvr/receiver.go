@@ -60,11 +60,6 @@ func newReceiver(addr string) (*Receiver, error) {
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("Expected host:port, but got: %s", addr)
 	}
-	port, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return nil, err
-	}
-
 	host := parts[0]
 	if host == "" {
 		host = "localhost"
@@ -73,6 +68,11 @@ func newReceiver(addr string) (*Receiver, error) {
 	if err != nil {
 		return nil, err
 	}
+	port, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
 	return &Receiver{
 		Host:     host,
 		Address:  addr,
