@@ -6,7 +6,6 @@ package main
 // #include "../../datum.h"
 import "C"
 import (
-	"bytes"
 	"fmt"
 	"github.com/willf/bitset"
 	"log"
@@ -16,65 +15,59 @@ import (
 	"unsafe"
 )
 
-type Quote struct {
-	keyBytes   [32]byte
-	exchangeTS uint64
-	opraSeq    uint32
-	bidPrice   int64
-	askPrice   int64
-	bidSize    int32
-	askSize    int32
+type CachesterSource struct {
+	Name        string
+	Description string
+	store       C.storage_handle
+	rBaseId     int
+	vOffset     uintptr
+	rSize       C.size_t
+	rBaseAddr   unsafe.Pointer
+	maxRecords  int
+	qCapacity   C.size_t
+	qSize       int
+	qMask       int
+	qHeadPtr    *C.uint
+	qBasePtr    unsafe.Pointer
+	qArr        *[1 << 30]C.identifier
 }
 
-func (q *Quote) key() string {
-	i := bytes.IndexByte(q.keyBytes[:], 0)
-	if i < 0 {
-		return string(q.keyBytes[:])
+func NewCachesterSource(name string) (*CachesterSource, error) {
+	cs := &CachesterSource{Name: name}
+
+	if err := chkStatus(C.storage_open(&cs.store, C.CString(name))); err != nil {
+		return nil, err
 	}
-	return string(q.keyBytes[:i])
+	cs.maxRecords = int(C.storage_get_max_id(cs.store))
+	cs.rBaseAddr = (unsafe.Pointer(C.storage_get_array(cs.store)))
+	cs.rSize = C.storage_get_record_size(cs.store)
+	cs.vOffset = uintptr(C.storage_get_value_offset(cs.store))
+	cs.rBaseId = int(C.storage_get_base_id(cs.store))
+	cs.qCapacity = C.storage_get_queue_capacity(cs.store)
+	cs.qSize = int(cs.qCapacity)
+	cs.qMask = cs.qSize - 1
+	cs.qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_ref(cs.store))))
+	cs.qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(cs.store))
+	cs.qArr = (*[1 << 30]C.identifier)(cs.qBasePtr)
+	cs.Description = C.GoString(C.storage_get_description(cs.store))
+	return cs, nil
 }
-func (q *Quote) bid() float64 {
-	return float64(q.bidPrice) / 10000.0
+func (cs *CachesterSource) Destroy() {
+	C.storage_destroy(&cs.store)
 }
-func (q *Quote) ask() float64 {
-	return float64(q.askPrice) / 10000.0
-}
-func (q *Quote) String() string {
-	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f @ %0.2f x %-6d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
-}
-
-type Print struct {
-	keyBytes   [32]byte
-	exchangeTS uint64
-	opraSeq    uint32
-	lastPrice  int64
-	lastSize   int32
-	flags      byte
-}
-
-func (p *Print) key() string {
-	i := bytes.IndexByte(p.keyBytes[:], 0)
-	if i < 0 {
-		return string(p.keyBytes[:])
-	}
-	return string(p.keyBytes[:i])
-}
-func (p *Print) price() float64 {
-	return float64(p.lastPrice) / 10000.0
-}
-func (p *Print) String() string {
-	t := time.Unix(int64(p.exchangeTS/1000000), int64((p.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, p.price())
+func (cs *CachesterSource) getPointer(record int) unsafe.Pointer {
+	return unsafe.Pointer((uintptr(cs.rBaseAddr) + (uintptr(cs.rSize) * uintptr((record - cs.rBaseId)))))
 }
 
-func getQuote(record int, q *Quote) error {
-	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	var rSize = C.storage_get_record_size(store)
-	var vOffset = uintptr(C.storage_get_value_offset(store))
-	var rBaseId = int(C.storage_get_base_id(store))
-	uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((record - rBaseId))))
-	raddr := (unsafe.Pointer)(uraddr)
+// Load q with a clean copy of the record
+func (cs *CachesterSource) getQuote(record int, q *Quote) error {
+	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	// var rSize = C.storage_get_record_size(store)
+	// var vOffset = uintptr(C.storage_get_value_offset(store))
+	// var rBaseId = int(C.storage_get_base_id(store))
+	// uraddr := (uintptr(cs.rBaseAddr) + (uintptr(cs.rSize) * uintptr((record - cs.rBaseId))))
+	// raddr := (unsafe.Pointer)(uraddr)
+	raddr := cs.getPointer(record)
 	for {
 		seq := *((*C.uint)(raddr))
 		if seq == 0 {
@@ -82,7 +75,7 @@ func getQuote(record int, q *Quote) error {
 		} else if seq < 0 {
 			continue
 		}
-		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 		d := (*Quote)(vaddr)
 		*q = *d
 		nseq := *((*C.uint)(raddr))
@@ -93,44 +86,55 @@ func getQuote(record int, q *Quote) error {
 	}
 }
 
-func getKeys(start int) (map[string]int, int) {
-	var maxRecords = int(C.storage_get_max_id(store))
-	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	var rSize = C.storage_get_record_size(store)
-	var vOffset = uintptr(C.storage_get_value_offset(store))
-	var rBaseId = int(C.storage_get_base_id(store))
+func (cs *CachesterSource) getKeys(start int) (map[string]int, int) {
+	// var maxRecords = int(C.storage_get_max_id(store))
+	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	// var rSize = C.storage_get_record_size(store)
+	// var vOffset = uintptr(C.storage_get_value_offset(store))
+	// var rBaseId = int(C.storage_get_base_id(store))
 	ret := make(map[string]int)
 	x := start
-	for ; x < maxRecords; x++ {
-		uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
-		raddr := (unsafe.Pointer)(uraddr)
+	for ; x < cs.maxRecords; x++ {
+		// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
+		// raddr := (unsafe.Pointer)(uraddr)
+		raddr := cs.getPointer(x)
 		seq := *((*C.uint)(raddr))
 		if seq < 1 {
 			return ret, x
 		}
-		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 		d := (*Quote)(vaddr)
 		ret[d.key()] = x
 	}
 	return ret, x
 }
 
-func findQuotes(keys []string) {
+func (cs *CachesterSource) findQuotes(keys []string) {
 	// Used to grab the record itself
-	var maxRecords = int(C.storage_get_max_id(store))
-	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	var rSize = C.storage_get_record_size(store)
-	var vOffset = uintptr(C.storage_get_value_offset(store))
-	var rBaseId = int(C.storage_get_base_id(store))
-
-	for x := 0; x < maxRecords; x++ {
-		uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
-		raddr := (unsafe.Pointer)(uraddr)
+	// var maxRecords = int(C.storage_get_max_id(store))
+	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	// var rSize = C.storage_get_record_size(store)
+	// var vOffset = uintptr(C.storage_get_value_offset(store))
+	// var rBaseId = int(C.storage_get_base_id(store))
+	log.Println("Searching for", keys)
+	var x int = 0
+	defer log.Println("x", x)
+	for ; x < cs.maxRecords; x++ {
+		raddr := cs.getPointer(x)
+		// *((*C.uint)(raddr))
+		// var q Quote
+		// if err := cs.getQuote(record, &q); err != nil {
+		// 	log.Println("getQuote:", x, err)
+		// 	return
+		// }
+		// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
+		// raddr := (unsafe.Pointer)(uraddr)
 		seq := *((*C.uint)(raddr))
 		if seq < 1 {
+			log.Println("ummm", seq)
 			return
 		}
-		vaddr := (unsafe.Pointer)(uraddr + vOffset)
+		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 
 		// d := (*Quote)(vaddr)
 		// recKey := d.key()
@@ -142,7 +146,9 @@ func findQuotes(keys []string) {
 			}
 		}
 	}
+
 }
+
 func getstring(vaddr unsafe.Pointer) string {
 	if usePrints {
 		return ((*Print)(vaddr)).String()
@@ -158,31 +164,25 @@ func getkey(vaddr unsafe.Pointer) string {
 	}
 }
 
-func tailQuotes(watchKeys []string) {
+func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 	var hasWatch = len(watchKeys) > 0
 	var watchBits bitset.BitSet
-	var qCapacity = C.storage_get_queue_capacity(store)
-	var storeOwner = C.storage_get_owner_pid(store)
-	var qSize = int(qCapacity)
-	var qMask = qSize - 1
-	var qHeadPtr = (*C.uint)((unsafe.Pointer(C.storage_get_queue_head_ref(store))))
-	var qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(store))
-	var qArr = (*[1 << 30]C.identifier)(qBasePtr)
-	var new_head = int(*(qHeadPtr))
+	var storeOwner = C.storage_get_owner_pid(cs.store)
+	var new_head = int(*(cs.qHeadPtr))
 	var old_head = new_head
 	// Used to grab the record itself
-	var maxRecords = int(C.storage_get_max_id(store))
-	var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	var rSize = C.storage_get_record_size(store)
-	var vOffset = uintptr(C.storage_get_value_offset(store))
-	var rBaseId = C.storage_get_base_id(store)
-	log.Println("Queue size:", qCapacity)
+	// var maxRecords = int(C.storage_get_max_id(store))
+	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
+	// var rSize = C.storage_get_record_size(store)
+	// var vOffset = uintptr(C.storage_get_value_offset(store))
+	// var rBaseId = C.storage_get_base_id(store)
+	log.Println("Queue size:", cs.qCapacity)
 	if hasWatch {
 		log.Println("Filtering for:", watchKeys)
 	}
-	keys := make([]*string, maxRecords)
+	keys := make([]*string, cs.maxRecords)
 	for {
-		new_head = int(*(qHeadPtr))
+		new_head = int(*(cs.qHeadPtr))
 		if new_head == old_head {
 			time.Sleep(time.Microsecond)
 			if err := syscall.Kill(int(storeOwner), 0); err != nil {
@@ -197,18 +197,19 @@ func tailQuotes(watchKeys []string) {
 			}
 			continue
 		}
-		if (new_head - old_head) > qSize {
-			old_head = new_head - qSize
+		if (new_head - old_head) > cs.qSize {
+			old_head = new_head - cs.qSize
 		}
 		for j := old_head; j < new_head; j++ {
-			id := qArr[j&qMask]
+			id := cs.qArr[j&cs.qMask]
 			if id == -1 {
 				fmt.Println("-1")
 				continue
 			}
-			uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((id - rBaseId))))
-			raddr := (unsafe.Pointer)(uraddr)
-			vaddr := (unsafe.Pointer)(uraddr + vOffset)
+			// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((id - rBaseId))))
+			// raddr := (unsafe.Pointer)(uraddr)
+			raddr := cs.getPointer(int(id))
+			vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 			// d := (*Quote)(vaddr)
 			// Not checking for lock contention on this part as the ID is known to only be written once per slot
 			// if we've been told about the record, it must have been written at least once.

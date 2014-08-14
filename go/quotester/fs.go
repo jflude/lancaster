@@ -21,7 +21,7 @@ func init() {
 	flag.StringVar(&mountPoint, "fs", "", "Path to mount as quotefs")
 }
 
-func startFS() error {
+func startFS(cs *CachesterSource) error {
 	if mountPoint == "" {
 		log.Println("QuoteFS disabled")
 		close(fsComplete)
@@ -61,7 +61,7 @@ func updateINodes(qfs *QFS) {
 	var data map[string]int
 	for {
 		var newlast int
-		data, newlast = getKeys(last)
+		data, newlast = qfs.cs.getKeys(last)
 		if newlast != last {
 			log.Println("New Last", last, "data len", len(data))
 		}
@@ -82,6 +82,7 @@ func newFS() QFS {
 type QFS struct {
 	nameToNode   map[string]QuoteFile
 	inodeCounter uint64
+	cs           *CachesterSource
 	lock         sync.RWMutex
 }
 
@@ -137,6 +138,7 @@ func (d Dir) Lookup(name string, intr fs.Intr) (fs.Node, fuse.Error) {
 type QuoteFile struct {
 	inode uint64
 	index int
+	qfs   QFS
 }
 
 func (f QuoteFile) Attr() fuse.Attr {
@@ -147,7 +149,7 @@ func (f QuoteFile) Attr() fuse.Attr {
 func (f QuoteFile) ReadAll(intr fs.Intr) ([]byte, fuse.Error) {
 	// log.Println("ReadAll")
 	var q Quote
-	err := getQuote(f.index, &q)
+	err := f.qfs.cs.getQuote(f.index, &q)
 	if err != nil {
 		log.Println("Error reading QuoteFS", err)
 		return nil, fuse.ENOENT

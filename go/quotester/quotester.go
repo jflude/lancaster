@@ -14,7 +14,6 @@ import (
 	"os"
 )
 
-var store C.storage_handle
 var tail bool
 var description string
 var usePrints bool
@@ -25,33 +24,36 @@ func init() {
 func main() {
 	flag.Parse()
 	args := flag.Args()
-	var cs *C.char
 	if len(args) == 0 {
 		flag.Usage()
 		fmt.Fprintln(os.Stderr, "Must specify a file")
 		os.Exit(1)
 	}
-	cs = C.CString(args[0])
-	if err := chkStatus(C.storage_open(&store, cs)); err != nil {
-		log.Fatal("Failed to open store", err)
+	cs, err := NewCachesterSource(args[0])
+	if err != nil {
+		log.Fatal(err)
 	}
-	defer func() { C.storage_destroy(&store) }()
-	description = C.GoString(C.storage_get_description(store))
-	usePrints = description == "PRINTS"
+	// if err := chkStatus(C.storage_open(&store, cs)); err != nil {
+	// 	log.Fatal("Failed to open store", err)
+	// }
+	defer cs.Destroy()
+	// defer func() { C.storage_destroy(&store) }()
+	// description = C.GoString(C.storage_get_description(store))
+	usePrints = cs.Description == "PRINTS"
 	log.Println("Description:", description)
-	err := startFS()
+	err = startFS(cs)
 	if err != nil {
 		log.Fatal("Failed to start QuoteFS:", err)
 	}
 	args = args[1:]
 
 	if tail {
-		tailQuotes(args)
+		cs.tailQuotes(args)
 	} else {
 		if len(args) < 1 {
 			flag.Usage()
 		} else {
-			findQuotes(args)
+			cs.findQuotes(args)
 		}
 	}
 	<-fsComplete
