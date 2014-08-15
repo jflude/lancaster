@@ -18,6 +18,8 @@
 #define RECV_BUFSIZ (64 * 1024)
 #define MIN_HB_PAD_USEC (2 * 1000 * 1000)
 
+#if 0
+
 struct receiver_stats_t
 {
 	volatile int lock;
@@ -376,7 +378,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->stats.mcast_min_latency = DBL_MAX;
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
 
-	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, q_capacity, base_id, max_id, val_size)) ||
+	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, base_id, max_id, val_size, q_capacity)) ||
 		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
 	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
 		FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) ||
@@ -500,3 +502,5 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
 	return n;
 }
+
+#endif

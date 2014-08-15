@@ -37,7 +37,8 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-all: publisher subscriber reader libcachester$(SO_EXT)
+# all: publisher subscriber reader libcachester$(SO_EXT)
+all: libcachester.a libcachester$(SO_EXT)
 
 release: CFLAGS += -DNDEBUG -O3
 release: all

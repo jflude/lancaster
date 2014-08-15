@@ -21,7 +21,7 @@ boolean accum_is_empty(accum_handle acc);
 status accum_is_stale(accum_handle acc);
 size_t accum_get_available(accum_handle acc);
 
-status accum_store(accum_handle acc, const void* data, size_t data_sz, void** pstored);
+status accum_store(accum_handle acc, const void* data, size_t data_sz);
 status accum_get_batched(accum_handle acc, const void** pdata, size_t* psz);
 void accum_clear(accum_handle acc);
 

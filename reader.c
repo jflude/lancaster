@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 	}
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_open(&store, argv[1])) || FAILED(clock_time(&last_print)))
+		FAILED(storage_open(&store, argv[1], O_RDONLY)) || FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
 	creation_time = storage_get_creation_time(store);

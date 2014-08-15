@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
+#if 0
+
 struct sender_stats_t
 {
 	volatile int lock;
@@ -33,7 +35,6 @@ struct sender_t
 	sequence next_seq;
 	sequence min_store_seq;
 	microsec_t last_mcast_send;
-	boolean conflate_pkt;
 	volatile int mcast_lock;
 	microsec_t heartbeat_usec;
 	microsec_t max_age_usec;
@@ -95,15 +96,12 @@ static status write_accum(sender_handle me)
 static status mcast_on_write(sender_handle me, record_handle rec)
 {
 	status st = OK;
+	identifier id;
 
-	/* if the packet is full or stale, immediately send it */
-	if (((accum_get_available(me->mcast_accum) < (me->val_size + sizeof(identifier)) &&
-		  (!me->conflate_pkt || record_get_sequence(rec) != me->next_seq)) ||
-		 accum_is_stale(me->mcast_accum)) &&
+	if ((accum_get_available(me->mcast_accum) < me->val_size + sizeof(identifier) || accum_is_stale(me->mcast_accum)) &&
 		FAILED(st = write_accum(me)))
 		return st;
 		
-	/* if the packet is empty, insert sequence and reserve space for timestamp */
 	if (accum_is_empty(me->mcast_accum)) {
 		sequence seq = htonll(me->next_seq);
 		if (FAILED(st = accum_store(me->mcast_accum, &seq, sizeof(seq), NULL)) ||
@@ -111,25 +109,18 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 			return st;
 	}
 
-	if (me->conflate_pkt && record_get_sequence(rec) == me->next_seq)
-		memcpy(record_get_conflated_ref(rec), record_get_value_ref(rec), me->val_size);
-	else {
-		identifier id, id2;
-		if (FAILED(st = storage_get_id(me->store, rec, &id)))
-			return st;
+	if (FAILED(st = storage_get_id(me->store, rec, &id)))
+		return st;
 
-		id2 = htonll(id);
-		if (!FAILED(st = accum_store(me->mcast_accum, &id2, sizeof(id2), NULL))) {
-			void* rec_stored_at;
-			sequence seq = record_write_lock(rec);
-			if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, &rec_stored_at))) {
-				seq = me->next_seq;
-				if (me->conflate_pkt)
-					record_set_conflated_ref(rec, rec_stored_at);
-			}
-
-			record_set_sequence(rec, seq);
+	id = htonll(id);
+	if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
+		void* rec_stored_at;
+		sequence seq = record_write_lock(rec);
+		if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, &rec_stored_at))) {
+			seq = me->next_seq;
 		}
+
+		record_set_sequence(rec, seq);
 	}
 
 	return st;
@@ -496,7 +487,7 @@ static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
 	return st;
 }
 
-status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_usec, long max_age_usec, boolean conflate_packet,
+status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_usec, long max_age_usec,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
 {
 	status st;
@@ -526,7 +517,6 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 	(*psend)->min_store_seq = 0;
 	(*psend)->max_age_usec = max_age_usec;
 	(*psend)->heartbeat_usec = hb_usec;
-	(*psend)->conflate_pkt = conflate_packet;
 
 	if (FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
 		FAILED(st = sock_set_reuseaddr((*psend)->listen_sock, 1)) ||
@@ -677,3 +667,5 @@ size_t sender_get_subscriber_count(sender_handle send)
 {
 	return poll_get_count(send->poller) - 1;
 }
+
+#endif
