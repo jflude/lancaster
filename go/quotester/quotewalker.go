@@ -118,7 +118,6 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 	// var rBaseId = int(C.storage_get_base_id(store))
 	log.Println("Searching for", keys)
 	var x int = 0
-	defer log.Println("x", x)
 	for ; x < cs.maxRecords; x++ {
 		raddr := cs.getPointer(x)
 		// *((*C.uint)(raddr))
@@ -131,7 +130,6 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 		// raddr := (unsafe.Pointer)(uraddr)
 		seq := *((*C.uint)(raddr))
 		if seq < 1 {
-			log.Println("ummm", seq)
 			return
 		}
 		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
