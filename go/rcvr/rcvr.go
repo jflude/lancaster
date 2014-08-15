@@ -59,8 +59,11 @@ func main() {
 	if enableMMD {
 		initMMD()
 	}
-	// This blocks forever
-	go http.ListenAndServe(httpAddr, nil)
+	go func() {
+		if err := http.ListenAndServe(httpAddr, nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	go stopper()
 	waitFor.Wait()
 	log.Println("Shutdown complete")
