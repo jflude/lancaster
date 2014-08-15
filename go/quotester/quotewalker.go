@@ -242,7 +242,7 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 				if seq == nseq {
 					break
 				}
-				fmt.Println("Version stomp", seq, "!=", nseq, raddr)
+				fmt.Println("Version stomp, index", id, "key", getkey(vaddr), seq, "!=", nseq, raddr)
 			}
 			if useStr {
 				fmt.Println(str)
