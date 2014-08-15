@@ -35,7 +35,8 @@ type CachesterSource struct {
 func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs := &CachesterSource{Name: name}
 
-	if err := chkStatus(C.storage_open(&cs.store, C.CString(name))); err != nil {
+	if err := chkStatus(C.storage_open(&cs.store, C.CString(name), syscall.O_RDONLY)); err != nil {
+		log.Println("err", err)
 		return nil, err
 	}
 	cs.maxRecords = int(C.storage_get_max_id(cs.store))
@@ -165,7 +166,6 @@ func getkey(vaddr unsafe.Pointer) string {
 func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 	var hasWatch = len(watchKeys) > 0
 	var watchBits bitset.BitSet
-	var storeOwner = C.storage_get_owner_pid(cs.store)
 	var new_head = int(*(cs.qHeadPtr))
 	var old_head = new_head
 	// Used to grab the record itself
@@ -183,16 +183,6 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 		new_head = int(*(cs.qHeadPtr))
 		if new_head == old_head {
 			time.Sleep(time.Microsecond)
-			if err := syscall.Kill(int(storeOwner), 0); err != nil {
-				errno := int(err.(syscall.Errno))
-				if err == syscall.ESRCH {
-					log.Println("Subscriber (", storeOwner, ") died")
-				}
-				if err != syscall.ESRCH {
-					log.Println("Error checkpid:", storeOwner, errno, err)
-				}
-				return
-			}
 			continue
 		}
 		if (new_head - old_head) > cs.qSize {
