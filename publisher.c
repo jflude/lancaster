@@ -7,6 +7,7 @@
 #include "sender.h"
 #include "sock.h"
 #include "signals.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +41,7 @@ static status update(identifier id, long n)
 {
 	record_handle rec;
 	struct datum_t* d;
-	sequence seq;
+	version ver;
 	microsec_t now;
 	status st = OK;
 
@@ -51,12 +52,12 @@ static status update(identifier id, long n)
 		return st;
 
 	d = record_get_value_ref(rec);
-	seq = record_write_lock(rec);
+	ver = record_write_lock(rec);
 
 	d->xyz = n;
 	d->ts = now;
 
-	record_set_sequence(rec, seq);
+	record_set_version(rec, ver);
 	if (FAILED(st = sender_record_changed(sender, rec)))
 		return st;
 
@@ -121,8 +122,7 @@ int main(int argc, char* argv[])
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, NULL, O_CREAT, 0, MAX_ID, sizeof(struct datum_t), 0)) ||
 		FAILED(storage_set_description(store, "TEST")) || FAILED(storage_reset(store)) ||
-		FAILED(sender_create(&sender, store, hb, MAX_AGE_USEC, CONFLATE_PKT,
-							 mcast_addr, mcast_port, DEFAULT_TTL, tcp_addr, tcp_port)) ||
+		FAILED(sender_create(&sender, store, hb, MAX_AGE_USEC, mcast_addr, mcast_port, DEFAULT_TTL, tcp_addr, tcp_port)) ||
 		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
 		FAILED(advert_publish(adv, sender)) ||
 		FAILED(clock_time(&last_print)))

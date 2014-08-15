@@ -3,6 +3,7 @@
 #include "error.h"
 #include "h2n2h.h"
 #include "poll.h"
+#include "sequence.h"
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
@@ -10,8 +11,6 @@
 #include <poll.h>
 #include <stdio.h>
 #include <sys/socket.h>
-
-#if 0
 
 struct sender_stats_t
 {
@@ -31,7 +30,9 @@ struct sender_t
 	accum_handle mcast_accum;
 	storage_handle store;
 	size_t mcast_mtu;
+	identifier base_id;
 	size_t val_size;
+	sequence* seq_array;
 	sequence next_seq;
 	sequence min_store_seq;
 	microsec_t last_mcast_send;
@@ -47,7 +48,6 @@ struct tcp_req_param_t
 {
 	sender_handle me;
 	sock_handle sock;
-	size_t val_size;
 	size_t pkt_size;
 	char* send_buf;
 	sequence* send_seq;
@@ -56,7 +56,7 @@ struct tcp_req_param_t
 	size_t remain_send;
 	record_handle curr_rec;
 	sequence min_store_seq_seen;
-	struct storage_seq_range_t range;
+	struct sequence_range_t range;
 	microsec_t last_tcp_send;
 	boolean sending_hb;
 };
@@ -72,10 +72,10 @@ static status write_accum(sender_handle me)
 		return st;
 
 	*me->time_stored_at = htonll(now);
-
-	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)) ||
-		FAILED(st = storage_set_send_recv_time(me->store, me->last_mcast_send = now)))
+	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)))
 		return st;
+
+	me->last_mcast_send = now;
 
 	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 	me->stats.mcast_bytes_sent += sz;
@@ -114,13 +114,11 @@ static status mcast_on_write(sender_handle me, record_handle rec)
 
 	id = htonll(id);
 	if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
-		void* rec_stored_at;
-		sequence seq = record_write_lock(rec);
-		if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, &rec_stored_at))) {
-			seq = me->next_seq;
-		}
+		version ver = record_write_lock(rec);
+		if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, NULL)))
+			me->seq_array[id - me->base_id] = me->next_seq;
 
-		record_set_sequence(rec, seq);
+		record_set_version(rec, ver);
 	}
 
 	return st;
@@ -196,9 +194,7 @@ static status tcp_on_accept(sender_handle me, sock_handle sock)
 	}
 
 	BZERO(req_param);
-
-	req_param->val_size = storage_get_value_size(me->store);
-	req_param->pkt_size = sizeof(sequence) + sizeof(identifier) + req_param->val_size;
+	req_param->pkt_size = sizeof(sequence) + sizeof(identifier) + req_param->me->val_size;
 
 	req_param->send_buf = xmalloc(req_param->pkt_size);
 	if (!req_param->send_buf) {
@@ -257,23 +253,26 @@ static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
 static status tcp_on_write_iter_fn(record_handle rec, void* param)
 {
 	status st;
+	version ver;
 	sequence seq;
 	struct tcp_req_param_t* req_param = param;
 
-	seq = record_write_lock(rec);
+	if (FAILED(st = storage_get_id(req_param->me->store, rec, req_param->send_id)))
+		return st;
+
+	ver = record_write_lock(rec);
+	seq = req_param->me->seq_array[*req_param->send_id - req_param->me->base_id];
+
 	if (seq < req_param->min_store_seq_seen)
 		req_param->min_store_seq_seen = seq;
 
 	if (seq < req_param->range.low || seq >= req_param->range.high) {
-		record_set_sequence(rec, seq);
+		record_set_version(rec, ver);
 		return TRUE;
 	}
 
-	memcpy(req_param->send_id + 1, record_get_value_ref(rec), req_param->val_size);
-	record_set_sequence(rec, seq);
-
-	if (FAILED(st = storage_get_id(req_param->me->store, rec, req_param->send_id)))
-		return st;
+	memcpy(req_param->send_id + 1, record_get_value_ref(rec), req_param->me->val_size);
+	record_set_version(rec, ver);
 
 	*req_param->send_id = htonll(*req_param->send_id);
 	*req_param->send_seq = htonll(seq);
@@ -329,7 +328,7 @@ static status tcp_on_read(sender_handle me, sock_handle sock)
 	req_param->range.high = SEQUENCE_MIN;
 
 	for (;;) {
-		struct storage_seq_range_t range;
+		struct sequence_range_t range;
 		char* p = (void*) &range;
 		size_t sz = sizeof(range);
 
@@ -496,7 +495,7 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 		return FAIL;
 	}
 
-	if (!storage_is_owner(store)) {
+	if (storage_is_read_only(store)) {
 		errno = EPERM;
 		error_errno("sender_create");
 		return FAIL;
@@ -512,11 +511,18 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 	SPIN_CREATE(&(*psend)->stats.lock);
 
 	(*psend)->store = store;
+	(*psend)->base_id = storage_get_base_id(store);
 	(*psend)->val_size = storage_get_value_size(store);
 	(*psend)->next_seq = 1;
 	(*psend)->min_store_seq = 0;
 	(*psend)->max_age_usec = max_age_usec;
 	(*psend)->heartbeat_usec = hb_usec;
+
+	(*psend)->seq_array = xcalloc(storage_get_max_id(store) - (*psend)->base_id, sizeof(sequence));
+	if (!(*psend)->seq_array) {
+		sender_destroy(psend);
+		return NO_MEMORY;
+	}
 
 	if (FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
 		FAILED(st = sock_set_reuseaddr((*psend)->listen_sock, 1)) ||
@@ -537,7 +543,7 @@ status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_u
 
 	st = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
 				 STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
-				 (long) storage_get_base_id(store), (long) storage_get_max_id(store),
+				 (long) (*psend)->base_id, (long) storage_get_max_id(store),
 				 storage_get_value_size(store), max_age_usec, (*psend)->heartbeat_usec);
 
 	if (st < 0) {
@@ -575,6 +581,7 @@ void sender_destroy(sender_handle* psend)
 
 	error_restore_last();
 
+	xfree((*psend)->seq_array);
 	xfree(*psend);
 	*psend = NULL;
 }
@@ -667,5 +674,3 @@ size_t sender_get_subscriber_count(sender_handle send)
 {
 	return poll_get_count(send->poller) - 1;
 }
-
-#endif

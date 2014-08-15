@@ -65,7 +65,7 @@ size_t accum_get_available(accum_handle acc)
 	return acc->capacity - (acc->next_free - acc->buf);
 }
 
-status accum_store(accum_handle acc, const void* data, size_t data_sz)
+status accum_store(accum_handle acc, const void* data, size_t data_sz, void** pstored)
 {
 	status st;
 	if (data_sz == 0 || data_sz > acc->capacity) {
@@ -75,6 +75,9 @@ status accum_store(accum_handle acc, const void* data, size_t data_sz)
 
 	if (data_sz > (acc->capacity - (acc->next_free - acc->buf)))
 		return FALSE;
+
+	if (pstored)
+		*pstored = acc->next_free;
 
 	if (data)
 		memcpy(acc->next_free, data, data_sz);

@@ -15,6 +15,7 @@
 *.exe
 *.app
 a.out
+writer
 publisher
 subscriber
 reader

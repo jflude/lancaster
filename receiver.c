@@ -2,6 +2,7 @@
 #include "clock.h"
 #include "error.h"
 #include "h2n2h.h"
+#include "sequence.h"
 #include "sock.h"
 #include "spin.h"
 #include "thread.h"
@@ -16,9 +17,8 @@
 #include <time.h>
 
 #define RECV_BUFSIZ (64 * 1024)
+#define TOUCH_USEC (1000 * 1000)
 #define MIN_HB_PAD_USEC (2 * 1000 * 1000)
-
-#if 0
 
 struct receiver_stats_t
 {
@@ -40,11 +40,14 @@ struct receiver_t
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
 	storage_handle store;
-	size_t mcast_mtu;
+	sequence* seq_array;
 	sequence next_seq;
+	size_t mcast_mtu;
 	microsec_t last_mcast_recv;
 	microsec_t last_tcp_recv;
+	microsec_t last_touch;
 	microsec_t timeout_usec;
+	microsec_t touch_usec;
 	long orig_mcast_addr;
 	int orig_mcast_port;
 	struct receiver_stats_t stats;
@@ -64,6 +67,7 @@ static void* mcast_func(thread_handle thr)
 {
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
+	identifier base_id = storage_get_base_id(me->store);
 	char* buf = alloca(me->mcast_mtu);
 	sequence* recv_seq = (sequence*) buf;
 	microsec_t* recv_stamp = (microsec_t*) (recv_seq + 1);
@@ -114,10 +118,7 @@ static void* mcast_func(thread_handle thr)
 			break;
 		}
 
-		if (FAILED(st2 = storage_set_send_recv_time(me->store, me->last_mcast_recv = now))) {
-			st = st2;
-			break;
-		}
+		me->last_mcast_recv = now;
 
 		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.mcast_bytes_recv += st;
@@ -153,6 +154,7 @@ static void* mcast_func(thread_handle thr)
 
 			last = buf + st;
 			for (p = buf + sizeof(*recv_seq) + sizeof(*recv_stamp); p < last; p += val_size + sizeof(identifier)) {
+				version ver;
 				record_handle rec;
 				identifier* id = (identifier*) p;
 
@@ -160,9 +162,10 @@ static void* mcast_func(thread_handle thr)
 				if (FAILED(st = storage_get_record(me->store, *id, &rec)))
 					goto finish;
 
-				record_write_lock(rec);
+				ver = record_write_lock(rec);
 				memcpy(record_get_value_ref(rec), id + 1, val_size);
-				record_set_sequence(rec, *recv_seq);
+				me->seq_array[*id - base_id] = *recv_seq;
+				record_set_version(rec, NEXT_VER(ver));
 
 				if (FAILED(st = storage_write_queue(me->store, *id)))
 					goto finish;
@@ -170,7 +173,7 @@ static void* mcast_func(thread_handle thr)
 		}
 
 		if (*recv_seq > me->next_seq) {
-			struct storage_seq_range_t range;
+			struct sequence_range_t range;
 			char* p = (void*) &range;
 			size_t sz = sizeof(range);
 
@@ -230,6 +233,13 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 				break;
 			}
 
+			if ((now - me->last_touch) > me->touch_usec) {
+				if (FAILED(st = storage_touch(me->store)))
+					break;
+
+				me->last_touch = now;
+			}
+
 			if (FAILED(st = clock_sleep(1)))
 				break;
 
@@ -248,13 +258,9 @@ static status tcp_read(receiver_handle me, char* buf, size_t sz)
 	}
 
 	if (bytes_in > 0) {
-		status st2;
 		SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
 		me->stats.tcp_bytes_recv += bytes_in;
 		SPIN_UNLOCK(&me->stats.lock, no_ver);
-
-		if (FAILED(st2 = storage_set_send_recv_time(me->store, me->last_tcp_recv)))
-			return st2;
 	}
 
 	return st;
@@ -275,6 +281,7 @@ static void* tcp_func(thread_handle thr)
 	receiver_handle me = thread_get_param(thr);
 	size_t val_size = storage_get_value_size(me->store);
 	size_t pkt_size = sizeof(sequence) + sizeof(identifier) + val_size;
+	identifier base_id = storage_get_base_id(me->store);
 	char* buf = alloca(pkt_size);
 
 	sequence* recv_seq = (sequence*) buf;
@@ -289,7 +296,7 @@ static void* tcp_func(thread_handle thr)
 
 	while (!thread_is_stopping(thr)) {
 		record_handle rec;
-		sequence seq;
+		version ver;
 		st = tcp_read(me, buf, sizeof(*recv_seq));
 		if (FAILED(st) || !st)
 			break;
@@ -309,14 +316,15 @@ static void* tcp_func(thread_handle thr)
 		if (FAILED(st = storage_get_record(me->store, *id, &rec)))
 			break;
 
-		seq = record_write_lock(rec);
-		if (*recv_seq <= seq) {
-			record_set_sequence(rec, seq);
+		ver = record_write_lock(rec);
+		if (*recv_seq <= me->seq_array[*id - base_id]) {
+			record_set_version(rec, ver);
 			continue;
 		}
 
 		memcpy(record_get_value_ref(rec), id + 1, val_size);
-		record_set_sequence(rec, *recv_seq);
+		me->seq_array[*id - base_id] = *recv_seq;
+		record_set_version(rec, NEXT_VER(ver));
 
 		if (FAILED(st = storage_write_queue(me->store, *id)))
 			break;
@@ -374,9 +382,16 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	SPIN_CREATE(&(*precv)->stats.lock);
 
 	(*precv)->next_seq = 1;
+	(*precv)->touch_usec = TOUCH_USEC;
 	(*precv)->timeout_usec = 5 * hb_usec / 2;
 	(*precv)->stats.mcast_min_latency = DBL_MAX;
 	(*precv)->stats.mcast_max_latency = DBL_MIN;
+
+	(*precv)->seq_array = xcalloc(max_id - base_id, sizeof(sequence));
+	if (!(*precv)->seq_array) {
+		receiver_destroy(precv);
+		return NO_MEMORY;
+	}
 
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, base_id, max_id, val_size, q_capacity)) ||
 		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
@@ -410,6 +425,7 @@ void receiver_destroy(receiver_handle* precv)
 
 	error_restore_last();
 
+	xfree((*precv)->seq_array);
 	xfree(*precv);
 	*precv = NULL;
 }
@@ -502,5 +518,3 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
 	return n;
 }
-
-#endif

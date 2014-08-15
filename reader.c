@@ -5,6 +5,7 @@
 #include "error.h"
 #include "signals.h"
 #include "storage.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -19,7 +20,7 @@ int main(int argc, char* argv[])
 	size_t q_capacity;
 	long old_head, expected = 0;
 	char c = ' ';
-	microsec_t last_print, creation_time;
+	microsec_t last_print, created_time;
 
 	if (argc != 2) {
 		fprintf(stderr, "Syntax: %s [storage file or segment]\n", argv[0]);
@@ -27,10 +28,11 @@ int main(int argc, char* argv[])
 	}
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_open(&store, argv[1], O_RDONLY)) || FAILED(clock_time(&last_print)))
+		FAILED(storage_open(&store, argv[1], O_RDONLY)) ||
+		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	creation_time = storage_get_creation_time(store);
+	created_time = storage_get_created_time(store);
 
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
@@ -52,7 +54,7 @@ int main(int argc, char* argv[])
 			for (q = old_head; q < new_head; ++q) {
 				record_handle rec;
 				struct datum_t* d;
-				sequence seq;
+				version ver;
 				microsec_t diff_ts;
 				long xyz;
 
@@ -65,10 +67,10 @@ int main(int argc, char* argv[])
 
 				d = record_get_value_ref(rec);
 				do {
-					seq = record_read_lock(rec);
+					ver = record_read_lock(rec);
 					xyz = d->xyz;
 					diff_ts = now - d->ts;
-				} while (seq != record_get_sequence(rec));
+				} while (ver != record_get_version(rec));
 
 				if (diff_ts >= STALE_DATA_USEC) {
 					if (c != '*')
@@ -85,7 +87,7 @@ int main(int argc, char* argv[])
 			old_head = new_head;
 		}
 
-		if (storage_get_creation_time(store) != creation_time) {
+		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
 			fprintf(stderr, "%s: error: storage \"%s\" is recreated\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);
@@ -94,7 +96,7 @@ int main(int argc, char* argv[])
 		if (FAILED(clock_time(&now)))
 			break;
 
-		if ((now - storage_get_send_recv_time(store)) >= ORPHAN_TIMEOUT_USEC) {
+		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
 			fprintf(stderr, "%s: error: storage \"%s\" is orphaned\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);

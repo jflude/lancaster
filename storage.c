@@ -18,16 +18,16 @@ struct record_t
 struct segment_t
 {
 	unsigned magic;
-	volatile int last_changed_ver;
-	microsec_t last_changed;
-	microsec_t last_created;
+	char description[256];
 	size_t mmap_size;
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
-	char description[256];
+	microsec_t last_created;
+	microsec_t last_touched;
+	volatile version last_touched_ver;
 	size_t q_mask;
 	queue_index q_head;
 	identifier change_q[1];
@@ -45,21 +45,10 @@ struct storage_t
 #define RECORD_ADDR(stg, base, idx) ((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 #define MAGIC_NUMBER 0x0C0FFEE0
 
-static status clear_change_q(storage_handle store)
-{
-	store->seg->q_head = 0;
-	if (store->seg->q_mask != -1u)
-		memset(store->seg->change_q, -1, sizeof(store->seg->change_q[0]) * (store->seg->q_mask + 1));
-
-	SPIN_CREATE(&store->seg->last_changed_ver);
-	return clock_time(&store->seg->last_changed);
-}
-
 status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags,
 					  identifier base_id, identifier max_id, size_t value_size, size_t q_capacity)
 {
 	/* q_capacity must be a power of 2 */
-	status st;
 	size_t rec_sz, hdr_sz, seg_sz;
 	if (!pstore || open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) || max_id <= base_id || value_size == 0 ||
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0) {
@@ -155,15 +144,16 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->seg->val_size = value_size;
 	(*pstore)->seg->base_id = base_id;
 	(*pstore)->seg->max_id = max_id;
+	(*pstore)->seg->q_mask = q_capacity - 1;
+	(*pstore)->seg->q_head = 0;
+
+	if (q_capacity > 0)
+		memset((*pstore)->seg->change_q, -1, q_capacity * sizeof(identifier));
 
 	BZERO((*pstore)->seg->description);
 
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->first, max_id - base_id);
-
-	(*pstore)->seg->q_mask = q_capacity - 1;
-	if (FAILED(st = clear_change_q(*pstore)))
-		return st;
 
 	return clock_time(&(*pstore)->seg->last_created);
 }
@@ -373,31 +363,37 @@ microsec_t storage_get_created_time(storage_handle store)
 	return store->seg->last_created;
 }
 
-microsec_t storage_get_changed_time(storage_handle store)
+microsec_t storage_get_touched_time(storage_handle store)
 {
 	microsec_t t;
 	int ver;
 	do {
-		SPIN_READ_LOCK(&store->seg->last_changed_ver, ver);
-		t = store->seg->last_changed;
-	} while (ver != store->seg->last_changed_ver);
+		SPIN_READ_LOCK(&store->seg->last_touched_ver, ver);
+		t = store->seg->last_touched;
+	} while (ver != store->seg->last_touched_ver);
 
 	return t;
 }
 
-status storage_set_changed_time(storage_handle store, microsec_t when)
+status storage_touch(storage_handle store)
 {
-	int ver;
+	status st;
+	version ver;
+	microsec_t now;
+
 	if (store->is_read_only) {
 		errno = EPERM;
-		error_errno("storage_set_send_recv_time");
+		error_errno("storage_touch");
 		return FAIL;
 	}
 
-	SPIN_WRITE_LOCK(&store->seg->last_changed_ver, ver);
-	store->seg->last_changed = when;
-	SPIN_UNLOCK(&store->seg->last_changed_ver, (ver + 1) & INT_MAX);
-	return OK;
+	if (FAILED(st = clock_time(&now)))
+		return st;
+
+	SPIN_WRITE_LOCK(&store->seg->last_touched_ver, ver);
+	store->seg->last_touched = now;
+	SPIN_UNLOCK(&store->seg->last_touched_ver, NEXT_VER(ver));
+	return st;
 }
 
 const identifier* storage_get_queue_base_ref(storage_handle store)
@@ -530,7 +526,12 @@ status storage_reset(storage_handle store)
 	}
 
 	memset(store->first, 0, (char*) store->limit - (char*) store->first);
-	return clear_change_q(store);
+
+	store->seg->q_head = 0;
+	if (store->seg->q_mask != -1u)
+		memset(store->seg->change_q, -1, (store->seg->q_mask + 1) * sizeof(identifier));
+
+	return OK;
 }
 
 void* record_get_value_ref(record_handle rec)

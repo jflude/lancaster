@@ -37,11 +37,12 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-# all: publisher subscriber reader libcachester$(SO_EXT)
-all: libcachester.a libcachester$(SO_EXT)
+all: writer publisher subscriber reader libcachester$(SO_EXT)
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
+
+writer: libcachester.a
 
 publisher: libcachester.a
 
@@ -59,10 +60,14 @@ DEPEND.mk:
 	touch DEPEND.mk
 
 depend: DEPEND.mk
-	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- $(SRCS) publisher.c subscriber.c reader.c
+	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
+	    writer.c publisher.c subscriber.c reader.c \
+	    $(SRCS)
 
 clean:
-	rm -f libcachester.a libcachester$(SO_EXT) publisher publisher.o subscriber subscriber.o reader reader.o $(OBJS)
+	rm -f libcachester.a libcachester$(SO_EXT) \
+	    writer writer.o publisher publisher.o subscriber subscriber.o reader reader.o \
+	    $(OBJS)
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump

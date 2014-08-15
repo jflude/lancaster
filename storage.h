@@ -29,6 +29,8 @@ typedef long version;
 #define VERSION_MIN LONG_MIN
 #define VERSION_MAX LONG_MAX
 
+#define NEXT_VER(v) (((v) + 1) & LONG_MAX)
+
 status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags,
 					  identifier base_id, identifier max_id, size_t value_size, size_t q_capacity);
 status storage_open(storage_handle* pstore, const char* mmap_file, int open_flags);
@@ -48,8 +50,8 @@ const char* storage_get_description(storage_handle store);
 status storage_set_description(storage_handle store, const char* desc);
 
 microsec_t storage_get_created_time(storage_handle store);
-microsec_t storage_get_changed_time(storage_handle store);
-status storage_set_changed_time(storage_handle store, microsec_t when);
+microsec_t storage_get_touched_time(storage_handle store);
+status storage_touch(storage_handle store);
 
 const identifier* storage_get_queue_base_ref(storage_handle store);
 const queue_index* storage_get_queue_head_ref(storage_handle store);

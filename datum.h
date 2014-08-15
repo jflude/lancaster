@@ -6,7 +6,6 @@
 #include "clock.h"
 
 #define MAX_ID 1000000
-#define CONFLATE_PKT FALSE
 #define MAX_AGE_USEC 10000
 
 #ifdef __cplusplus
