@@ -49,7 +49,10 @@ func main() {
 		fail("Expected -file")
 	}
 	for _, host := range flag.Args() {
-		addReceivers(host)
+		if err := addReceivers(host); err != nil {
+			log.Fatal(err)
+		}
+
 	}
 	http.HandleFunc("/status", statusHandler)
 	http.HandleFunc("/add", addHandler)
@@ -72,7 +75,7 @@ func main() {
 func addReceivers(addr string) error {
 	parts := strings.Split(addr, ":")
 	if len(parts) != 2 {
-		return fmt.Errorf("Expected host:port, but got: %s", addr)
+		return fmt.Errorf("Expected host:port0[-portN], but got: %s", addr)
 	}
 
 	var begin int

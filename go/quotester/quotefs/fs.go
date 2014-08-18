@@ -13,6 +13,16 @@ import (
 	_ "bazil.org/fuse/fs/fstestutil"
 )
 
+/*
+start with:
+	err = startFS(cs)
+	if err != nil {
+		log.Fatal("Failed to start QuoteFS:", err)
+	}
+end with:
+	<-fsComplete
+
+*/
 var mountPoint string
 var fsComplete chan struct{}
 

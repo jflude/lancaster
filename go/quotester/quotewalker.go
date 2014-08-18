@@ -30,13 +30,13 @@ type CachesterSource struct {
 	qHeadPtr    *C.uint
 	qBasePtr    unsafe.Pointer
 	qArr        *[1 << 30]C.identifier
+	usePrints   bool
 }
 
 func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs := &CachesterSource{Name: name}
 
 	if err := chkStatus(C.storage_open(&cs.store, C.CString(name), syscall.O_RDONLY)); err != nil {
-		log.Println("err", err)
 		return nil, err
 	}
 	cs.maxRecords = int(C.storage_get_max_id(cs.store))
@@ -51,6 +51,9 @@ func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs.qBasePtr = unsafe.Pointer(C.storage_get_queue_base_ref(cs.store))
 	cs.qArr = (*[1 << 30]C.identifier)(cs.qBasePtr)
 	cs.Description = C.GoString(C.storage_get_description(cs.store))
+	if strings.Index(cs.Description, "PRINTS") != -1 {
+		cs.usePrints = true
+	}
 	return cs, nil
 }
 func (cs *CachesterSource) Destroy() {
@@ -62,12 +65,6 @@ func (cs *CachesterSource) getPointer(record int) unsafe.Pointer {
 
 // Load q with a clean copy of the record
 func (cs *CachesterSource) getQuote(record int, q *Quote) error {
-	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	// var rSize = C.storage_get_record_size(store)
-	// var vOffset = uintptr(C.storage_get_value_offset(store))
-	// var rBaseId = int(C.storage_get_base_id(store))
-	// uraddr := (uintptr(cs.rBaseAddr) + (uintptr(cs.rSize) * uintptr((record - cs.rBaseId))))
-	// raddr := (unsafe.Pointer)(uraddr)
 	raddr := cs.getPointer(record)
 	for {
 		seq := *((*C.uint)(raddr))
@@ -83,21 +80,16 @@ func (cs *CachesterSource) getQuote(record int, q *Quote) error {
 		if seq == nseq {
 			return nil
 		}
-		log.Println("Version stomp:", nseq, "!=", seq, "for record:", record)
+		if verbose {
+			log.Println("Version stomp:", nseq, "!=", seq, "for record:", record)
+		}
 	}
 }
 
 func (cs *CachesterSource) getKeys(start int) (map[string]int, int) {
-	// var maxRecords = int(C.storage_get_max_id(store))
-	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	// var rSize = C.storage_get_record_size(store)
-	// var vOffset = uintptr(C.storage_get_value_offset(store))
-	// var rBaseId = int(C.storage_get_base_id(store))
 	ret := make(map[string]int)
 	x := start
 	for ; x < cs.maxRecords; x++ {
-		// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
-		// raddr := (unsafe.Pointer)(uraddr)
 		raddr := cs.getPointer(x)
 		seq := *((*C.uint)(raddr))
 		if seq < 1 {
@@ -111,36 +103,18 @@ func (cs *CachesterSource) getKeys(start int) (map[string]int, int) {
 }
 
 func (cs *CachesterSource) findQuotes(keys []string) {
-	// Used to grab the record itself
-	// var maxRecords = int(C.storage_get_max_id(store))
-	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	// var rSize = C.storage_get_record_size(store)
-	// var vOffset = uintptr(C.storage_get_value_offset(store))
-	// var rBaseId = int(C.storage_get_base_id(store))
-	log.Println("Searching for", keys)
 	var x int = 0
 	for ; x < cs.maxRecords; x++ {
 		raddr := cs.getPointer(x)
-		// *((*C.uint)(raddr))
-		// var q Quote
-		// if err := cs.getQuote(record, &q); err != nil {
-		// 	log.Println("getQuote:", x, err)
-		// 	return
-		// }
-		// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((x - rBaseId))))
-		// raddr := (unsafe.Pointer)(uraddr)
 		seq := *((*C.uint)(raddr))
 		if seq < 1 {
 			return
 		}
 		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
-
-		// d := (*Quote)(vaddr)
-		// recKey := d.key()
-		recKey := getkey(vaddr)
+		recKey := cs.getkey(vaddr)
 		for _, k := range keys {
 			if strings.HasPrefix(recKey, k) {
-				fmt.Println(getstring(vaddr))
+				fmt.Println(cs.getstring(vaddr))
 				break
 			}
 		}
@@ -148,15 +122,15 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 
 }
 
-func getstring(vaddr unsafe.Pointer) string {
-	if usePrints {
+func (cs *CachesterSource) getstring(vaddr unsafe.Pointer) string {
+	if cs.usePrints {
 		return ((*Print)(vaddr)).String()
 	} else {
 		return ((*Quote)(vaddr)).String()
 	}
 }
-func getkey(vaddr unsafe.Pointer) string {
-	if usePrints {
+func (cs *CachesterSource) getkey(vaddr unsafe.Pointer) string {
+	if cs.usePrints {
 		return ((*Print)(vaddr)).key()
 	} else {
 		return ((*Quote)(vaddr)).key()
@@ -168,14 +142,10 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 	var watchBits bitset.BitSet
 	var new_head = int(*(cs.qHeadPtr))
 	var old_head = new_head
-	// Used to grab the record itself
-	// var maxRecords = int(C.storage_get_max_id(store))
-	// var rBaseAddr = (unsafe.Pointer(C.storage_get_array(store)))
-	// var rSize = C.storage_get_record_size(store)
-	// var vOffset = uintptr(C.storage_get_value_offset(store))
-	// var rBaseId = C.storage_get_base_id(store)
-	log.Println("Queue size:", cs.qCapacity)
-	if hasWatch {
+	if verbose {
+		log.Println("Queue size:", cs.qCapacity)
+	}
+	if hasWatch && verbose {
 		log.Println("Filtering for:", watchKeys)
 	}
 	keys := make([]*string, cs.maxRecords)
@@ -194,27 +164,19 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 				fmt.Println("-1")
 				continue
 			}
-			// uraddr := (uintptr(rBaseAddr) + (uintptr(rSize) * uintptr((id - rBaseId))))
-			// raddr := (unsafe.Pointer)(uraddr)
 			raddr := cs.getPointer(int(id))
 			vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
-			// d := (*Quote)(vaddr)
-			// Not checking for lock contention on this part as the ID is known to only be written once per slot
-			// if we've been told about the record, it must have been written at least once.
 			key := keys[id]
 			useStr := !hasWatch
 			if key == nil {
-				s := getkey(vaddr) //d.key()
+				s := cs.getkey(vaddr)
 				key = &s
 				keys[id] = key
-				// fmt.Fprintln(os.Stderr, "newKey :", id, s)
 				if hasWatch {
 					for _, k := range watchKeys {
 						if strings.HasPrefix(s, k) {
-							// log.Println("Found key:", s, k)
 							watchBits.Set(uint(id))
 							useStr = true
-							// fmt.Fprintln(os.Stderr, "Found:", id, s)
 							break
 						}
 					}
@@ -232,21 +194,24 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 			for {
 				seq = *((*C.uint)(raddr))
 				if seq < 0 {
-					fmt.Println("locked")
+					if verbose {
+						fmt.Println("locked")
+					}
 					continue
 				}
 				if useStr {
-					str = getstring(vaddr) //d.String()
+					str = cs.getstring(vaddr)
 				}
 				nseq := *((*C.uint)(raddr))
 				if seq == nseq {
 					break
 				}
-				fmt.Println("Version stomp, index", id, "key", getkey(vaddr), seq, "!=", nseq, raddr)
+				if verbose {
+					fmt.Println("Version stomp, index", id, "key", cs.getkey(vaddr), seq, "!=", nseq, raddr)
+				}
 			}
 			if useStr {
 				fmt.Println(str)
-				// fmt.Println(id, seq, raddr, j, j&qMask, str)
 			}
 		}
 		old_head = new_head

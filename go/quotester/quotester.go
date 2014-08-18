@@ -12,14 +12,28 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 )
 
 var tail bool
-var description string
-var usePrints bool
+
+type filters []string
+
+var find filters
+var verbose bool
+
+func (f *filters) String() string {
+	return fmt.Sprint([]string(*f))
+}
+func (f *filters) Set(val string) error {
+	*f = append(*f, val)
+	return nil
+}
 
 func init() {
 	flag.BoolVar(&tail, "t", false, "Tail feed")
+	flag.BoolVar(&verbose, "v", false, "Verbose")
+	flag.Var(&find, "f", "Filter keys")
 }
 func main() {
 	flag.Parse()
@@ -29,34 +43,35 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Must specify a file")
 		os.Exit(1)
 	}
-	cs, err := NewCachesterSource(args[0])
-	if err != nil {
-		log.Fatal(err)
-	}
-	// if err := chkStatus(C.storage_open(&store, cs)); err != nil {
-	// 	log.Fatal("Failed to open store", err)
-	// }
-	defer cs.Destroy()
-	// defer func() { C.storage_destroy(&store) }()
-	// description = C.GoString(C.storage_get_description(store))
-	usePrints = cs.Description == "PRINTS"
-	log.Println("Description:", description)
-	err = startFS(cs)
-	if err != nil {
-		log.Fatal("Failed to start QuoteFS:", err)
-	}
-	args = args[1:]
-
-	if tail {
-		cs.tailQuotes(args)
-	} else {
-		if len(args) < 1 {
-			flag.Usage()
-		} else {
-			cs.findQuotes(args)
+	if len(find) > 0 {
+		if verbose {
+			log.Println("Filtering for:", find)
 		}
 	}
-	<-fsComplete
+	var wg sync.WaitGroup
+	for _, fn := range args {
+		if verbose {
+			log.Println("Loading:", fn)
+		}
+		cs, err := NewCachesterSource(fn)
+		if err != nil {
+			log.Fatal(err)
+		}
+		wg.Add(1)
+		defer cs.Destroy()
+		if tail {
+			go func() {
+				cs.tailQuotes([]string(find))
+				wg.Done()
+			}()
+		} else {
+			go func() {
+				cs.findQuotes([]string(find))
+				wg.Done()
+			}()
+		}
+	}
+	wg.Wait()
 }
 
 func chkStatus(status C.status) error {
