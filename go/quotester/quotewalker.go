@@ -152,7 +152,7 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 	for {
 		new_head = int(*(cs.qHeadPtr))
 		if new_head == old_head {
-			time.Sleep(time.Microsecond)
+			time.Sleep(time.Millisecond)
 			continue
 		}
 		if (new_head - old_head) > cs.qSize {
