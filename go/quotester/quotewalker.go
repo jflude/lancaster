@@ -156,7 +156,9 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 			continue
 		}
 		if (new_head - old_head) > cs.qSize {
+			log.Println("Overrun, qSize:", cs.qSize, " < ", (new_head - old_head))
 			old_head = new_head - cs.qSize
+
 		}
 		for j := old_head; j < new_head; j++ {
 			id := cs.qArr[j&cs.qMask]
