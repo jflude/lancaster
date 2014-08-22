@@ -113,7 +113,7 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 		recKey := cs.getkey(vaddr)
 		for _, k := range keys {
-			if strings.HasPrefix(recKey, k) {
+			if strings.HasPrefix(recKey, k[2:]) {
 				fmt.Println(cs.getstring(vaddr))
 				break
 			}

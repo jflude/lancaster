@@ -47,6 +47,7 @@ type Print struct {
 	lastPrice  int64
 	lastSize   int32
 	flags      byte
+	totalExchVolume	uint32
 }
 
 func (p *Print) key() string {
@@ -61,5 +62,5 @@ func (p *Print) price() float64 {
 }
 func (p *Print) String() string {
 	t := time.Unix(int64(p.exchangeTS/1000000), int64((p.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, p.price())
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f %9d", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, p.price(), p.totalExchVolume)
 }
