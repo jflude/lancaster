@@ -9,13 +9,13 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-struct record_t
+struct record
 {
 	volatile version ver;
 	char val[1];
 };
 
-struct segment_t
+struct segment
 {
 	unsigned magic;
 	char description[256];
@@ -25,17 +25,17 @@ struct segment_t
 	size_t val_size;
 	identifier base_id;
 	identifier max_id;
-	microsec_t last_created;
-	microsec_t last_touched;
+	microsec last_created;
+	microsec last_touched;
 	volatile version last_touched_ver;
 	size_t q_mask;
 	queue_index q_head;
 	identifier change_q[1];
 };
 
-struct storage_t
+struct storage
 {
-	struct segment_t* seg;
+	struct segment* seg;
 	record_handle first;
 	record_handle limit;
 	char* mmap_file;
@@ -56,14 +56,14 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 		return FAIL;
 	}
 
-	*pstore = XMALLOC(struct storage_t);
+	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
 		return NO_MEMORY;
 
 	BZERO(*pstore);
 
-	rec_sz = ALIGNED_SIZE(struct record_t, DEFAULT_ALIGNMENT, val, value_size);
-	hdr_sz = ALIGNED_SIZE(struct segment_t, DEFAULT_ALIGNMENT, change_q, q_capacity > 0 ? q_capacity : 1);
+	rec_sz = ALIGNED_SIZE(struct record, DEFAULT_ALIGNMENT, val, value_size);
+	hdr_sz = ALIGNED_SIZE(struct segment, DEFAULT_ALIGNMENT, change_q, q_capacity > 0 ? q_capacity : 1);
 	seg_sz = hdr_sz + rec_sz * (max_id - base_id);
 
 	if (!mmap_file) {
@@ -155,6 +155,15 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->first, max_id - base_id);
 
+	if ((open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
+		record_handle r;
+		for (r = (*pstore)->first; r < (*pstore)->limit; r = RECORD_ADDR(*pstore, r, 1))
+			if (r->ver < 0)
+				r->ver &= ~SPIN_MASK(r->ver);
+
+		SYNC_SYNCHRONIZE();
+	}
+
 	return clock_time(&(*pstore)->seg->last_created);
 }
 
@@ -167,7 +176,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 		return FAIL;
 	}
 
-	*pstore = XMALLOC(struct storage_t);
+	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
 		return NO_MEMORY;
 
@@ -209,7 +218,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 			return FAIL;
 		}
 
-		if ((unsigned) file_stat.st_size < sizeof(struct segment_t)) {
+		if ((unsigned) file_stat.st_size < sizeof(struct segment)) {
 			errno = EILSEQ;
 			error_errno("storage_open");
 			close(fd);
@@ -218,7 +227,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 		}
 	}
 
-	(*pstore)->seg = mmap(NULL, sizeof(struct segment_t), PROT_READ, MAP_SHARED, fd, 0);
+	(*pstore)->seg = mmap(NULL, sizeof(struct segment), PROT_READ, MAP_SHARED, fd, 0);
 	if ((*pstore)->seg == MAP_FAILED) {
 		error_errno("mmap");
 		(*pstore)->seg = NULL;
@@ -236,7 +245,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 	}
 
 	seg_sz = (*pstore)->seg->mmap_size;
-	if (munmap((*pstore)->seg, sizeof(struct segment_t)) == -1) {
+	if (munmap((*pstore)->seg, sizeof(struct segment)) == -1) {
 		error_errno("munmap");
 		close(fd);
 		storage_destroy(pstore);
@@ -278,7 +287,9 @@ void storage_destroy(storage_handle* pstore)
 		if ((*pstore)->seg->mmap_size > 0) {
 			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
 				error_errno("munmap");
-			else if (strncmp((*pstore)->mmap_file, "shm:", 4) == 0 && shm_unlink((*pstore)->mmap_file + 4) == -1)
+			else if (!(*pstore)->is_read_only &&
+					 strncmp((*pstore)->mmap_file, "shm:", 4) == 0 &&
+					 shm_unlink((*pstore)->mmap_file + 4) == -1)
 				error_errno("shm_unlink");
 		} else
 			xfree((*pstore)->seg);
@@ -322,7 +333,7 @@ size_t storage_get_value_size(storage_handle store)
 size_t storage_get_value_offset(storage_handle store)
 {
 	(void) store;
-	return offsetof(struct record_t, val);
+	return offsetof(struct record, val);
 }
 
 const char* storage_get_file(storage_handle store)
@@ -358,14 +369,14 @@ status storage_set_description(storage_handle store, const char* desc)
 	return OK;
 }
 
-microsec_t storage_get_created_time(storage_handle store)
+microsec storage_get_created_time(storage_handle store)
 {
 	return store->seg->last_created;
 }
 
-microsec_t storage_get_touched_time(storage_handle store)
+microsec storage_get_touched_time(storage_handle store)
 {
-	microsec_t t;
+	microsec t;
 	int ver;
 	do {
 		SPIN_READ_LOCK(&store->seg->last_touched_ver, ver);
@@ -379,7 +390,7 @@ status storage_touch(storage_handle store)
 {
 	status st;
 	version ver;
-	microsec_t now;
+	microsec now;
 
 	if (store->is_read_only) {
 		errno = EPERM;
@@ -531,6 +542,7 @@ status storage_reset(storage_handle store)
 	if (store->seg->q_mask != -1u)
 		memset(store->seg->change_q, -1, (store->seg->q_mask + 1) * sizeof(identifier));
 
+	SYNC_SYNCHRONIZE();
 	return OK;
 }
 

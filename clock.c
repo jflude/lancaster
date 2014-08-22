@@ -8,7 +8,7 @@
 
 #ifdef _POSIX_TIMERS
 
-status clock_sleep(microsec_t usec)
+status clock_sleep(microsec usec)
 {
 	struct timespec req, rem;
 	if (usec < 0) {
@@ -41,7 +41,7 @@ loop:
 	return OK;
 }
 
-status clock_time(microsec_t* pusec)
+status clock_time(microsec* pusec)
 {
 	struct timespec ts;
 	if (!pusec) {
@@ -60,7 +60,7 @@ status clock_time(microsec_t* pusec)
 
 #else
 
-static status usleep2(useconds_t usec)
+static status usleep2(useconds usec)
 {
 loop:
 	if (usleep(usec) == -1) {
@@ -74,9 +74,9 @@ loop:
 	return OK;
 }
 
-status clock_sleep(microsec_t usec)
+status clock_sleep(microsec usec)
 {
-	ldiv_t qr;
+	ldiv qr;
 	long s;
 	if (usec < 0) {
 		error_invalid_arg("clock_sleep");
@@ -94,7 +94,7 @@ status clock_sleep(microsec_t usec)
 	return usleep2(qr.quot + qr.rem);
 }
 
-status clock_time(microsec_t* pusec)
+status clock_time(microsec* pusec)
 {
 	struct timeval tv;
 	if (!pusec) {

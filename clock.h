@@ -9,10 +9,10 @@
 extern "C" {
 #endif
 
-typedef long microsec_t;
+typedef long microsec;
 
-status clock_sleep(microsec_t usec);
-status clock_time(microsec_t* pusec);
+status clock_sleep(microsec usec);
+status clock_time(microsec* pusec);
 
 #ifdef __cplusplus
 }

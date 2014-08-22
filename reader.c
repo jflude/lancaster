@@ -9,9 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STALE_DATA_USEC 1000000
 #define DISPLAY_DELAY_USEC 200000
 #define ORPHAN_TIMEOUT_USEC 3000000
+
+static void syntax(const char* prog)
+{
+	fprintf(stderr, "Syntax: %s [storage file or segment]\n", prog);
+	exit(EXIT_FAILURE);
+}
 
 int main(int argc, char* argv[])
 {
@@ -19,43 +24,40 @@ int main(int argc, char* argv[])
 	status st = OK;
 	size_t q_capacity;
 	long old_head, expected = 0;
-	char c = ' ';
-	microsec_t last_print, created_time;
+	int event = 0;
+	microsec last_print, created_time;
 
-	if (argc != 2) {
-		fprintf(stderr, "Syntax: %s [storage file or segment]\n", argv[0]);
-		return 1;
-	}
+	if (argc != 2)
+		syntax(argv[0]);
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_open(&store, argv[1], O_RDONLY)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	created_time = storage_get_created_time(store);
+	printf("\"%.8s\", ", storage_get_description(store));
 
+	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
 
-	printf("\"%.8s\" ", storage_get_description(store));
-
 	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
 		long q, new_head = storage_get_queue_head(store);
-		microsec_t now;
+		microsec now, last_update = 0;
 		if (new_head == old_head) {
 			if (FAILED(st = clock_sleep(1)))
 				break;
 		} else {
 			if ((size_t) (new_head - old_head) > q_capacity) {
 				old_head = new_head - q_capacity;
-				c = '*';
+				event |= 8;
 			}
 
 			for (q = old_head; q < new_head; ++q) {
 				record_handle rec;
-				struct datum_t* d;
+				struct datum* d;
 				version ver;
-				microsec_t diff_ts;
+				microsec ts;
 				long xyz;
 
 				identifier id = storage_read_queue(store, q);
@@ -69,22 +71,23 @@ int main(int argc, char* argv[])
 				do {
 					ver = record_read_lock(rec);
 					xyz = d->xyz;
-					diff_ts = now - d->ts;
+					ts = d->ts;
 				} while (ver != record_get_version(rec));
 
-				if (diff_ts >= STALE_DATA_USEC) {
-					if (c != '*')
-						c = '!';
-				} else if (xyz == expected) {
-					if (c == ' ')
-						c = '.';
-				} else if (c != '*')
-					c = '?';
+				event |= 1;
 
-				expected = xyz + 1;
+				if (xyz < expected)
+					event |= 2;
+				else
+					expected = xyz + 1;
+
+				if (ts < last_update)
+					event |= 4;
+				else
+					last_update = ts;
+
+				old_head = new_head;
 			}
-
-			old_head = new_head;
 		}
 
 		if (storage_get_created_time(store) != created_time) {
@@ -103,10 +106,10 @@ int main(int argc, char* argv[])
 		}
 
 		if ((now - last_print) >= DISPLAY_DELAY_USEC) {
-			putchar(c);
+			putchar(event + (event > 9 ? 'A' - 10 : '0'));
 			fflush(stdout);
 			last_print = now;
-			c = ' ';
+			event = 0;
 		}
 	}
 

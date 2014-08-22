@@ -6,19 +6,18 @@
 #include "clock.h"
 
 #define MAX_ID 1000000
-#define MAX_AGE_USEC 10000
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct datum_t
+struct datum
 {
 	long xyz;
-	microsec_t ts;
+	microsec ts;
 };
 
-typedef struct datum_t datum;
+typedef struct datum datum;
 
 #ifdef __cplusplus
 }

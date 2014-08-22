@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-struct thread_t
+struct thread
 {
 	pthread_t sys_thr;
 	thread_func func;
@@ -30,7 +30,7 @@ status thread_create(thread_handle* pthr, thread_func fn, void* param)
 		return FAIL;
 	}
 
-	*pthr = XMALLOC(struct thread_t);
+	*pthr = XMALLOC(struct thread);
 	if (!*pthr)
 		return NO_MEMORY;
 

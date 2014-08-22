@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-struct dict_t;
-typedef struct dict_t* dict_handle;
+struct dict;
+typedef struct dict* dict_handle;
 
 status dict_create(dict_handle* pdict, size_t dict_sz);
 void dict_destroy(dict_handle* pdict);

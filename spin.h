@@ -5,8 +5,12 @@
 
 #include "sync.h"
 #include "yield.h"
+#include <limits.h>
 
 #define MAX_SPINS 8191
+
+#define SPIN_MASK(lock) \
+	(0x80uL << (CHAR_BIT * sizeof(lock) - 1))
 
 #define SPIN_CREATE(lock) \
 	do { \
@@ -28,7 +32,7 @@
 	do { \
 		int no_ver, n = 0; \
 		(void) no_ver; \
-		while ((old_ver = SYNC_FETCH_AND_OR(lock, -1)) < 0) \
+		while ((old_ver = SYNC_FETCH_AND_OR(lock, SPIN_MASK(lock))) < 0) \
 			if ((++n & MAX_SPINS) != 0) \
 				CPU_RELAX(); \
 			else \

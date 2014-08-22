@@ -5,23 +5,23 @@
 
 #define NO_TIME (-1)
 
-struct accum_t
+struct accum
 {
 	size_t capacity;
-	microsec_t max_age_usec;
-	microsec_t insert_time;
+	microsec max_age_usec;
+	microsec insert_time;
 	char* next_free;
 	char buf[1];
 };
 
-status accum_create(accum_handle* pacc, size_t capacity, microsec_t max_age_usec)
+status accum_create(accum_handle* pacc, size_t capacity, microsec max_age_usec)
 {
 	if (!pacc || capacity == 0 || max_age_usec < 0) {
 		error_invalid_arg("accum_create");
 		return FAIL;
 	}
 
-	*pacc = xmalloc(sizeof(struct accum_t) + capacity - 1);
+	*pacc = xmalloc(sizeof(struct accum) + capacity - 1);
 	if (!*pacc)
 		return NO_MEMORY;
 
@@ -48,7 +48,7 @@ boolean accum_is_empty(accum_handle acc)
 
 status accum_is_stale(accum_handle acc)
 {
-	microsec_t now;
+	microsec now;
 	status st;
 
 	if (acc->max_age_usec == 0 || acc->insert_time == NO_TIME)

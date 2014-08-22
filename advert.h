@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-struct advert_t;
-typedef struct advert_t* advert_handle;
+struct advert;
+typedef struct advert* advert_handle;
 
 status advert_create(advert_handle* padvert, const char* mcast_addr, int mcast_port, int mcast_ttl);
 void advert_destroy(advert_handle* padvert);

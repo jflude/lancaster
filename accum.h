@@ -11,10 +11,10 @@
 extern "C" {
 #endif
 
-struct accum_t;
-typedef struct accum_t* accum_handle;
+struct accum;
+typedef struct accum* accum_handle;
 
-status accum_create(accum_handle* pacc, size_t capacity, microsec_t max_age_usec);
+status accum_create(accum_handle* pacc, size_t capacity, microsec max_age_usec);
 void accum_destroy(accum_handle* pacc);
 
 boolean accum_is_empty(accum_handle acc);

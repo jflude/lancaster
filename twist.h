@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-struct twist_t;
-typedef struct twist_t* twist_handle;
+struct twist;
+typedef struct twist* twist_handle;
 
 status twist_create(twist_handle* ptwist);
 void twist_destroy(twist_handle* ptwist);

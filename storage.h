@@ -14,11 +14,11 @@ extern "C" {
 
 #define STORAGE_VERSION 1
 
-struct storage_t;
-typedef struct storage_t* storage_handle;
+struct storage;
+typedef struct storage* storage_handle;
 
-struct record_t;
-typedef struct record_t* record_handle;
+struct record;
+typedef struct record* record_handle;
 
 typedef status (*storage_iterate_func)(record_handle, void*);
 
@@ -29,7 +29,7 @@ typedef long version;
 #define VERSION_MIN LONG_MIN
 #define VERSION_MAX LONG_MAX
 
-#define NEXT_VER(v) (((v) + 1) & LONG_MAX)
+#define NEXT_VER(v) (((v) + 1) & VERSION_MAX)
 
 status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags,
 					  identifier base_id, identifier max_id, size_t value_size, size_t q_capacity);
@@ -49,8 +49,8 @@ const char* storage_get_file(storage_handle store);
 const char* storage_get_description(storage_handle store);
 status storage_set_description(storage_handle store, const char* desc);
 
-microsec_t storage_get_created_time(storage_handle store);
-microsec_t storage_get_touched_time(storage_handle store);
+microsec storage_get_created_time(storage_handle store);
+microsec storage_get_touched_time(storage_handle store);
 status storage_touch(storage_handle store);
 
 const identifier* storage_get_queue_base_ref(storage_handle store);

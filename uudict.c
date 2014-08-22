@@ -3,7 +3,7 @@
 #include "table.h"
 #include "xalloc.h"
 
-struct uudict_t
+struct uudict
 {
 	table_handle uu2id;
 	table_handle id2uu;
@@ -11,14 +11,14 @@ struct uudict_t
 
 static int uu2id_hash_fn(table_key key)
 {
-	union uuid_t* uu = key;
+	union uuid* uu = key;
 	long n = uu->word.low ^ uu->word.high;
 	return ((int) (n >> 32)) ^ (int) n;
 }
 
 static boolean uu2id_eq_fn(table_key key1, table_key key2)
 {
-	union uuid_t *uu1 = key1, *uu2 = key2;
+	union uuid *uu1 = key1, *uu2 = key2;
 	return uu1->word.low == uu2->word.low && uu1->word.high == uu2->word.high;
 }
 
@@ -36,7 +36,7 @@ status uudict_create(uudict_handle* puudict, size_t dict_sz)
 		return FAIL;
 	}
 
-	*puudict = XMALLOC(struct uudict_t);
+	*puudict = XMALLOC(struct uudict);
 	if (!*puudict)
 		return NO_MEMORY;
 
@@ -67,10 +67,10 @@ void uudict_destroy(uudict_handle* puudict)
 	*puudict = NULL;
 }
 
-status uudict_assoc(uudict_handle uudict, union uuid_t uu, identifier id)
+status uudict_assoc(uudict_handle uudict, union uuid uu, identifier id)
 {
 	status st = OK;
-	union uuid_t* p = XMALLOC(union uuid_t);
+	union uuid* p = XMALLOC(union uuid);
 	if (!p)
 		return NO_MEMORY;
 
@@ -82,7 +82,7 @@ status uudict_assoc(uudict_handle uudict, union uuid_t uu, identifier id)
 	return table_insert(uudict->id2uu, (table_key) (long) id, (table_value) p);
 }
 
-status uudict_get_id(uudict_handle uudict, union uuid_t uu, identifier* pident)
+status uudict_get_id(uudict_handle uudict, union uuid uu, identifier* pident)
 {
 	table_value val;
 	status st;
@@ -98,7 +98,7 @@ status uudict_get_id(uudict_handle uudict, union uuid_t uu, identifier* pident)
 	return st;
 }
 
-status uudict_get_uuid(uudict_handle uudict, identifier id, union uuid_t** ppuu)
+status uudict_get_uuid(uudict_handle uudict, identifier id, union uuid** ppuu)
 {
 	if (!ppuu) {
 		error_invalid_arg("uudict_get_uuid");

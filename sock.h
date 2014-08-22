@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-struct sock_t;
-typedef struct sock_t* sock_handle;
+struct sock;
+typedef struct sock* sock_handle;
 
 status sock_create(sock_handle* psock, int type, const char* address, int port);
 void sock_destroy(sock_handle* psock);

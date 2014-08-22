@@ -3,7 +3,7 @@
 #include "table.h"
 #include "xalloc.h"
 
-struct dict_t
+struct dict
 {
 	table_handle sym2id;
 	table_handle id2sym;
@@ -39,7 +39,7 @@ status dict_create(dict_handle* pdict, size_t dict_sz)
 		return FAIL;
 	}
 
-	*pdict = XMALLOC(struct dict_t);
+	*pdict = XMALLOC(struct dict);
 	if (!*pdict)
 		return NO_MEMORY;
 

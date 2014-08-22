@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-struct thread_t;
-typedef struct thread_t* thread_handle;
+struct thread;
+typedef struct thread* thread_handle;
 
 typedef void* (*thread_func)(thread_handle);
 

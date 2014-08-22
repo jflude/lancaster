@@ -6,7 +6,7 @@ clock.c \
 dump.c \
 dict.c \
 error.c \
-poll.c \
+poller.c \
 receiver.c \
 sender.c \
 signals.c \

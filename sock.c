@@ -26,7 +26,7 @@ FILE* popen(const char* command, const char* type);
 int pclose(FILE* stream);
 #endif
 
-struct sock_t
+struct sock
 {
 	int fd;
 	boolean is_open;
@@ -41,7 +41,7 @@ status sock_create(sock_handle* psock, int type, const char* address, int port)
 		return FAIL;
 	}
 
-	*psock = XMALLOC(struct sock_t);
+	*psock = XMALLOC(struct sock);
 	if (!*psock)
 		return NO_MEMORY;
 
@@ -322,7 +322,7 @@ status sock_listen(sock_handle sock, int backlog)
 
 status sock_accept(sock_handle sock, sock_handle* new_sock)
 {
-	struct sock_t accpt;
+	struct sock accpt;
 	socklen_t addrlen;
 	if (!new_sock) {
 		error_invalid_arg("sock_accept");
@@ -351,7 +351,7 @@ loop:
 			return FAIL;
 	}
 
-	*new_sock = XMALLOC(struct sock_t);
+	*new_sock = XMALLOC(struct sock);
 	if (!*new_sock) {
 	close_loop:
 		if (close(accpt.fd) == -1)

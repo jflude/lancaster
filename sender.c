@@ -2,17 +2,20 @@
 #include "accum.h"
 #include "error.h"
 #include "h2n2h.h"
-#include "poll.h"
+#include "poller.h"
 #include "sequence.h"
 #include "spin.h"
-#include "thread.h"
 #include "xalloc.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
 #include <sys/socket.h>
 
-struct sender_stats_t
+#define IDLE_TIMEOUT_USEC 10
+#define IDLE_SLEEP_USEC 1
+
+struct sender_stats
 {
 	volatile int lock;
 	size_t tcp_gap_count;
@@ -21,456 +24,463 @@ struct sender_stats_t
 	size_t mcast_packets_sent;
 };
 
-struct sender_t
+struct sender
 {
-	thread_handle tcp_thr;
-	sock_handle mcast_sock;
 	sock_handle listen_sock;
-	poll_handle poller;
+	sock_handle mcast_sock;
+	poller_handle poller;
 	accum_handle mcast_accum;
 	storage_handle store;
+	queue_index last_q_idx;
 	size_t mcast_mtu;
 	identifier base_id;
+	identifier max_id;
 	size_t val_size;
-	sequence* seq_array;
+	size_t client_count;
+	sequence* slot_seqs;
 	sequence next_seq;
-	sequence min_store_seq;
-	microsec_t last_mcast_send;
-	volatile int mcast_lock;
-	microsec_t heartbeat_usec;
-	microsec_t max_age_usec;
-	microsec_t* time_stored_at;
-	struct sender_stats_t stats;
+	sequence min_seq;
+	microsec last_activity;
+	microsec last_mcast_send;
+	microsec heartbeat_usec;
+	microsec max_pkt_age_usec;
+	microsec* time_stored_at;
+	struct sender_stats stats;
+	boolean is_stopping;
 	char hello_str[128];
 };
 
-struct tcp_req_param_t
+struct tcp_client
 {
-	sender_handle me;
+	sender_handle sender;
 	sock_handle sock;
 	size_t pkt_size;
-	char* send_buf;
-	sequence* send_seq;
-	identifier* send_id;
-	char* next_send;
-	size_t remain_send;
-	record_handle curr_rec;
-	sequence min_store_seq_seen;
-	struct sequence_range_t range;
-	microsec_t last_tcp_send;
-	boolean sending_hb;
+	char* in_buf;
+	char* in_next;
+	size_t in_remain;
+	struct sequence_range* in_range_ref;
+	char* out_buf;
+	char* out_next;
+	size_t out_remain;
+	sequence* out_seq_ref;
+	identifier* out_id_ref;
+	microsec last_tcp_send;
+	struct sequence_range union_range;
+	struct sequence_range reply_range;
+	identifier reply_id;
+	sequence min_seq_found;
 };
 
-static status write_accum(sender_handle me)
+static status mcast_send_accum(sender_handle sender)
 {
 	const void* data;
 	size_t sz;
-	microsec_t now;
+	microsec now;
 	status st;
 
-	if (FAILED(st = accum_get_batched(me->mcast_accum, &data, &sz)) || !st || FAILED(clock_time(&now)))
+	if (FAILED(st = accum_get_batched(sender->mcast_accum, &data, &sz)) || !st || FAILED(clock_time(&now)))
 		return st;
 
-	*me->time_stored_at = htonll(now);
-	if (FAILED(st = sock_sendto(me->mcast_sock, data, sz)))
+	*sender->time_stored_at = htonll(now);
+	if (FAILED(st = sock_sendto(sender->mcast_sock, data, sz)))
 		return st;
 
-	me->last_mcast_send = now;
+	sender->last_activity = sender->last_mcast_send = now;
 
-	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
-	me->stats.mcast_bytes_sent += sz;
-	me->stats.mcast_packets_sent++;
-	SPIN_UNLOCK(&me->stats.lock, no_ver);
+	SPIN_WRITE_LOCK(&sender->stats.lock, no_ver);
+	sender->stats.mcast_bytes_sent += sz;
+	++sender->stats.mcast_packets_sent;
+	SPIN_UNLOCK(&sender->stats.lock, no_ver);
 
-	accum_clear(me->mcast_accum);
+	accum_clear(sender->mcast_accum);
 
-	if (++me->next_seq < 0) {
+	if (++sender->next_seq < 0) {
 		errno = EOVERFLOW;
-		error_errno("write_accum");
+		error_errno("mcast_send_accum");
 		return FAIL;
 	}
 
 	return st;
 }
 
-static status mcast_on_write(sender_handle me, record_handle rec)
+static status mcast_accum_record(sender_handle sender, identifier id)
 {
 	status st = OK;
-	identifier id;
+	record_handle rec;
+	identifier nid;
 
-	if ((accum_get_available(me->mcast_accum) < me->val_size + sizeof(identifier) || accum_is_stale(me->mcast_accum)) &&
-		FAILED(st = write_accum(me)))
+	if (accum_get_available(sender->mcast_accum) < sender->val_size + sizeof(identifier) &&
+		FAILED(st = mcast_send_accum(sender)))
 		return st;
 		
-	if (accum_is_empty(me->mcast_accum)) {
-		sequence seq = htonll(me->next_seq);
-		if (FAILED(st = accum_store(me->mcast_accum, &seq, sizeof(seq), NULL)) ||
-			FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
+	if (accum_is_empty(sender->mcast_accum)) {
+		sequence seq = htonll(sender->next_seq);
+		if (FAILED(st = accum_store(sender->mcast_accum, &seq, sizeof(seq), NULL)) ||
+			FAILED(st = accum_store(sender->mcast_accum, NULL, sizeof(microsec), (void**) &sender->time_stored_at)))
 			return st;
 	}
 
-	if (FAILED(st = storage_get_id(me->store, rec, &id)))
+	if (FAILED(st = storage_get_record(sender->store, id, &rec)))
 		return st;
 
-	id = htonll(id);
-	if (!FAILED(st = accum_store(me->mcast_accum, &id, sizeof(id), NULL))) {
-		version ver = record_write_lock(rec);
-		if (!FAILED(st = accum_store(me->mcast_accum, record_get_value_ref(rec), me->val_size, NULL)))
-			me->seq_array[id - me->base_id] = me->next_seq;
+	nid = htonll(id);
+	if (!FAILED(st = accum_store(sender->mcast_accum, &nid, sizeof(nid), NULL))) {
+		void* val_at = record_get_value_ref(rec);
+		void* stored_at = NULL;
+		version ver;
 
-		record_set_version(rec, ver);
+		do {
+			ver = record_read_lock(rec);
+			if (stored_at)
+				memcpy(stored_at, val_at, sender->val_size);
+			else if (FAILED(st = accum_store(sender->mcast_accum, val_at, sender->val_size, &stored_at)))
+				return st;
+		} while (ver != record_get_version(rec));
+
+		sender->slot_seqs[id - sender->base_id] = sender->next_seq;
 	}
 
 	return st;
 }
 
-static status mcast_check_heartbeat_or_stale(sender_handle me)
+static status mcast_on_write(sender_handle sender)
 {
 	status st = OK;
-	SPIN_WRITE_LOCK(&me->mcast_lock, no_ver);
+	queue_index new_q_idx = storage_get_queue_head(sender->store);
+	queue_index qi = new_q_idx - sender->last_q_idx;
 
-	if (accum_is_stale(me->mcast_accum))
-		st = write_accum(me);
-	else if (poll_get_count(me->poller) > 1) {
-		microsec_t now;
-		if (!FAILED(st = clock_time(&now)) && (now - me->last_mcast_send) >= me->heartbeat_usec) {
-			if (!accum_is_empty(me->mcast_accum))
-				st = write_accum(me);
+	if (qi > 0) {
+		if ((size_t) qi > storage_get_queue_capacity(sender->store)) {
+			errno = ERANGE;
+			error_errno("mcast_on_write");
+			return FAIL;
+		}
+
+		for (qi = sender->last_q_idx; qi != new_q_idx; ++qi)
+			if (FAILED(st = mcast_accum_record(sender, storage_read_queue(sender->store, qi))))
+				break;
+
+		sender->last_q_idx = qi;
+		if (st == BLOCKED)
+			st = OK;
+	} else if (accum_is_stale(sender->mcast_accum))
+		st = mcast_send_accum(sender);
+	else {
+		microsec now;
+		if (!FAILED(st = clock_time(&now)) && (now - sender->last_mcast_send) >= sender->heartbeat_usec) {
+			if (!accum_is_empty(sender->mcast_accum))
+				st = mcast_send_accum(sender);
 			else {
-				sequence hb_seq = htonll(-me->next_seq);
-				if (!FAILED(st = accum_store(me->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
-					!FAILED(st = accum_store(me->mcast_accum, NULL, sizeof(microsec_t), (void**) &me->time_stored_at)))
-					st = write_accum(me);
+				sequence hb_seq = htonll(-sender->next_seq);
+				if (!FAILED(st = accum_store(sender->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
+					!FAILED(st = accum_store(sender->mcast_accum, NULL, sizeof(microsec), (void**) &sender->time_stored_at)))
+					st = mcast_send_accum(sender);
 			}
 		}
 	}
 
-	SPIN_UNLOCK(&me->mcast_lock, no_ver);
 	return st;
 }
 
-static status tcp_close_func(poll_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_read_buf(struct tcp_client* client)
 {
-	status st;
-	struct tcp_req_param_t* req_param = sock_get_property(sock);
-	(void) poller; (void) events; (void) param;
+	status st = OK;
+	while (client->in_remain > 0) {
+		if (FAILED(st = sock_read(client->sock, client->in_next, client->in_remain)))
+			break;
 
-	if (req_param) {
-		xfree(req_param->send_buf);
-		xfree(req_param);
+		client->in_next += st;
+		client->in_remain -= st;
 	}
 
-	st = sock_close(sock);
-	sock_destroy(&sock);
 	return st;
 }
 
-static status tcp_will_quit_func(poll_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_write_buf(struct tcp_client* client)
 {
-	sequence quit_seq = htonll(WILL_QUIT_SEQ);
-	(void) poller; (void) events; (void) param;
-	return sock_write(sock, &quit_seq, sizeof(quit_seq));
+	status st = OK;
+	size_t sent_sz = 0;
+
+	while (client->out_remain > 0) {
+		if (FAILED(st = sock_write(client->sock, client->out_next, client->out_remain)))
+			break;
+
+		client->out_next += st;
+		client->out_remain -= st;
+		sent_sz += st;
+	}
+
+	if (sent_sz > 0) {
+		status st2 = clock_time(&client->last_tcp_send);
+		if (!FAILED(st))
+			st = st2;
+
+		client->sender->last_activity = client->last_tcp_send;
+
+		SPIN_WRITE_LOCK(&client->sender->stats.lock, no_ver);
+		client->sender->stats.tcp_bytes_sent += sent_sz;
+		SPIN_UNLOCK(&client->sender->stats.lock, no_ver);
+	}
+
+	return st;
 }
 
-static status tcp_on_accept(sender_handle me, sock_handle sock)
+static status tcp_on_accept(sender_handle sender, sock_handle sock)
 {
-	status st;
+	struct tcp_client* client;
 	sock_handle accepted;
-	struct tcp_req_param_t* req_param;
+	status st;
 
 	char buf[512];
-	strcpy(buf, me->hello_str);
-	strcat(buf, storage_get_description(me->store));
+	strcpy(buf, sender->hello_str);
+	strcat(buf, storage_get_description(sender->store));
 	strcat(buf, "\r\n");
 
 	if (FAILED(st = sock_accept(sock, &accepted)) ||
 		FAILED(st = sock_write(accepted, buf, strlen(buf))))
 		return st;
 
-	req_param = XMALLOC(struct tcp_req_param_t);
-	if (!req_param) {
+	client = XMALLOC(struct tcp_client);
+	if (!client) {
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
 
-	BZERO(req_param);
-	req_param->pkt_size = sizeof(sequence) + sizeof(identifier) + req_param->me->val_size;
+	BZERO(client);
 
-	req_param->send_buf = xmalloc(req_param->pkt_size);
-	if (!req_param->send_buf) {
-		xfree(req_param);
+	client->in_buf = xmalloc(sizeof(*client->in_range_ref));
+	if (!client->in_buf) {
+		xfree(client);
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
 
-	sock_set_property(accepted, req_param);
+	client->pkt_size = sizeof(sequence) + sizeof(identifier) + sender->val_size;
 
-	req_param->send_seq = (sequence*) req_param->send_buf;
-	req_param->send_id = (identifier*) (req_param->send_seq + 1);
-	req_param->sock = accepted;
-	req_param->me = me;
+	client->out_buf = xmalloc(client->pkt_size);
+	if (!client->out_buf) {
+		xfree(client->in_buf);
+		xfree(client);
+		sock_destroy(&accepted);
+		return NO_MEMORY;
+	}
 
-	if (FAILED(st = clock_time(&req_param->last_tcp_send)) ||
-		FAILED(st = sock_set_nonblock(accepted)))
+	client->sender = sender;
+	client->sock = accepted;
+	INVALIDATE_RANGE(client->union_range);
+
+	client->in_range_ref = (struct sequence_range*) client->in_buf;
+	client->in_next = client->in_buf;
+	client->in_remain = sizeof(*client->in_range_ref);
+
+	client->out_seq_ref = (sequence*) client->out_buf;
+	client->out_id_ref = (identifier*) (client->out_seq_ref + 1);
+
+	sock_set_property(accepted, client);
+
+	if (FAILED(st = clock_time(&client->last_tcp_send)) ||
+		FAILED(st = sock_set_nonblock(accepted)) ||
+		FAILED(st = poller_add(sender->poller, accepted, POLLIN | POLLOUT)))
 		return st;
 
-	return poll_add(me->poller, accepted, POLLIN);
-}
+	sender->last_activity = client->last_tcp_send;
 
-static status tcp_on_hup(sender_handle me, sock_handle sock)
-{
-	status st = poll_remove(me->poller, sock);
-	return FAILED(st) ? st : tcp_close_func(me->poller, sock, NULL, NULL);
-}
-
-static status tcp_on_write_remaining(struct tcp_req_param_t* req_param)
-{
-	status st = OK;
-	size_t sent_sz = 0;
-
-	while (req_param->remain_send > 0) {
-		if (FAILED(st = sock_sendto(req_param->sock, req_param->next_send, req_param->remain_send)))
-			break;
-
-		req_param->next_send += st;
-		req_param->remain_send -= st;
-		sent_sz += st;
-	}
-
-	if (sent_sz > 0) {
-		status st2 = clock_time(&req_param->last_tcp_send);
-		if (!FAILED(st))
-			st = st2;
-
-		SPIN_WRITE_LOCK(&req_param->me->stats.lock, no_ver);
-		req_param->me->stats.tcp_bytes_sent += sent_sz;
-		SPIN_UNLOCK(&req_param->me->stats.lock, no_ver);
+	if (++sender->client_count == 1) {
+		st = poller_add(sender->poller, sender->mcast_sock, POLLOUT);
+		sender->last_q_idx = storage_get_queue_head(sender->store);
 	}
 
 	return st;
 }
 
-static status tcp_on_write_iter_fn(record_handle rec, void* param)
+static status close_sock_func(poller_handle poller, sock_handle sock, short* events, void* param)
 {
+	struct tcp_client* client = sock_get_property(sock);
 	status st;
-	version ver;
-	sequence seq;
-	struct tcp_req_param_t* req_param = param;
+	(void) events; (void) param;
 
-	if (FAILED(st = storage_get_id(req_param->me->store, rec, req_param->send_id)))
+	if (client) {
+		xfree(client->out_buf);
+		xfree(client->in_buf);
+		xfree(client);
+	}
+
+	if (FAILED(st = poller_remove(poller, sock)))
 		return st;
 
-	ver = record_write_lock(rec);
-	seq = req_param->me->seq_array[*req_param->send_id - req_param->me->base_id];
-
-	if (seq < req_param->min_store_seq_seen)
-		req_param->min_store_seq_seen = seq;
-
-	if (seq < req_param->range.low || seq >= req_param->range.high) {
-		record_set_version(rec, ver);
-		return TRUE;
-	}
-
-	memcpy(req_param->send_id + 1, record_get_value_ref(rec), req_param->me->val_size);
-	record_set_version(rec, ver);
-
-	*req_param->send_id = htonll(*req_param->send_id);
-	*req_param->send_seq = htonll(seq);
-
-	req_param->curr_rec = rec;
-	req_param->next_send = req_param->send_buf;
-	req_param->remain_send = req_param->pkt_size;
-
-	return tcp_on_write_remaining(req_param);
+	st = sock_close(sock);
+	sock_destroy(&sock);
+	return st;
 }
 
-static status tcp_on_write(sender_handle me, sock_handle sock)
+static status tcp_will_quit_func(poller_handle poller, sock_handle sock, short* events, void* param)
 {
+	struct tcp_client* client = sock_get_property(sock);
 	status st;
-	struct tcp_req_param_t* req_param = sock_get_property(sock);
+	(void) poller; (void) events; (void) param;
 
-	if (req_param->remain_send > 0) {
-		st = tcp_on_write_remaining(req_param);
-		if (st == BLOCKED)
-			return OK;
-		else if (st == EOF || st == TIMED_OUT)
-			return tcp_on_hup(me, sock);
-		else if (FAILED(st))
-			return st;
-	}
-
-	if (req_param->sending_hb) {
-		req_param->sending_hb = FALSE;
-		return poll_set_event(me->poller, sock, POLLIN);
-	}
-
-	st = storage_iterate(me->store, tcp_on_write_iter_fn, req_param->curr_rec, req_param);
-	if (st == BLOCKED)
+	if ( !client)
 		return OK;
+
+	*client->out_seq_ref = htonll(WILL_QUIT_SEQ);
+	client->out_next = client->out_buf;
+	client->out_remain = sizeof(*client->out_seq_ref);
+
+	do {
+		st = tcp_write_buf(client);
+		if (st != BLOCKED && FAILED(st))
+			break;
+	} while (client->out_remain > 0);
+
+	return st;
+}
+
+static status tcp_on_hup(sender_handle sender, sock_handle sock)
+{
+	status st;
+	if (FAILED(st = close_sock_func(sender->poller, sock, NULL, NULL)))
+		return st;
+
+	if (--sender->client_count == 0)
+		st = poller_remove(sender->poller, sender->mcast_sock);
+
+	return st;
+}
+
+static status tcp_on_write(sender_handle sender, sock_handle sock)
+{
+	struct tcp_client* client = sock_get_property(sock);
+	microsec now;
+
+	status st = tcp_write_buf(client);
+	if (st == BLOCKED)
+		st = OK;
 	else if (st == EOF || st == TIMED_OUT)
-		return tcp_on_hup(me, sock);
-	else if (st) {
-		req_param->curr_rec = NULL;
-		me->min_store_seq = req_param->min_store_seq_seen;
-		st = poll_set_event(me->poller, sock, POLLIN);
+		return tcp_on_hup(sender, sock);
+	else if (FAILED(st))
+		return st;
+
+	if (client->out_remain == 0) {
+		if (IS_VALID_RANGE(client->reply_range)) {
+			for (; client->reply_id < sender->max_id; ++client->reply_id) {
+				sequence seq = sender->slot_seqs[client->reply_id - sender->base_id];
+				if (seq < client->min_seq_found)
+					client->min_seq_found = seq;
+
+				if (IS_WITHIN_RANGE(client->reply_range, seq)) {
+					record_handle rec;
+					version ver;
+					void* val_at;
+					if (FAILED(st = storage_get_record(sender->store, client->reply_id, &rec)))
+						return st;
+
+					val_at = record_get_value_ref(rec);
+					do {
+						ver = record_read_lock(rec);
+						memcpy(client->out_id_ref + 1, val_at, sender->val_size);
+					} while (ver != record_get_version(rec));
+
+					*client->out_seq_ref = htonll(seq);
+					*client->out_id_ref = htonll(client->reply_id);
+					client->out_next = client->out_buf;
+					client->out_remain = client->pkt_size;
+
+					++client->reply_id;
+					return OK;
+				}
+			}
+
+			sender->min_seq = client->min_seq_found;
+			INVALIDATE_RANGE(client->reply_range);
+		} else if (!FAILED(st = clock_time(&now)) && (now - client->last_tcp_send) >= sender->heartbeat_usec) {
+			*client->out_seq_ref = htonll(HEARTBEAT_SEQ);
+			client->out_next = client->out_buf;
+			client->out_remain = sizeof(*client->out_seq_ref);
+		}
 	}
 
 	return st;
 }
 
-static status tcp_on_read(sender_handle me, sock_handle sock)
+static status tcp_on_read_blocked(sender_handle sender, sock_handle sock)
 {
-	status st;
-	size_t gap_inc = 0;
-	struct tcp_req_param_t* req_param = sock_get_property(sock);
+	struct tcp_client* client = sock_get_property(sock);
 
-	req_param->range.low = SEQUENCE_MAX;
-	req_param->range.high = SEQUENCE_MIN;
-
-	for (;;) {
-		struct sequence_range_t range;
-		char* p = (void*) &range;
-		size_t sz = sizeof(range);
-
-		while (sz > 0) {
-			if (thread_is_stopping(me->tcp_thr))
-				return OK;
-
-			st = sock_read(sock, p, sz);
-			if (st == EOF || st == TIMED_OUT)
-				return tcp_on_hup(me, sock);
-			else if (st == BLOCKED) {
-				if (sz == sizeof(range))
-					goto read_all;
-
-				if (FAILED(st = clock_sleep(1)))
-					return st;
-
-				continue;
-			} else if (FAILED(st))
-				return st;
-
-			p += st;
-			sz -= st;
+	if (client->in_next == client->in_buf) {
+		if (client->union_range.high <= sender->min_seq)
+			INVALIDATE_RANGE(client->union_range);
+		else if (!IS_VALID_RANGE(client->reply_range)) {
+			client->reply_id = sender->base_id;
+			client->reply_range = client->union_range;
+			INVALIDATE_RANGE(client->union_range);
+			client->min_seq_found = SEQUENCE_MAX;
 		}
+	}
 
-		range.low = ntohll(range.low);
-		range.high = ntohll(range.high);
+	return OK;
+}
 
-		if (range.low >= range.high) {
+static status tcp_on_read(sender_handle sender, sock_handle sock)
+{
+	struct tcp_client* client = sock_get_property(sock);
+
+	status st = tcp_read_buf(client);
+	if (st == BLOCKED)
+		st = OK;
+	else if (st == EOF || st == TIMED_OUT)
+		return tcp_on_hup(sender, sock);
+	else if (FAILED(st))
+		return st;
+
+	if (client->in_remain == 0) {
+		client->in_range_ref->low = ntohll(client->in_range_ref->low);
+		client->in_range_ref->high = ntohll(client->in_range_ref->high);
+
+		if (!IS_VALID_RANGE(*client->in_range_ref)) {
 			errno = EPROTO;
 			error_errno("tcp_on_read");
 			return BAD_PROTOCOL;
 		}
 
-		gap_inc++;
+		if (client->in_range_ref->low < client->union_range.low)
+			client->union_range.low = client->in_range_ref->low;
 
-		if (range.low < req_param->range.low)
-			req_param->range.low = range.low;
+		if (client->in_range_ref->high > client->union_range.high)
+			client->union_range.high = client->in_range_ref->high;
 
-		if (range.high > req_param->range.high)
-			req_param->range.high = range.high;
+		client->in_next = client->in_buf;
+		client->in_remain = sizeof(*client->in_range_ref);
+
+		SPIN_WRITE_LOCK(&sender->stats.lock, no_ver);
+		++sender->stats.tcp_gap_count;
+		SPIN_UNLOCK(&sender->stats.lock, no_ver);
 	}
 
-read_all:
-	if (gap_inc == 0)
-		return OK;
-
-	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
-	me->stats.tcp_gap_count += gap_inc;
-	SPIN_UNLOCK(&me->stats.lock, no_ver);
-
-	if (req_param->range.high <= me->min_store_seq)
-		return OK;
-
-	req_param->min_store_seq_seen = SEQUENCE_MAX;
-	return poll_set_event(me->poller, sock, POLLOUT);
+	return st;
 }
 
-static status tcp_event_func(poll_handle poller, sock_handle sock, short* revents, void* param)
+static status event_func(poller_handle poller, sock_handle sock, short* revents, void* param)
 {
-	sender_handle me = param;
+	sender_handle sender = param;
+	status st = OK;
 	(void) poller;
 
-	if (sock == me->listen_sock)
-		return tcp_on_accept(me, sock);
+	if (sock == sender->listen_sock)
+		return tcp_on_accept(sender, sock);
+
+	if (sock == sender->mcast_sock)
+		return mcast_on_write(sender);
 
 	if (*revents & POLLHUP)
-		return tcp_on_hup(me, sock);
-	else if (*revents & POLLIN)
-		return tcp_on_read(me, sock);
-	else if (*revents & POLLOUT)
-		return tcp_on_write(me, sock);
+		return tcp_on_hup(sender, sock);
 
-	return OK;
-}
-
-static status tcp_check_heartbeat_func(poll_handle poller, sock_handle sock, short* events, void* param)
-{
-	sender_handle me = param;
-	status st = OK;
-	microsec_t now;
-	struct tcp_req_param_t* req_param;
-
-	if (sock == me->listen_sock || *events & POLLOUT || FAILED(st = clock_time(&now)))
+	if (FAILED(st = (*revents & POLLIN ? tcp_on_read(sender, sock) : tcp_on_read_blocked(sender, sock))))
 		return st;
 
-	req_param = sock_get_property(sock);
-	if ((now - req_param->last_tcp_send) < me->heartbeat_usec)
-		return OK;
+	if (*revents & POLLOUT)
+		st = tcp_on_write(sender, sock);
 
-	*req_param->send_seq = htonll(HEARTBEAT_SEQ);
-	req_param->next_send = req_param->send_buf;
-	req_param->remain_send = sizeof(*req_param->send_seq);
-	req_param->sending_hb = TRUE;
-
-	return poll_set_event(poller, sock, POLLOUT);
-}
-
-static void* tcp_func(thread_handle thr)
-{
-	sender_handle me = thread_get_param(thr);
-	status st, st2;
-
-	if (FAILED(st = clock_time(&me->last_mcast_send)))
-		return (void*) (long) st;
-
-	while (!thread_is_stopping(thr)) {
-		if (FAILED(st = mcast_check_heartbeat_or_stale(me)) ||
-			FAILED(st = poll_process(me->poller, tcp_check_heartbeat_func, me)) ||
-			FAILED(st = poll_events(me->poller, 0)))
-			break;
-
-		if (st > 0) {
-			if (FAILED(st = poll_process_events(me->poller, tcp_event_func, me)))
-				break;
-		} else {
-			if (FAILED(st = clock_sleep(me->max_age_usec < me->heartbeat_usec ? me->max_age_usec : me->heartbeat_usec)))
-				break;
-		}
-	}
-
-	st2 = poll_remove(me->poller, me->listen_sock);
-	if (!FAILED(st))
-		st = st2;
-
-	st2 = sock_close(me->listen_sock);
-	if (!FAILED(st))
-		st = st2;
-
-	st2 = poll_process(me->poller, tcp_will_quit_func, NULL);
-	if (!FAILED(st))
-		st = st2;
-
-	st2 = clock_sleep(1000000);
-	if (!FAILED(st))
-		st = st2;
-
-	st2 = poll_process(me->poller, tcp_close_func, NULL);
-	if (!FAILED(st))
-		st = st2;
-
-	return (void*) (long) st;
+	return st;
 }
 
 static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
@@ -486,191 +496,180 @@ static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
 	return st;
 }
 
-status sender_create(sender_handle* psend, storage_handle store, microsec_t hb_usec, long max_age_usec,
+status sender_create(sender_handle* psender, const char* mmap_file, microsec heartbeat_usec, long max_pkt_age_usec,
 					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
 {
 	status st;
-	if (!psend || !store || hb_usec <= 0 || max_age_usec < 0 || !mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
+	if (!psender || !mmap_file || heartbeat_usec <= 0 || max_pkt_age_usec < 0 ||
+		!mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
 		error_invalid_arg("sender_create");
 		return FAIL;
 	}
 
-	if (storage_is_read_only(store)) {
-		errno = EPERM;
-		error_errno("sender_create");
-		return FAIL;
-	}
-
-	*psend = XMALLOC(struct sender_t);
-	if (!*psend)
+	*psender = XMALLOC(struct sender);
+	if (!*psender)
 		return NO_MEMORY;
 
-	BZERO(*psend);
+	BZERO(*psender);
 
-	SPIN_CREATE(&(*psend)->mcast_lock);
-	SPIN_CREATE(&(*psend)->stats.lock);
+	if (FAILED(st = storage_open(&(*psender)->store, mmap_file, O_RDONLY))) {
+		sender_destroy(psender);
+		return st;
+	}
 
-	(*psend)->store = store;
-	(*psend)->base_id = storage_get_base_id(store);
-	(*psend)->val_size = storage_get_value_size(store);
-	(*psend)->next_seq = 1;
-	(*psend)->min_store_seq = 0;
-	(*psend)->max_age_usec = max_age_usec;
-	(*psend)->heartbeat_usec = hb_usec;
+	SPIN_CREATE(&(*psender)->stats.lock);
 
-	(*psend)->seq_array = xcalloc(storage_get_max_id(store) - (*psend)->base_id, sizeof(sequence));
-	if (!(*psend)->seq_array) {
-		sender_destroy(psend);
+	(*psender)->base_id = storage_get_base_id((*psender)->store);
+	(*psender)->max_id = storage_get_max_id((*psender)->store);
+	(*psender)->val_size = storage_get_value_size((*psender)->store);
+	(*psender)->next_seq = 1;
+	(*psender)->min_seq = 0;
+	(*psender)->max_pkt_age_usec = max_pkt_age_usec;
+	(*psender)->heartbeat_usec = heartbeat_usec;
+
+	(*psender)->slot_seqs = xcalloc((*psender)->max_id - (*psender)->base_id, sizeof(sequence));
+	if (!(*psender)->slot_seqs) {
+		sender_destroy(psender);
 		return NO_MEMORY;
 	}
 
-	if (FAILED(st = sock_create(&(*psend)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
-		FAILED(st = sock_set_reuseaddr((*psend)->listen_sock, 1)) ||
-		FAILED(st = sock_listen((*psend)->listen_sock, 5)) ||
-		(tcp_port == 0 && FAILED(st = sock_update_local_address((*psend)->listen_sock)))) {
-		sender_destroy(psend);
+	if (FAILED(st = sock_create(&(*psender)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
+		FAILED(st = sock_set_reuseaddr((*psender)->listen_sock, 1)) ||
+		FAILED(st = sock_listen((*psender)->listen_sock, 5)) ||
+		(tcp_port == 0 && FAILED(st = sock_update_local_address((*psender)->listen_sock)))) {
+		sender_destroy(psender);
 		return st;
 	}
 
 	if (mcast_port == 0)
-		mcast_port = sock_get_port((*psend)->listen_sock);
+		mcast_port = sock_get_port((*psender)->listen_sock);
 
-	if (FAILED(st = sock_create(&(*psend)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
-		FAILED(st = get_udp_mtu((*psend)->mcast_sock, mcast_addr, &(*psend)->mcast_mtu))) {
-		sender_destroy(psend);
+	if (FAILED(st = sock_create(&(*psender)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+		FAILED(st = sock_set_nonblock((*psender)->mcast_sock)) ||
+		FAILED(st = get_udp_mtu((*psender)->mcast_sock, mcast_addr, &(*psender)->mcast_mtu))) {
+		sender_destroy(psender);
 		return st;
 	}
 
-	st = sprintf((*psend)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 STORAGE_VERSION, mcast_addr, mcast_port, (*psend)->mcast_mtu,
-				 (long) (*psend)->base_id, (long) storage_get_max_id(store),
-				 storage_get_value_size(store), max_age_usec, (*psend)->heartbeat_usec);
+	st = sprintf((*psender)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 STORAGE_VERSION, mcast_addr, mcast_port, (*psender)->mcast_mtu,
+				 (long) (*psender)->base_id, (long) (*psender)->max_id,
+				 storage_get_value_size((*psender)->store), max_pkt_age_usec, (*psender)->heartbeat_usec);
 
 	if (st < 0) {
 		error_errno("sprintf");
-		sender_destroy(psend);
+		sender_destroy(psender);
 		return FAIL;
 	}
 
-	if (FAILED(st = accum_create(&(*psend)->mcast_accum, (*psend)->mcast_mtu, max_age_usec)) ||
-		FAILED(st = sock_set_reuseaddr((*psend)->mcast_sock, 1)) ||
-		FAILED(st = sock_mcast_bind((*psend)->mcast_sock)) ||
-		FAILED(st = sock_set_mcast_ttl((*psend)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = poll_create(&(*psend)->poller, 10)) ||
-		FAILED(st = poll_add((*psend)->poller, (*psend)->listen_sock, POLLIN)) ||
-		FAILED(st = thread_create(&(*psend)->tcp_thr, tcp_func, *psend))) {
-		sender_destroy(psend);
+	if (FAILED(st = accum_create(&(*psender)->mcast_accum, (*psender)->mcast_mtu, max_pkt_age_usec)) ||
+		FAILED(st = sock_set_reuseaddr((*psender)->mcast_sock, 1)) ||
+		FAILED(st = sock_mcast_bind((*psender)->mcast_sock)) ||
+		FAILED(st = sock_set_mcast_ttl((*psender)->mcast_sock, mcast_ttl)) ||
+		FAILED(st = poller_create(&(*psender)->poller, 10)) ||
+		FAILED(st = poller_add((*psender)->poller, (*psender)->listen_sock, POLLIN))) {
+		sender_destroy(psender);
 		return st;
 	}
 
 	return OK;
 }
 
-void sender_destroy(sender_handle* psend)
+void sender_destroy(sender_handle* psender)
 {
-	if (!psend || !*psend)
+	if (!psender || !*psender)
 		return;
 
 	error_save_last();
 
-	thread_destroy(&(*psend)->tcp_thr);
-	sock_destroy(&(*psend)->listen_sock);
-	sock_destroy(&(*psend)->mcast_sock);
-	poll_destroy(&(*psend)->poller);
-	accum_destroy(&(*psend)->mcast_accum);
+	poller_process((*psender)->poller, close_sock_func, *psender);
+
+	poller_destroy(&(*psender)->poller);
+	accum_destroy(&(*psender)->mcast_accum);
+	storage_destroy(&(*psender)->store);
 
 	error_restore_last();
 
-	xfree((*psend)->seq_array);
-	xfree(*psend);
-	*psend = NULL;
+	xfree((*psender)->slot_seqs);
+	xfree(*psender);
+	*psender = NULL;
 }
 
-storage_handle sender_get_storage(sender_handle send)
+storage_handle sender_get_storage(sender_handle sender)
 {
-	return send->store;
+	return sender->store;
 }
 
-sock_handle sender_get_listen_socket(sender_handle send)
+int sender_get_listen_port(sender_handle sender)
 {
-	return send->listen_sock;
+	return sock_get_port(sender->listen_sock);
 }
 
-status sender_record_changed(sender_handle send, record_handle rec)
+status sender_run(sender_handle sender)
 {
-	status st = OK;
-	if (!rec) {
-		error_invalid_arg("sender_record_changed");
-		return FAIL;
+	status st, st2;
+	if (FAILED(st = clock_time(&sender->last_mcast_send)))
+		return st;
+
+	while (!sender->is_stopping) {
+		microsec now;
+		if (FAILED(st = poller_events(sender->poller, -1)) ||
+			(st > 0 && FAILED(st = poller_process_events(sender->poller, event_func, sender))) ||
+			FAILED(st = clock_time(&now)) ||
+			((now - sender->last_activity) > IDLE_TIMEOUT_USEC && FAILED(st = clock_sleep(IDLE_SLEEP_USEC))))
+			break;
 	}
 
-	if (poll_get_count(send->poller) > 1) {
-		SPIN_WRITE_LOCK(&send->mcast_lock, no_ver);
-		st = mcast_on_write(send, rec);
-		SPIN_UNLOCK(&send->mcast_lock, no_ver);
-	}
-
-	return st;
-}
-
-status sender_flush(sender_handle send)
-{
-	status st;
-	SPIN_WRITE_LOCK(&send->mcast_lock, no_ver);
-	st = write_accum(send);
-	SPIN_UNLOCK(&send->mcast_lock, no_ver);
-	return st;
-}
-
-boolean sender_is_running(sender_handle send)
-{
-	return send->tcp_thr && thread_is_running(send->tcp_thr);
-}
-
-status sender_stop(sender_handle send)
-{
-	void* p;
-	status st2, st = thread_stop(send->tcp_thr, &p);
+	st2 = poller_process(sender->poller, tcp_will_quit_func, sender);
 	if (!FAILED(st))
-		st = (long) p;
+		st = st2;
 
-	st2 = sock_close(send->mcast_sock);
+	st2 = clock_sleep(1000000);
+	if (!FAILED(st))
+		st = st2;
+
+	st2 = poller_process(sender->poller, close_sock_func, sender);
 	if (!FAILED(st))
 		st = st2;
 
 	return st;
 }
 
-static size_t get_stat(sender_handle me, const size_t* pval)
+void sender_stop(sender_handle sender)
+{
+	sender->is_stopping = TRUE;
+}
+
+static size_t get_stat(sender_handle sender, const size_t* pval)
 {
 	size_t n;
-	SPIN_WRITE_LOCK(&me->stats.lock, no_ver);
+	SPIN_WRITE_LOCK(&sender->stats.lock, no_ver);
 	n = *pval;
-	SPIN_UNLOCK(&me->stats.lock, no_ver);
+	SPIN_UNLOCK(&sender->stats.lock, no_ver);
 	return n;
 }
 
-size_t sender_get_tcp_gap_count(sender_handle send)
+size_t sender_get_tcp_gap_count(sender_handle sender)
 {
-	return get_stat(send, &send->stats.tcp_gap_count);
+	return get_stat(sender, &sender->stats.tcp_gap_count);
 }
 
-size_t sender_get_tcp_bytes_sent(sender_handle send)
+size_t sender_get_tcp_bytes_sent(sender_handle sender)
 {
-	return get_stat(send, &send->stats.tcp_bytes_sent);
+	return get_stat(sender, &sender->stats.tcp_bytes_sent);
 }
 
-size_t sender_get_mcast_bytes_sent(sender_handle send)
+size_t sender_get_mcast_bytes_sent(sender_handle sender)
 {
-	return get_stat(send, &send->stats.mcast_bytes_sent);
+	return get_stat(sender, &sender->stats.mcast_bytes_sent);
 }
 
-size_t sender_get_mcast_packets_sent(sender_handle send)
+size_t sender_get_mcast_packets_sent(sender_handle sender)
 {
-	return get_stat(send, &send->stats.mcast_packets_sent);
+	return get_stat(sender, &sender->stats.mcast_packets_sent);
 }
 
-size_t sender_get_subscriber_count(sender_handle send)
+size_t sender_get_receiver_count(sender_handle sender)
 {
-	return poll_get_count(send->poller) - 1;
+	return sender->client_count;
 }

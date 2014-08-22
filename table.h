@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-struct table_t;
-typedef struct table_t* table_handle;
+struct table;
+typedef struct table* table_handle;
 
 typedef void* table_key;
 typedef void* table_value;
@@ -21,7 +21,8 @@ typedef boolean (*table_equality_func)(table_key, table_key);
 typedef void (*table_destroy_func)(table_key, table_value);
 typedef status (*table_iterate_func)(table_key, table_value);
 
-status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn, table_equality_func eq_fn, table_destroy_func dtor_fn);
+status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
+					table_equality_func eq_fn, table_destroy_func dtor_fn);
 void table_destroy(table_handle* ptab);
 
 status table_lookup(table_handle tab, table_key key, table_value* pval);

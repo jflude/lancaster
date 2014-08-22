@@ -2,7 +2,7 @@
 #include "error.h"
 #include "xalloc.h"
 
-struct twist_t
+struct twist
 {
 	int index;
 	unsigned buffer[624];
@@ -15,7 +15,7 @@ status twist_create(twist_handle* ptwist)
 		return FAIL;
 	}
 
-	*ptwist = XMALLOC(struct twist_t);
+	*ptwist = XMALLOC(struct twist);
 	if (!*ptwist)
 		return NO_MEMORY;
 

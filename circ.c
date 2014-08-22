@@ -3,7 +3,7 @@
 #include "sync.h"
 #include "xalloc.h"
 
-struct circ_t
+struct circ
 {
 	size_t mask;
 	long read_from;
@@ -21,7 +21,7 @@ status circ_create(circ_handle* pcirc, size_t capacity)
 
 	--capacity;
 
-	*pcirc = xmalloc(sizeof(struct circ_t) + capacity * sizeof(void*));
+	*pcirc = xmalloc(sizeof(struct circ) + capacity * sizeof(void*));
 	if (!*pcirc)
 		return NO_MEMORY;
 

@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-struct circ_t;
-typedef struct circ_t* circ_handle;
+struct circ;
+typedef struct circ* circ_handle;
 
 status circ_create(circ_handle* pcirc, size_t capacity);
 void circ_destroy(circ_handle* pcirc);
