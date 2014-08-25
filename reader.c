@@ -12,8 +12,6 @@
 #define ORPHAN_TIMEOUT_USEC 3000000
 #define DISPLAY_DELAY_USEC 200000
 
-#define DUMP_VALUES
-
 static void syntax(const char* prog)
 {
 	fprintf(stderr, "Syntax: %s [storage file or segment]\n", prog);
@@ -25,7 +23,7 @@ int main(int argc, char* argv[])
 	storage_handle store;
 	status st = OK;
 	size_t q_capacity;
-	long old_head, expected = 0;
+	long old_head;
 	int event = 0;
 	microsec last_print, created_time;
 
@@ -37,62 +35,48 @@ int main(int argc, char* argv[])
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-#ifndef DUMP_VALUES
 	printf("\"%.8s\", ", storage_get_description(store));
-#endif
 
 	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
 
 	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
-		long q, new_head = storage_get_queue_head(store);
-		microsec now, last_update = 0;
+		queue_index q, new_head = storage_get_queue_head(store);
+		microsec now;
 		if (new_head == old_head) {
 			if (FAILED(st = clock_sleep(1)))
 				break;
 		} else {
 			if ((size_t) (new_head - old_head) > q_capacity) {
 				old_head = new_head - q_capacity;
-				event |= 8;
+				event |= 4;
 			}
 
 			for (q = old_head; q < new_head; ++q) {
 				record_handle rec;
 				struct datum* d;
 				version ver;
-				microsec ts;
 				long xyz;
 
 				identifier id = storage_read_queue(store, q);
 				if (id == -1)
 					continue;
 
-				if (FAILED(st = storage_get_record(store, id, &rec)) || FAILED(st = clock_time(&now)))
+				if (FAILED(st = storage_get_record(store, id, &rec)))
 					goto finish;
 
 				d = record_get_value_ref(rec);
 				do {
 					ver = record_read_lock(rec);
 					xyz = d->xyz;
-					ts = d->ts;
 				} while (ver != record_get_version(rec));
 
 				event |= 1;
 
-				if (xyz < expected)
+				if (q > xyz)
 					event |= 2;
-				else
-					expected = xyz + 1;
 
-				if (ts < last_update)
-					event |= 4;
-				else
-					last_update = ts;
-
-#ifdef DUMP_VALUES
-				printf("%ld %ld %ld\n", ts, id, xyz);
-#endif
 				old_head = new_head;
 			}
 		}
@@ -112,14 +96,12 @@ int main(int argc, char* argv[])
 			exit(EXIT_FAILURE);
 		}
 
-#ifndef DUMP_VALUES
 		if ((now - last_print) >= DISPLAY_DELAY_USEC) {
 			putchar(event + (event > 9 ? 'A' - 10 : '0'));
 			fflush(stdout);
 			last_print = now;
 			event = 0;
 		}
-#endif
 	}
 
 finish:

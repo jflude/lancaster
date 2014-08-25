@@ -10,7 +10,6 @@
 #include <stdlib.h>
 
 #define SCATTER_UPDATES
-#define DUMP_VALUES
 
 #ifdef SCATTER_UPDATES
 #include "twist.h"
@@ -54,10 +53,6 @@ static status update(identifier id, long n)
 		FAILED(st = storage_touch(store)) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))
 		return st;
-
-#ifdef DUMP_VALUES
-	printf("%ld %ld %ld\n", now, id, n);
-#endif
 
 	return TRUE;
 }
