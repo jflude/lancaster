@@ -60,7 +60,7 @@ status clock_time(microsec* pusec)
 
 #else
 
-static status usleep2(useconds usec)
+static status usleep2(microsec usec)
 {
 loop:
 	if (usleep(usec) == -1) {
@@ -76,7 +76,7 @@ loop:
 
 status clock_sleep(microsec usec)
 {
-	ldiv qr;
+	ldiv_t qr;
 	long s;
 	if (usec < 0) {
 		error_invalid_arg("clock_sleep");
