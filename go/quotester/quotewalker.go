@@ -104,6 +104,7 @@ func (cs *CachesterSource) getKeys(start int) (map[string]int, int) {
 
 func (cs *CachesterSource) findQuotes(keys []string) {
 	var x int = 0
+
 	for ; x < cs.maxRecords; x++ {
 		raddr := cs.getPointer(x)
 		seq := *((*C.uint)(raddr))
@@ -113,13 +114,12 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
 		recKey := cs.getkey(vaddr)
 		for _, k := range keys {
-			if strings.HasPrefix(recKey, k) {
+			if strings.HasPrefix(recKey[2:], k) {
 				fmt.Println(cs.getstring(vaddr))
 				break
 			}
 		}
 	}
-
 }
 
 func (cs *CachesterSource) getstring(vaddr unsafe.Pointer) string {
@@ -176,7 +176,7 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 				keys[id] = key
 				if hasWatch {
 					for _, k := range watchKeys {
-						if strings.HasPrefix(s, k) {
+						if strings.HasPrefix(s[2:], k) {
 							watchBits.Set(uint(id))
 							useStr = true
 							break
