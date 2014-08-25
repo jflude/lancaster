@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -35,19 +36,25 @@ func (q *Quote) bid() float64 {
 func (q *Quote) ask() float64 {
 	return float64(q.askPrice) / 10000.0
 }
+func usToTime(us uint64) time.Time {
+	sec := us / 1000000
+	nanos := (us - (sec * 1000000)) * 1000
+	return time.Unix(int64(sec), int64(nanos))
+}
 func (q *Quote) String() string {
-	t := time.Unix(int64(q.exchangeTS/1000000), int64((q.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f @ %0.2f x %-6d", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, q.bid(), q.ask(), q.askSize)
+	t := usToTime(q.exchangeTS)
+	latency := time.Now().Sub(t)
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %6s @ %-6s x %-6d %s", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, fwfloat(q.bid()), fwfloat(q.ask()), q.askSize, latency)
 }
 
 type Print struct {
-	keyBytes   [32]byte
-	exchangeTS uint64
-	opraSeq    uint32
-	lastPrice  int64
-	lastSize   int32
-	flags      byte
-	totalExchVolume	uint32
+	keyBytes        [32]byte
+	exchangeTS      uint64
+	opraSeq         uint32
+	lastPrice       int64
+	lastSize        int32
+	flags           byte
+	totalExchVolume uint32
 }
 
 func (p *Print) key() string {
@@ -60,7 +67,11 @@ func (p *Print) key() string {
 func (p *Print) price() float64 {
 	return float64(p.lastPrice) / 10000.0
 }
+func fwfloat(f float64) string {
+	return strconv.FormatFloat(f, 'f', -2, 64)
+}
 func (p *Print) String() string {
-	t := time.Unix(int64(p.exchangeTS/1000000), int64((p.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %03.2f %9d", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, p.price(), p.totalExchVolume)
+	t := usToTime(p.exchangeTS)
+	latency := time.Now().Sub(t)
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %-6s %-9d %s", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, fwfloat(p.price()), p.totalExchVolume, latency)
 }
