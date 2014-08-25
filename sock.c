@@ -127,9 +127,8 @@ status sock_get_text(long address, int port, char* text, size_t text_sz)
 	}
 
 	if (strlen(a_buf) + strlen(p_buf) >= text_sz) {
-		errno = ENOBUFS;
-		error_errno("sock_get_text");
-		return FAIL;
+		error_msg("sock_get_text: buffer too small", BUFFER_TOO_SMALL);
+		return BUFFER_TOO_SMALL;
 	}
 
 	strcpy(text, a_buf);
@@ -190,9 +189,8 @@ loop:
 	}
 
 	if (n != 1) {
-		errno = EILSEQ;
-		error_errno("sock_get_device");
-		return FAIL;
+		error_msg("sock_get_device: invalid device format", INVALID_DEVICE_FORMAT);
+		return INVALID_DEVICE_FORMAT;
 	}
 
 	if (pclose(f) == -1) {
@@ -201,9 +199,8 @@ loop:
 	}
 
 	if (strlen(out) >= device_sz) {
-		errno = ENOBUFS;
-		error_errno("sock_get_device");
-		return FAIL;
+		error_msg("sock_get_device: buffer too small", BUFFER_TOO_SMALL);
+		return BUFFER_TOO_SMALL;
 	}
 
 	strcpy(pdevice, out);

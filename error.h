@@ -8,14 +8,15 @@ extern "C" {
 #endif
 
 int error_last_code(void);
-const char* error_last_desc(void);
+const char* error_last_msg(void);
 
 void error_reset(void);
 void error_report_fatal(void);
 
+void error_msg(const char* msg, int code);
+
 void error_eof(const char* func);
 void error_errno(const char* func);
-void error_heartbeat(const char* func);	
 void error_invalid_arg(const char* func);
 void error_unimplemented(const char* func);
 

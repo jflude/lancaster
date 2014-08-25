@@ -19,7 +19,8 @@
 
 #define SPIN_READ_LOCK(lock, ver) \
 	do { \
-		int no_ver, n = 0; \
+		int n = 0; \
+		long no_ver; \
 		(void) no_ver; \
 		while ((ver = *(lock)) < 0) \
 			if ((++n & MAX_SPINS) != 0) \
@@ -30,7 +31,8 @@
 
 #define SPIN_WRITE_LOCK(lock, old_ver) \
 	do { \
-		int no_ver, n = 0; \
+		int n = 0; \
+		long no_ver; \
 		(void) no_ver; \
 		while ((old_ver = SYNC_FETCH_AND_OR(lock, SPIN_MASK(lock))) < 0) \
 			if ((++n & MAX_SPINS) != 0) \

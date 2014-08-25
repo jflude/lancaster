@@ -219,11 +219,10 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 		}
 
 		if ((unsigned) file_stat.st_size < sizeof(struct segment)) {
-			errno = EILSEQ;
-			error_errno("storage_open");
+			error_msg("storage_open: storage truncated", STORAGE_CORRUPTED);
 			close(fd);
 			storage_destroy(pstore);
-			return FAIL;
+			return STORAGE_CORRUPTED;
 		}
 	}
 
@@ -237,11 +236,10 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 	}
 
 	if ((*pstore)->seg->magic != MAGIC_NUMBER) {
-		errno = EILSEQ;
-		error_errno("storage_open");
+		error_msg("storage_open: storage corrupted", STORAGE_CORRUPTED);
 		close(fd);
 		storage_destroy(pstore);
-		return FAIL;
+		return STORAGE_CORRUPTED;
 	}
 
 	seg_sz = (*pstore)->seg->mmap_size;
@@ -354,15 +352,13 @@ status storage_set_description(storage_handle store, const char* desc)
 	}
 
 	if (store->is_read_only) {
-		errno = EPERM;
-		error_errno("storage_set_description");
-		return FAIL;
+		error_msg("storage_set_description: storage read-only", STORAGE_READ_ONLY);
+		return STORAGE_READ_ONLY;
 	}
 
 	if (strlen(desc) >= sizeof(store->seg->description)) {
-		errno = ENOBUFS;
-		error_errno("storage_set_description");
-		return FAIL;
+		error_msg("storage_set_description: description too long", BUFFER_TOO_SMALL);
+		return BUFFER_TOO_SMALL;
 	}
 
 	strcpy(store->seg->description, desc);
@@ -377,7 +373,7 @@ microsec storage_get_created_time(storage_handle store)
 microsec storage_get_touched_time(storage_handle store)
 {
 	microsec t;
-	int ver;
+	version ver;
 	do {
 		SPIN_READ_LOCK(&store->seg->last_touched_ver, ver);
 		t = store->seg->last_touched;
@@ -393,9 +389,8 @@ status storage_touch(storage_handle store)
 	microsec now;
 
 	if (store->is_read_only) {
-		errno = EPERM;
-		error_errno("storage_touch");
-		return FAIL;
+		error_msg("storage_touch: storage read-only", STORAGE_READ_ONLY);
+		return STORAGE_READ_ONLY;
 	}
 
 	if (FAILED(st = clock_time(&now)))
@@ -436,15 +431,13 @@ status storage_write_queue(storage_handle store, identifier id)
 {
 	queue_index n;
 	if (store->is_read_only) {
-		errno = EPERM;
-		error_errno("storage_write_queue");
-		return FAIL;
+		error_msg("storage_write_queue: storage read-only", STORAGE_READ_ONLY);
+		return STORAGE_READ_ONLY;
 	}
 
 	if (store->seg->q_mask == -1u) {
-		errno = ENOBUFS;
-		error_errno("storage_write_queue");
-		return FAIL;
+		error_msg("storage_write_queue: no change queue", STORAGE_NO_CHANGE_QUEUE);
+		return STORAGE_NO_CHANGE_QUEUE;
 	}
 
 	do {
@@ -453,9 +446,8 @@ status storage_write_queue(storage_handle store, identifier id)
 	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&store->seg->q_head, n, n + 1));
 
 	if (store->seg->q_head < 0) {
-		errno = EOVERFLOW;
-		error_errno("storage_write_queue");
-		return FAIL;
+		error_msg("storage_write_queue: index sign overflow", SIGN_OVERFLOW);
+		return SIGN_OVERFLOW;
 	}
 
 	return OK;
@@ -469,9 +461,8 @@ status storage_get_id(storage_handle store, record_handle rec, identifier* piden
 	}
 
 	if (rec < store->first || rec >= store->limit) {
-		errno = EBADSLT;
-		error_errno("storage_get_id");
-		return FAIL;
+		error_msg("storage_get_id: invalid record address", STORAGE_INVALID_SLOT);
+		return STORAGE_INVALID_SLOT;
 	}
 
 	*pident = ((char*) rec - (char*) store->first) / store->seg->rec_size;
@@ -486,9 +477,8 @@ status storage_get_record(storage_handle store, identifier id, record_handle* pr
 	}
 
 	if (id < store->seg->base_id || id >= store->seg->max_id) {
-		errno = EBADSLT;
-		error_errno("storage_get_record");
-		return FAIL;
+		error_msg("storage_get_record: invalid identifier", STORAGE_INVALID_SLOT);
+		return STORAGE_INVALID_SLOT;
 	}
 
 	*prec = RECORD_ADDR(store, store->first, id - store->seg->base_id);
@@ -515,9 +505,8 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 status storage_sync(storage_handle store)
 {
 	if (store->is_read_only) {
-		errno = EPERM;
-		error_errno("storage_sync");
-		return FAIL;
+		error_msg("storage_sync: storage read-only", STORAGE_READ_ONLY);
+		return STORAGE_READ_ONLY;
 	}
 
 	if (store->seg->mmap_size > 0 && msync(store->seg, store->seg->mmap_size, MS_SYNC) == -1) {
@@ -531,9 +520,8 @@ status storage_sync(storage_handle store)
 status storage_reset(storage_handle store)
 {
 	if (store->is_read_only) {
-		errno = EPERM;
-		error_errno("storage_reset");
-		return FAIL;
+		error_msg("storage_reset: storage read-only", STORAGE_READ_ONLY);
+		return STORAGE_READ_ONLY;
 	}
 
 	memset(store->first, 0, (char*) store->limit - (char*) store->first);

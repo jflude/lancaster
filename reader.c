@@ -9,8 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DISPLAY_DELAY_USEC 200000
 #define ORPHAN_TIMEOUT_USEC 3000000
+#define DISPLAY_DELAY_USEC 200000
+
+#define DUMP_VALUES
 
 static void syntax(const char* prog)
 {
@@ -35,7 +37,9 @@ int main(int argc, char* argv[])
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
+#ifndef DUMP_VALUES
 	printf("\"%.8s\", ", storage_get_description(store));
+#endif
 
 	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
@@ -86,13 +90,16 @@ int main(int argc, char* argv[])
 				else
 					last_update = ts;
 
+#ifdef DUMP_VALUES
+				printf("%ld %ld %ld\n", ts, id, xyz);
+#endif
 				old_head = new_head;
 			}
 		}
 
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" is recreated\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage \"%s\" recreated\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -101,16 +108,18 @@ int main(int argc, char* argv[])
 
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" is orphaned\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage \"%s\" orphaned\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);
 		}
 
+#ifndef DUMP_VALUES
 		if ((now - last_print) >= DISPLAY_DELAY_USEC) {
 			putchar(event + (event > 9 ? 'A' - 10 : '0'));
 			fflush(stdout);
 			last_print = now;
 			event = 0;
 		}
+#endif
 	}
 
 finish:
