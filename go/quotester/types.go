@@ -75,3 +75,40 @@ func (p *Print) String() string {
 	latency := time.Now().Sub(t)
 	return fmt.Sprintf("%-32s %-15s %9d %6d x %-6s %-9d %s", p.key(), t.Format("15:04:05.999999"), p.opraSeq, p.lastSize, fwfloat(p.price()), p.totalExchVolume, latency)
 }
+
+type Summary struct {
+	keyBytes   [32]byte
+	exchangeTS uint64
+	opraSeq    uint32
+	openPrice  int64
+	lowPrice   int64
+	highPrice  int64
+	closePrice int64
+	flags       byte
+	totalVolume	uint32
+}
+
+func (s *Summary) key() string {
+	i := bytes.IndexByte(s.keyBytes[:], 0)
+	if i < 0 {
+		return string(s.keyBytes[:])
+	}
+	return string(s.keyBytes[:i])
+}
+func (s *Summary) open() float64 {
+	return float64(s.openPrice) / 10000.0
+}
+func (s *Summary) high() float64 {
+	return float64(s.highPrice) / 10000.0
+}
+func (s *Summary) low() float64 {
+	return float64(s.lowPrice) / 10000.0
+}
+func (s *Summary) close() float64 {
+	return float64(s.closePrice) / 10000.0
+}
+func (s *Summary) String() string {
+	t := time.Unix(int64(s.exchangeTS/1000000), int64((s.exchangeTS%1000000)*1000))
+	return fmt.Sprintf("%-32s %-15s %9d o:%6.2f h:%6.2f l:%6.2f c:%6.2f %9d", 
+		s.key(), t.Format("15:04:05.999999"), s.opraSeq, s.open(), s.high(), s.low(), s.close(), s.totalVolume)
+}

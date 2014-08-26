@@ -15,6 +15,13 @@ import (
 	"unsafe"
 )
 
+const (
+	InValidType = 0
+	QuoteType 	= 1
+	PrintType	= 2
+	SummaryType	= 3
+	)
+
 type CachesterSource struct {
 	Name        string
 	Description string
@@ -30,7 +37,7 @@ type CachesterSource struct {
 	qHeadPtr    *C.uint
 	qBasePtr    unsafe.Pointer
 	qArr        *[1 << 30]C.identifier
-	usePrints   bool
+	storeType   int 
 }
 
 func NewCachesterSource(name string) (*CachesterSource, error) {
@@ -52,8 +59,13 @@ func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs.qArr = (*[1 << 30]C.identifier)(cs.qBasePtr)
 	cs.Description = C.GoString(C.storage_get_description(cs.store))
 	if strings.Index(cs.Description, "PRINTS") != -1 {
-		cs.usePrints = true
-	}
+		cs.storeType = PrintType;
+	} else if strings.Index(cs.Description, "QUOTES") != -1 {
+		cs.storeType = QuoteType;
+	} else if strings.Index(cs.Description, "SUMMARIES") != -1 {
+		cs.storeType = SummaryType;
+	} else cs.storeType = InValidType;
+
 	return cs, nil
 }
 func (cs *CachesterSource) Destroy() {
@@ -123,18 +135,24 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 }
 
 func (cs *CachesterSource) getstring(vaddr unsafe.Pointer) string {
-	if cs.usePrints {
+	if cs.storeType == PrintType {
 		return ((*Print)(vaddr)).String()
-	} else {
+	} else if cs.storeType == QuoteType {
 		return ((*Quote)(vaddr)).String()
+	} else if cs.storeType == SummaryType {
+		return ((*Summary)(vaddr)).String()
 	}
+	return "Invalid storeType";
 }
 func (cs *CachesterSource) getkey(vaddr unsafe.Pointer) string {
-	if cs.usePrints {
+	if cs.storeType == PrintType {
 		return ((*Print)(vaddr)).key()
-	} else {
+	} else if cs.storeType == QuoteType {
 		return ((*Quote)(vaddr)).key()
+	} else if cs.storeType == SummaryType {
+		return ((*Summary)(vaddr)).key()
 	}
+	return "###Invalid Key";
 }
 
 func (cs *CachesterSource) tailQuotes(watchKeys []string) {
