@@ -78,6 +78,6 @@ func chkStatus(status C.status) error {
 	if status == 0 {
 		return nil
 	}
-	str := C.GoString(C.error_last_desc())
+	str := C.GoString(C.error_last_msg())
 	return fmt.Errorf("%d: %s", status, errors.New(str))
 }
