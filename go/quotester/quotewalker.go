@@ -17,10 +17,10 @@ import (
 
 const (
 	InValidType = 0
-	QuoteType 	= 1
-	PrintType	= 2
-	SummaryType	= 3
-	)
+	QuoteType   = 1
+	PrintType   = 2
+	SummaryType = 3
+)
 
 type CachesterSource struct {
 	Name        string
@@ -37,7 +37,7 @@ type CachesterSource struct {
 	qHeadPtr    *C.uint
 	qBasePtr    unsafe.Pointer
 	qArr        *[1 << 30]C.identifier
-	storeType   int 
+	storeType   int
 }
 
 func NewCachesterSource(name string) (*CachesterSource, error) {
@@ -59,12 +59,14 @@ func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs.qArr = (*[1 << 30]C.identifier)(cs.qBasePtr)
 	cs.Description = C.GoString(C.storage_get_description(cs.store))
 	if strings.Index(cs.Description, "PRINTS") != -1 {
-		cs.storeType = PrintType;
+		cs.storeType = PrintType
 	} else if strings.Index(cs.Description, "QUOTES") != -1 {
-		cs.storeType = QuoteType;
+		cs.storeType = QuoteType
 	} else if strings.Index(cs.Description, "SUMMARIES") != -1 {
-		cs.storeType = SummaryType;
-	} else cs.storeType = InValidType;
+		cs.storeType = SummaryType
+	} else {
+		cs.storeType = InValidType
+	}
 
 	return cs, nil
 }
@@ -116,7 +118,7 @@ func (cs *CachesterSource) getKeys(start int) (map[string]int, int) {
 
 func (cs *CachesterSource) findQuotes(keys []string) {
 	var x int = 0
-
+	all := len(keys) == 0
 	for ; x < cs.maxRecords; x++ {
 		raddr := cs.getPointer(x)
 		seq := *((*C.uint)(raddr))
@@ -124,11 +126,17 @@ func (cs *CachesterSource) findQuotes(keys []string) {
 			return
 		}
 		vaddr := (unsafe.Pointer)(uintptr(raddr) + cs.vOffset)
+
 		recKey := cs.getkey(vaddr)
-		for _, k := range keys {
-			if strings.HasPrefix(recKey[2:], k) {
-				fmt.Println(cs.getstring(vaddr))
-				break
+		if all {
+			fmt.Println(cs.getstring(vaddr))
+		} else {
+			for _, k := range keys {
+
+				if strings.Index(recKey, k) > -1 { //strings.HasPrefix(recKey[2:], k) {
+					fmt.Println(cs.getstring(vaddr))
+					break
+				}
 			}
 		}
 	}
@@ -142,8 +150,9 @@ func (cs *CachesterSource) getstring(vaddr unsafe.Pointer) string {
 	} else if cs.storeType == SummaryType {
 		return ((*Summary)(vaddr)).String()
 	}
-	return "Invalid storeType";
+	return "Invalid storeType"
 }
+
 func (cs *CachesterSource) getkey(vaddr unsafe.Pointer) string {
 	if cs.storeType == PrintType {
 		return ((*Print)(vaddr)).key()
@@ -152,7 +161,7 @@ func (cs *CachesterSource) getkey(vaddr unsafe.Pointer) string {
 	} else if cs.storeType == SummaryType {
 		return ((*Summary)(vaddr)).key()
 	}
-	return "###Invalid Key";
+	return "###Invalid Key"
 }
 
 func (cs *CachesterSource) tailQuotes(watchKeys []string) {
@@ -194,6 +203,12 @@ func (cs *CachesterSource) tailQuotes(watchKeys []string) {
 				keys[id] = key
 				if hasWatch {
 					for _, k := range watchKeys {
+						if len(s) < 2 {
+							log.Println("key is:", len(s), id)
+							continue
+						} else {
+							log.Println("key is:", s, id)
+						}
 						if strings.HasPrefix(s[2:], k) {
 							watchBits.Set(uint(id))
 							useStr = true
