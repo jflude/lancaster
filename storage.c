@@ -104,15 +104,32 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 			}
 		}
 
-	trunc_loop:
-		if (ftruncate(fd, seg_sz) == -1) {
-			if (errno == EINTR)
-				goto trunc_loop;
+		if (open_flags & (O_CREAT | O_TRUNC)) {
+		trunc_loop:
+			if (ftruncate(fd, seg_sz) == -1) {
+				if (errno == EINTR)
+					goto trunc_loop;
 
-			error_errno("ftruncate");
-			close(fd);
-			storage_destroy(pstore);
-			return FAIL;
+				error_errno("ftruncate");
+				close(fd);
+				storage_destroy(pstore);
+				return FAIL;
+			}
+		} else {
+			struct stat file_stat;
+			if (fstat(fd, &file_stat) == -1) {
+				error_errno("fstat");
+				close(fd);
+				storage_destroy(pstore);
+				return FAIL;
+			}
+
+			if ((size_t) file_stat.st_size != seg_sz) {
+				error_msg("storage_create: storage is unequal size", STORAGE_CORRUPTED);
+				close(fd);
+				storage_destroy(pstore);
+				return STORAGE_CORRUPTED;
+			}
 		}
 
 		(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -137,25 +154,27 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 		}
 	}
 
-	(*pstore)->seg->magic = MAGIC_NUMBER;
-	(*pstore)->seg->mmap_size = seg_sz;
-	(*pstore)->seg->hdr_size = hdr_sz;
-	(*pstore)->seg->rec_size = rec_sz;
-	(*pstore)->seg->val_size = value_size;
-	(*pstore)->seg->base_id = base_id;
-	(*pstore)->seg->max_id = max_id;
-	(*pstore)->seg->q_mask = q_capacity - 1;
+	if (!mmap_file || (open_flags & (O_CREAT | O_TRUNC))) {
+		(*pstore)->seg->magic = MAGIC_NUMBER;
+		(*pstore)->seg->mmap_size = seg_sz;
+		(*pstore)->seg->hdr_size = hdr_sz;
+		(*pstore)->seg->rec_size = rec_sz;
+		(*pstore)->seg->val_size = value_size;
+		(*pstore)->seg->base_id = base_id;
+		(*pstore)->seg->max_id = max_id;
+		(*pstore)->seg->q_mask = q_capacity - 1;
+
+		BZERO((*pstore)->seg->description);
+	}
+
 	(*pstore)->seg->q_head = 0;
-
-	if (q_capacity > 0)
-		memset((*pstore)->seg->change_q, -1, q_capacity * sizeof(identifier));
-
-	BZERO((*pstore)->seg->description);
+	if ((*pstore)->seg->q_mask != -1u)
+		memset((*pstore)->seg->change_q, -1, ((*pstore)->seg->q_mask + 1) * sizeof(identifier));
 
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->first, max_id - base_id);
 
-	if ((open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
+	if (mmap_file && (open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
 		record_handle r;
 		for (r = (*pstore)->first; r < (*pstore)->limit; r = RECORD_ADDR(*pstore, r, 1))
 			if (r->ver < 0)
@@ -218,8 +237,8 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 			return FAIL;
 		}
 
-		if ((unsigned) file_stat.st_size < sizeof(struct segment)) {
-			error_msg("storage_open: storage truncated", STORAGE_CORRUPTED);
+		if ((size_t) file_stat.st_size < sizeof(struct segment)) {
+			error_msg("storage_open: storage is truncated", STORAGE_CORRUPTED);
 			close(fd);
 			storage_destroy(pstore);
 			return STORAGE_CORRUPTED;
@@ -236,7 +255,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file, int open_flag
 	}
 
 	if ((*pstore)->seg->magic != MAGIC_NUMBER) {
-		error_msg("storage_open: storage corrupted", STORAGE_CORRUPTED);
+		error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 		close(fd);
 		storage_destroy(pstore);
 		return STORAGE_CORRUPTED;
@@ -352,7 +371,7 @@ status storage_set_description(storage_handle store, const char* desc)
 	}
 
 	if (store->is_read_only) {
-		error_msg("storage_set_description: storage read-only", STORAGE_READ_ONLY);
+		error_msg("storage_set_description: storage is read-only", STORAGE_READ_ONLY);
 		return STORAGE_READ_ONLY;
 	}
 
@@ -389,7 +408,7 @@ status storage_touch(storage_handle store)
 	microsec now;
 
 	if (store->is_read_only) {
-		error_msg("storage_touch: storage read-only", STORAGE_READ_ONLY);
+		error_msg("storage_touch: storage is read-only", STORAGE_READ_ONLY);
 		return STORAGE_READ_ONLY;
 	}
 
@@ -431,7 +450,7 @@ status storage_write_queue(storage_handle store, identifier id)
 {
 	queue_index n;
 	if (store->is_read_only) {
-		error_msg("storage_write_queue: storage read-only", STORAGE_READ_ONLY);
+		error_msg("storage_write_queue: storage is read-only", STORAGE_READ_ONLY);
 		return STORAGE_READ_ONLY;
 	}
 
@@ -445,7 +464,7 @@ status storage_write_queue(storage_handle store, identifier id)
 		store->seg->change_q[n & store->seg->q_mask] = id;
 	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&store->seg->q_head, n, n + 1));
 
-	if (store->seg->q_head < 0) {
+	if ((n + 1) < 0) {
 		error_msg("storage_write_queue: index sign overflow", SIGN_OVERFLOW);
 		return SIGN_OVERFLOW;
 	}
@@ -505,7 +524,7 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn, recor
 status storage_sync(storage_handle store)
 {
 	if (store->is_read_only) {
-		error_msg("storage_sync: storage read-only", STORAGE_READ_ONLY);
+		error_msg("storage_sync: storage is read-only", STORAGE_READ_ONLY);
 		return STORAGE_READ_ONLY;
 	}
 
@@ -520,7 +539,7 @@ status storage_sync(storage_handle store)
 status storage_reset(storage_handle store)
 {
 	if (store->is_read_only) {
-		error_msg("storage_reset: storage read-only", STORAGE_READ_ONLY);
+		error_msg("storage_reset: storage is read-only", STORAGE_READ_ONLY);
 		return STORAGE_READ_ONLY;
 	}
 

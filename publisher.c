@@ -51,7 +51,7 @@ static void* stats_func(thread_handle thr)
 		tcp2 = sender_get_tcp_bytes_sent(sender);
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
-		printf("\"%.8s\", RECV: %ld, PKT/sec: %.2f, GAP: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f           \r",
+		printf("\"%.16s\", RECV: %ld, PKT/sec: %.2f, GAP: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f           \r",
 			   storage_get_description(sender_get_storage(sender)),
 			   sender_get_receiver_count(sender),
 			   (pkt2 - pkt1) / secs,

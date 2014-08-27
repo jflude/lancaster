@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	printf("\"%.8s\", ", storage_get_description(store));
+	printf("\"%.16s\", ", storage_get_description(store));
 
 	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" recreated\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage \"%s\" is recreated\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" orphaned\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage \"%s\" is orphaned\n", argv[0], argv[1]);
 			exit(EXIT_FAILURE);
 		}
 
