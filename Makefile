@@ -1,50 +1,77 @@
-export CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g -Ilib
-export LDFLAGS = -pthread
-export LDLIBS = -lrt -lm
+SRCS = \
+accum.c \
+advert.c \
+circ.c \
+clock.c \
+dump.c \
+dict.c \
+error.c \
+poller.c \
+receiver.c \
+sender.c \
+signals.c \
+sock.c \
+storage.c \
+table.c \
+thread.c \
+twist.c \
+uudict.c \
+xalloc.c \
+yield.c
 
-export DEPFLAGS = \
+CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+LDFLAGS = -pthread
+LDLIBS = -lrt -lm
+OBJS = $(SRCS:.c=.o)
+
+DEPFLAGS = \
 -I/usr/include/linux \
 -I/usr/include/x86_64-linux-gnu \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 
-LIBS = lib/libcachester.a
+ifneq (,$(findstring CYGWIN,$(shell uname -s)))
+SO_EXT = .dll
+else
+CFLAGS += -fPIC
+SO_EXT = .so
+endif
 
-all: writer publisher subscriber reader
+all: writer publisher subscriber reader libcachester$(SO_EXT)
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
 
-writer: $(LIBS)
+writer: libcachester.a
 
-publisher: $(LIBS)
+publisher: libcachester.a
 
-subscriber: $(LIBS)
+subscriber: libcachester.a
 
-reader: $(LIBS)
+reader: libcachester.a
 
-$(LIBS):
-	$(MAKE) -C lib
+libcachester.a: $(OBJS)
+	ar -r libcachester.a $(OBJS)
+
+libcachester$(SO_EXT): $(OBJS)
+	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 DEPEND.mk:
-	touch DEPEND.mk && \
-	$(MAKE) -C lib DEPEND.mk
-
-.PHONY: depend clean distclean
+	touch DEPEND.mk
 
 depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
 	    writer.c publisher.c subscriber.c reader.c \
-	    $(SRCS) && \
-	$(MAKE) -C lib depend
+	    $(SRCS)
 
 clean:
 	rm -f libcachester.a libcachester$(SO_EXT) \
-	    writer writer.o publisher publisher.o subscriber subscriber.o reader reader.o && \
-	$(MAKE) -C lib clean
+	    writer writer.o publisher publisher.o subscriber subscriber.o reader reader.o \
+	    $(OBJS)
 
 distclean: clean
-	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump && \
-	$(MAKE) -C lib distclean
+	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
+
+.PHONY: all release depend clean distclean
 
 include DEPEND.mk

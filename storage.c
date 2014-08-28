@@ -165,6 +165,14 @@ status storage_create(storage_handle* pstore, const char* mmap_file, int open_fl
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
 		BZERO((*pstore)->seg->description);
+	} else if ((*pstore)->seg->mmap_size != seg_sz ||
+			   (*pstore)->seg->hdr_size != hdr_sz ||
+			   (*pstore)->seg->rec_size != rec_sz ||
+			   (*pstore)->seg->val_size != value_size ||
+			   (*pstore)->seg->q_mask != (q_capacity - 1)) {
+		error_msg("storage_create: storage is unequal structure", STORAGE_CORRUPTED);
+		storage_destroy(pstore);
+		return STORAGE_CORRUPTED;
 	}
 
 	(*pstore)->seg->q_head = 0;
