@@ -616,12 +616,12 @@ status sender_run(sender_handle sndr)
 			break;
 
 		if ((now - storage_get_touched_time(sndr->store)) >= ORPHAN_TIMEOUT_USEC) {
-			error_msg("sender_run: storage orphaned", st = STORAGE_ORPHANED);
+			error_msg("sender_run: storage is orphaned", st = STORAGE_ORPHANED);
 			break;
 		}
 
 		if (storage_get_created_time(sndr->store) != sndr->store_created_time) {
-			error_msg("sender_run: storage recreated", st = STORAGE_RECREATED);
+			error_msg("sender_run: storage is recreated", st = STORAGE_RECREATED);
 			break;
 		}
 

@@ -72,4 +72,6 @@ clean:
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
 
+.PHONY: all release depend clean distclean
+
 include DEPEND.mk
