@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" is recreated\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage is recreated\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage \"%s\" is orphaned\n", argv[0], argv[1]);
+			fprintf(stderr, "%s: error: storage is orphaned\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 

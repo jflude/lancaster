@@ -14,12 +14,13 @@ extern "C" {
 struct sender;
 typedef struct sender* sender_handle;
 
-status sender_create(sender_handle* psndr, const char* mmap_file, microsec heartbeat_usec, microsec max_pkt_age_usec,
-					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port);
+status sender_create(sender_handle* psndr, const char* mmap_file, const char* tcp_address, unsigned short tcp_port,
+					 const char* mcast_address, unsigned short mcast_port, const char* mcast_if_address, short mcast_ttl,
+					 microsec heartbeat_usec, microsec max_pkt_age_usec);
 void sender_destroy(sender_handle* psndr);
 
 storage_handle sender_get_storage(sender_handle sndr);
-int sender_get_listen_port(sender_handle sndr);
+unsigned short sender_get_listen_port(sender_handle sndr);
 
 status sender_run(sender_handle sndr);
 void sender_stop(sender_handle sndr);

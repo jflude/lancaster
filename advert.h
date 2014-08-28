@@ -12,7 +12,7 @@ extern "C" {
 struct advert;
 typedef struct advert* advert_handle;
 
-status advert_create(advert_handle* padvert, const char* mcast_addr, int mcast_port, int mcast_ttl);
+status advert_create(advert_handle* padvert, const char* mcast_address, unsigned short mcast_port, short mcast_ttl);
 void advert_destroy(advert_handle* padvert);
 
 boolean advert_is_running(advert_handle adv);

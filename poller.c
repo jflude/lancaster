@@ -154,34 +154,31 @@ loop:
 status poller_process(poller_handle poller, poller_func fn, void* param)
 {
 	int i;
-	if (!fn) {
-		error_invalid_arg("poller_process");
-		return FAIL;
-	}
-
-	for (i = poller->free_slot - 1; i >= 0; --i) {
-		status st = fn(poller, poller->socks[i], &poller->fds[i].events, param);
-		if (FAILED(st))
-			return st;
-	}
-
-	return OK;
-}
-
-status poller_process_events(poller_handle poller, poller_func fn, void* param)
-{
-	int i;
+	status st = OK;
 	if (!fn) {
 		error_invalid_arg("poller_process");
 		return FAIL;
 	}
 
 	for (i = poller->free_slot - 1; i >= 0; --i)
-		if (poller->fds[i].revents) {
-			status st = fn(poller, poller->socks[i], &poller->fds[i].revents, param);
-			if (FAILED(st))
-				return st;
-		}
+		if (FAILED(st = fn(poller, poller->socks[i], &poller->fds[i].events, param)))
+			break;
 
-	return OK;
+	return st;
+}
+
+status poller_process_events(poller_handle poller, poller_func fn, void* param)
+{
+	int i;
+	status st = OK;
+	if (!fn) {
+		error_invalid_arg("poller_process");
+		return FAIL;
+	}
+
+	for (i = poller->free_slot - 1; i >= 0; --i)
+		if (poller->fds[i].revents && FAILED(st = fn(poller, poller->socks[i], &poller->fds[i].revents, param)))
+			break;
+
+	return st;
 }

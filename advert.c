@@ -19,6 +19,7 @@ struct notice
 struct advert
 {
 	sock_handle mcast_sock;
+	sock_addr_handle mcast_addr;
 	thread_handle mcast_thr;
 	char* json_msg;
 	size_t json_sz;
@@ -102,7 +103,7 @@ static void* mcast_func(thread_handle thr)
 	while (!thread_is_stopping(thr)) {
 		SPIN_WRITE_LOCK(&advert->lock, no_ver);
 		if (advert->json_msg)
-			st = sock_sendto(advert->mcast_sock, advert->json_msg, advert->json_sz);
+			st = sock_sendto(advert->mcast_sock, advert->mcast_addr, advert->json_msg, advert->json_sz);
 
 		SPIN_UNLOCK(&advert->lock, no_ver);
 		if (FAILED(st) || FAILED(st = clock_sleep(SEND_DELAY_USEC)))
@@ -116,10 +117,10 @@ static void* mcast_func(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status advert_create(advert_handle* padvert, const char* mcast_addr, int mcast_port, int mcast_ttl)
+status advert_create(advert_handle* padvert, const char* mcast_address, unsigned short mcast_port, short mcast_ttl)
 {
 	status st;
-	if (!mcast_addr || mcast_port < 0) {
+	if (!mcast_address) {
 		error_invalid_arg("advert_create");
 		return FAIL;
 	}
@@ -131,16 +132,15 @@ status advert_create(advert_handle* padvert, const char* mcast_addr, int mcast_p
 	BZERO(*padvert);
 	SPIN_CREATE(&(*padvert)->lock);
 
-	if (FAILED(st = sock_create(&(*padvert)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+	if (FAILED(st = sock_create(&(*padvert)->mcast_sock, SOCK_DGRAM)) ||
 		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, 1)) ||
-		FAILED(st = sock_mcast_bind((*padvert)->mcast_sock)) ||
 		FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = thread_create(&(*padvert)->mcast_thr, mcast_func, *padvert))) {
+		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr, mcast_address, mcast_port)) ||
+		FAILED(st = sock_bind((*padvert)->mcast_sock, (*padvert)->mcast_addr)) ||
+		FAILED(st = thread_create(&(*padvert)->mcast_thr, mcast_func, *padvert)))
 		advert_destroy(padvert);
-		return st;
-	}
 
-	return OK;
+	return st;
 }
 
 void advert_destroy(advert_handle* padvert)
@@ -153,6 +153,7 @@ void advert_destroy(advert_handle* padvert)
 
 	thread_destroy(&(*padvert)->mcast_thr);
 	sock_destroy(&(*padvert)->mcast_sock);
+	sock_addr_destroy(&(*padvert)->mcast_addr);
 
 	error_restore_last();
 

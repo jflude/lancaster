@@ -28,7 +28,9 @@ struct sender_stats
 struct sender
 {
 	sock_handle listen_sock;
+	sock_addr_handle listen_addr;
 	sock_handle mcast_sock;
+	sock_addr_handle sendto_addr;
 	poller_handle poller;
 	accum_handle mcast_accum;
 	storage_handle store;
@@ -81,7 +83,7 @@ static status mcast_send_accum(sender_handle sndr)
 		return st;
 
 	*sndr->time_stored_at = htonll(now);
-	if (FAILED(st = sock_sendto(sndr->mcast_sock, data, sz)))
+	if (FAILED(st = sock_sendto(sndr->mcast_sock, sndr->sendto_addr, data, sz)))
 		return st;
 
 	sndr->last_activity = sndr->mcast_send_time = now;
@@ -481,12 +483,12 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 	return st;
 }
 
-static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
+static status get_udp_mtu(sock_handle sock, const char* dest_address, size_t* pmtu)
 {
 	char device[256];
 	status st;
 
-	if (FAILED(st = sock_get_device(dest_ip, device, sizeof(device))) ||
+	if (FAILED(st = sock_get_device(dest_address, device, sizeof(device))) ||
 		FAILED(st = sock_get_mtu(sock, device, pmtu)))
 		return st;
 
@@ -494,12 +496,13 @@ static status get_udp_mtu(sock_handle sock, const char* dest_ip, size_t* pmtu)
 	return st;
 }
 
-status sender_create(sender_handle* psndr, const char* mmap_file, microsec heartbeat_usec, long max_pkt_age_usec,
-					 const char* mcast_addr, int mcast_port, int mcast_ttl, const char* tcp_addr, int tcp_port)
+status sender_create(sender_handle* psndr, const char* mmap_file, const char* tcp_address, unsigned short tcp_port,
+					 const char* mcast_address, unsigned short mcast_port, const char* mcast_if_address, short mcast_ttl,
+					 microsec heartbeat_usec, microsec max_pkt_age_usec)
 {
 	status st;
-	if (!psndr || !mmap_file || heartbeat_usec <= 0 || max_pkt_age_usec < 0 ||
-		!mcast_addr || mcast_port < 0 || !tcp_addr || tcp_port < 0) {
+	sock_addr_handle sendto_if_addr = NULL;
+	if (!psndr || !mmap_file || heartbeat_usec <= 0 || max_pkt_age_usec < 0 || !mcast_address || !tcp_address) {
 		error_invalid_arg("sender_create");
 		return FAIL;
 	}
@@ -532,26 +535,28 @@ status sender_create(sender_handle* psndr, const char* mmap_file, microsec heart
 		return NO_MEMORY;
 	}
 
-	if (FAILED(st = sock_create(&(*psndr)->listen_sock, SOCK_STREAM, tcp_addr, tcp_port)) ||
+	if (FAILED(st = sock_create(&(*psndr)->listen_sock, SOCK_STREAM)) ||
 		FAILED(st = sock_set_reuseaddr((*psndr)->listen_sock, 1)) ||
+		FAILED(st = sock_addr_create(&(*psndr)->listen_addr, tcp_address, tcp_port)) ||
+		FAILED(st = sock_bind((*psndr)->listen_sock, (*psndr)->listen_addr)) ||
 		FAILED(st = sock_listen((*psndr)->listen_sock, 5)) ||
-		(tcp_port == 0 && FAILED(st = sock_update_local_address((*psndr)->listen_sock)))) {
+		FAILED(st = sock_get_local_address((*psndr)->listen_sock, (*psndr)->listen_addr))) {
 		sender_destroy(psndr);
 		return st;
 	}
 
 	if (mcast_port == 0)
-		mcast_port = sock_get_port((*psndr)->listen_sock);
+		mcast_port = sock_addr_get_port((*psndr)->listen_addr);
 
-	if (FAILED(st = sock_create(&(*psndr)->mcast_sock, SOCK_DGRAM, mcast_addr, mcast_port)) ||
+	if (FAILED(st = sock_create(&(*psndr)->mcast_sock, SOCK_DGRAM)) ||
 		FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)) ||
-		FAILED(st = get_udp_mtu((*psndr)->mcast_sock, mcast_addr, &(*psndr)->mcast_mtu))) {
+		FAILED(st = get_udp_mtu((*psndr)->mcast_sock, mcast_address, &(*psndr)->mcast_mtu))) {
 		sender_destroy(psndr);
 		return st;
 	}
 
 	st = sprintf((*psndr)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 STORAGE_VERSION, mcast_addr, mcast_port, (*psndr)->mcast_mtu,
+				 STORAGE_VERSION, mcast_address, mcast_port, (*psndr)->mcast_mtu,
 				 (long) (*psndr)->base_id, (long) (*psndr)->max_id,
 				 storage_get_value_size((*psndr)->store), max_pkt_age_usec, (*psndr)->heartbeat_usec);
 
@@ -563,15 +568,20 @@ status sender_create(sender_handle* psndr, const char* mmap_file, microsec heart
 
 	if (FAILED(st = accum_create(&(*psndr)->mcast_accum, (*psndr)->mcast_mtu, max_pkt_age_usec)) ||
 		FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, 1)) ||
-		FAILED(st = sock_mcast_bind((*psndr)->mcast_sock)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
+		(mcast_if_address && 
+		 (FAILED(st = sock_addr_create(&sendto_if_addr, mcast_if_address, 0)) ||
+		  FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock, sendto_if_addr)))) ||
+		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr, mcast_address, mcast_port)) ||
+		FAILED(st = sock_bind((*psndr)->mcast_sock, (*psndr)->sendto_addr)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
-		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN))) {
+		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN)))
 		sender_destroy(psndr);
-		return st;
-	}
 
-	return OK;
+	if (mcast_if_address)
+		sock_addr_destroy(&sendto_if_addr);
+
+	return st;
 }
 
 void sender_destroy(sender_handle* psndr)
@@ -586,6 +596,8 @@ void sender_destroy(sender_handle* psndr)
 	poller_destroy(&(*psndr)->poller);
 	accum_destroy(&(*psndr)->mcast_accum);
 	storage_destroy(&(*psndr)->store);
+	sock_addr_destroy(&(*psndr)->sendto_addr);
+	sock_addr_destroy(&(*psndr)->listen_addr);
 
 	error_restore_last();
 
@@ -599,9 +611,9 @@ storage_handle sender_get_storage(sender_handle sndr)
 	return sndr->store;
 }
 
-int sender_get_listen_port(sender_handle sndr)
+unsigned short sender_get_listen_port(sender_handle sndr)
 {
-	return sock_get_port(sndr->listen_sock);
+	return sock_addr_get_port(sndr->listen_addr);
 }
 
 status sender_run(sender_handle sndr)
