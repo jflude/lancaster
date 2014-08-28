@@ -84,8 +84,8 @@ type Summary struct {
 	lowPrice   int64
 	highPrice  int64
 	closePrice int64
-	flags       byte
 	totalVolume	uint32
+	flags       byte
 }
 
 func (s *Summary) key() string {
@@ -109,6 +109,6 @@ func (s *Summary) close() float64 {
 }
 func (s *Summary) String() string {
 	t := time.Unix(int64(s.exchangeTS/1000000), int64((s.exchangeTS%1000000)*1000))
-	return fmt.Sprintf("%-32s %-15s %9d  o:%-6.2f  h:%-6.2f  l:%-6.2f  c:%-6.2f  %9d", 
-		s.key(), t.Format("15:04:05.999999"), s.opraSeq, s.open(), s.high(), s.low(), s.close(), s.totalVolume)
+	return fmt.Sprintf("%-32s %-15s %9d  o:%-6.2f  h:%-6.2f  l:%-6.2f  c:%-6.2f  %9d flags:%-4d",
+		s.key(), t.Format("15:04:05.999999"), s.opraSeq, s.open(), s.high(), s.low(), s.close(), s.totalVolume, s.flags)
 }
