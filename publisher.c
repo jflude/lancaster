@@ -18,8 +18,9 @@
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [-v|--verbose] [heartbeat interval] [maximum packet age] [multicast address] "
-			"[multicast port] [TCP address] [TCP port] [storage file or segment]\n", prog);
+	fprintf(stderr, "Syntax: %s [storage file or segment] [TCP address] "
+			"[TCP port] [multicast address] [multicast port] [multicast interface] "
+			"[heartbeat interval] [maximum packet age]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -77,30 +78,26 @@ int main(int argc, char* argv[])
 	sender_handle sender;
 	thread_handle stats_thread;
 	int hb, n = 1;
-	const char *mcast_addr, *tcp_addr;
+	const char *mmap_file, *mcast_addr, *mcast_if_addr, *tcp_addr;
 	int mcast_port, tcp_port;
 	microsec max_pkt_age;
-	boolean verbose = FALSE;
+	status st;
 
 	if (argc < 8 || argc > 9)
 		syntax(argv[0]);
 
-	if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
-		if (argc != 9)
-			syntax(argv[0]);
-
-		verbose = TRUE;
-		++n;
-	}
-
-	hb = atoi(argv[n++]);
-	max_pkt_age = atoi(argv[n++]);
-	mcast_addr = argv[n++];
-	mcast_port = atoi(argv[n++]);
+	mmap_file = argv[n++];
 	tcp_addr = argv[n++];
 	tcp_port = atoi(argv[n++]);
+	mcast_addr = argv[n++];
+	mcast_port = atoi(argv[n++]);
+	mcast_if_addr = (argc == 9 ? argv[n++] : NULL);
+	hb = atoi(argv[n++]);
+	max_pkt_age = atoi(argv[n++]);
 
-	if (FAILED(sender_create(&sender, argv[n], hb, max_pkt_age, mcast_addr, mcast_port, DEFAULT_TTL, tcp_addr, tcp_port)) ||
+	if (FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
+							 mcast_addr, mcast_port, mcast_if_addr,
+							 DEFAULT_TTL, hb, max_pkt_age)) ||
 		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
 		FAILED(advert_publish(adv, sender)))
 		error_report_fatal();
@@ -108,15 +105,17 @@ int main(int argc, char* argv[])
 	if (tcp_port == 0)
 		printf("listening on port %d\n", sender_get_listen_port(sender));
 
-	if (verbose && FAILED(thread_create(&stats_thread, stats_func, sender)))
+	if (FAILED(thread_create(&stats_thread, stats_func, sender)))
 		error_report_fatal();
 
-	if (FAILED(sender_run(sender))) {
-		if (verbose)
-			putchar('\n');
+	st = sender_run(sender);
 
+	advert_destroy(&adv);
+	thread_destroy(&stats_thread);
+	putchar('\n');
+
+	if (FAILED(st))
 		error_report_fatal();
-	}
 
 	return 0;
 }

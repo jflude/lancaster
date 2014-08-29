@@ -23,7 +23,7 @@ static int delay;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [delay] [change queue size] [storage file or segment]\n", prog);
+	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] [delay]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -65,10 +65,10 @@ int main(int argc, char* argv[])
 	if (argc != 4)
 		syntax(argv[0]);
 
-	delay = atoi(argv[1]);
+	delay = atoi(argv[3]);
 
 	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, argv[3], O_CREAT, 0, MAX_ID, sizeof(struct datum), atoi(argv[2]))) ||
+		FAILED(storage_create(&store, argv[1], O_CREAT, 0, MAX_ID, sizeof(struct datum), atoi(argv[2]))) ||
 		FAILED(storage_set_description(store, "TEST")) || FAILED(storage_reset(store)))
 		error_report_fatal();
 

@@ -13,8 +13,7 @@
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [-v|--verbose] [TCP address] [TCP port] "
-			"[change queue size] [storage file or segment]\n", prog);
+	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] [TCP address] [TCP port]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -74,39 +73,31 @@ int main(int argc, char* argv[])
 {
 	receiver_handle recv;
 	thread_handle stats_thread;
-	const char* tcp_addr;
+	const char *mmap_file, *tcp_addr;
 	int tcp_port;
 	size_t q_capacity;
 	int n = 1;
-	boolean verbose = FALSE;
+	status st;
 
-	if (argc < 5 || argc > 6)
+	if (argc != 5)
 		syntax(argv[0]);
 
-	if (strcmp(argv[n], "-v") == 0 || strcmp(argv[n], "--verbose") == 0) {
-		if (argc != 6)
-			syntax(argv[0]);
-
-		verbose = TRUE;
-		++n;
-	}
-
-	tcp_addr = argv[n++];
-	tcp_port = atoi(argv[n++]);
+	mmap_file = argv[n++];
 	q_capacity = atoi(argv[n++]);
+	tcp_addr = argv[n++];
+	tcp_port = atoi(argv[n]);
 
-	if (FAILED(receiver_create(&recv, argv[n], q_capacity, tcp_addr, tcp_port)))
+	if (FAILED(receiver_create(&recv, mmap_file, q_capacity, tcp_addr, tcp_port)) ||
+		FAILED(thread_create(&stats_thread, stats_func, recv)))
 		error_report_fatal();
 
-	if (verbose && FAILED(thread_create(&stats_thread, stats_func, recv)))
-		error_report_fatal();
+	st = receiver_run(recv);
 
-	if (FAILED(receiver_run(recv))) {
-		if (verbose)
-			putchar('\n');
+	thread_destroy(&stats_thread);
+	putchar('\n');
 
+	if (FAILED(st))
 		error_report_fatal();
-	}
 	
 	return 0;
 }
