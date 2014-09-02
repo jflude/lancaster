@@ -288,7 +288,7 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity,
 					   const char* tcp_address, unsigned short tcp_port)
 {
-	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
+	sock_addr_handle bind_addr = NULL, mcast_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
 	int mcast_port, proto_ver, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
@@ -306,7 +306,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 
 	BZERO(*precv);
 
-	if (FAILED(st = sock_create(&(*precv)->tcp_sock, SOCK_STREAM)) ||
+	if (FAILED(st = sock_create(&(*precv)->tcp_sock, SOCK_STREAM, IPPROTO_TCP)) ||
 		FAILED(st = sock_addr_create(&bind_addr, tcp_address, tcp_port)) ||
 		FAILED(st = sock_connect((*precv)->tcp_sock, bind_addr)) ||
 		FAILED(st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1)))
@@ -366,13 +366,14 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 
 	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, base_id, max_id, val_size, q_capacity)) ||
 		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
-	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM)) ||
+	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, IPPROTO_UDP)) ||
 		FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) ||
-		FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, 1)) ||
-		FAILED(st = sock_addr_create(&bind_addr, mcast_address, mcast_port)) ||
+		FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) ||
+		FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) ||
+		FAILED(st = sock_addr_create(&mcast_addr, mcast_address, mcast_port)) ||
 		FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) ||
 		FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) ||
-		FAILED(st = sock_mcast_add((*precv)->mcast_sock, bind_addr, iface_addr)) ||
+		FAILED(st = sock_mcast_add((*precv)->mcast_sock, mcast_addr, iface_addr)) ||
 		FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) ||
 		FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) ||
 		FAILED(st = sock_addr_create(&(*precv)->orig_src_addr, NULL, 0)) ||
@@ -386,6 +387,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
 
 	sock_addr_destroy(&bind_addr);
+	sock_addr_destroy(&mcast_addr);
 	sock_addr_destroy(&iface_addr);
 	return st;
 }

@@ -5,6 +5,7 @@
 
 #include "status.h"
 #include <stddef.h>
+#include <netinet/in.h>
 
 #define IP_OVERHEAD 20
 #define UDP_OVERHEAD 8
@@ -29,7 +30,7 @@ boolean sock_addr_is_equal(sock_addr_handle addr1, sock_addr_handle addr2);
 struct sock;
 typedef struct sock* sock_handle;
 
-status sock_create(sock_handle* psock, int type);
+status sock_create(sock_handle* psock, int type, int protocol);
 void sock_destroy(sock_handle* psock);
 
 void* sock_get_property(sock_handle sock);
@@ -43,7 +44,7 @@ status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 
 status sock_set_nonblock(sock_handle sock);
-status sock_set_reuseaddr(sock_handle sock, int reuse);
+status sock_set_reuseaddr(sock_handle sock, boolean reuse);
 status sock_set_rcvbuf(sock_handle sock, size_t buf_sz);
 status sock_set_mcast_ttl(sock_handle sock, short ttl);
 status sock_set_mcast_loopback(sock_handle sock, boolean allow_loop);

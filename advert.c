@@ -132,8 +132,8 @@ status advert_create(advert_handle* padvert, const char* mcast_address, unsigned
 	BZERO(*padvert);
 	SPIN_CREATE(&(*padvert)->lock);
 
-	if (FAILED(st = sock_create(&(*padvert)->mcast_sock, SOCK_DGRAM)) ||
-		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, 1)) ||
+	if (FAILED(st = sock_create(&(*padvert)->mcast_sock, SOCK_DGRAM, IPPROTO_UDP)) ||
+		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr, mcast_address, mcast_port)) ||
 		FAILED(st = sock_bind((*padvert)->mcast_sock, (*padvert)->mcast_addr)) ||
