@@ -20,7 +20,7 @@ static void syntax(const char* prog)
 
 int main(int argc, char* argv[])
 {
-	storage_handle store;
+	storage_handle store = NULL;
 	status st = OK;
 	size_t q_capacity;
 	long old_head;

@@ -21,6 +21,7 @@ type Quote struct {
 	askPrice   int64
 	bidSize    int32
 	askSize    int32
+	flags	   byte
 }
 
 func (q *Quote) key() string {
@@ -44,7 +45,9 @@ func usToTime(us uint64) time.Time {
 func (q *Quote) String() string {
 	t := usToTime(q.exchangeTS)
 	latency := time.Now().Sub(t)
-	return fmt.Sprintf("%-32s %-15s %9d %6d x %6s @ %-6s x %-6d %s", q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, fwfloat(q.bid()), fwfloat(q.ask()), q.askSize, latency)
+	return fmt.Sprintf("%-32s %-15s %9d %6d x %6s @ %-6s x %-6d %x %s", 
+			q.key(), t.Format("15:04:05.999999"), q.opraSeq, q.bidSize, 
+			fwfloat(q.bid()), fwfloat(q.ask()), q.askSize, q.flags, latency)
 }
 
 type Print struct {
@@ -53,8 +56,8 @@ type Print struct {
 	opraSeq         uint32
 	lastPrice       int64
 	lastSize        int32
-	flags           byte
 	totalExchVolume uint32
+	flags           byte
 }
 
 func (p *Print) key() string {

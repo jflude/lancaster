@@ -14,12 +14,12 @@
 
 #define ADVERT_ADDRESS "227.1.1.227"
 #define ADVERT_PORT 11227
-#define DEFAULT_TTL 64
+#define DEFAULT_TTL 1
 
 static void syntax(const char* prog)
 {
 	fprintf(stderr, "Syntax: %s [storage file or segment] [TCP address] "
-			"[TCP port] [multicast address] [multicast port] [multicast interface] "
+			"[TCP port] [multicast interface] [multicast address] [multicast port] "
 			"[heartbeat interval] [maximum packet age]\n", prog);
 	exit(EXIT_FAILURE);
 }
@@ -52,7 +52,7 @@ static void* stats_func(thread_handle thr)
 		tcp2 = sender_get_tcp_bytes_sent(sender);
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
-		printf("\"%.16s\", RECV: %ld, PKT/sec: %.2f, GAP: %lu, TCP KB/sec: %.2f, MCAST KB/sec: %.2f           \r",
+		printf("\"%.16s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, TCP KB/s: %.2f, MCAST KB/s: %.2f        \r",
 			   storage_get_description(sender_get_storage(sender)),
 			   sender_get_receiver_count(sender),
 			   (pkt2 - pkt1) / secs,
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 	sender_handle sender;
 	thread_handle stats_thread;
 	int hb, n = 1;
-	const char *mmap_file, *mcast_addr, *mcast_if_addr, *tcp_addr;
+	const char *mmap_file, *mcast_addr, *mcast_interface, *tcp_addr;
 	int mcast_port, tcp_port;
 	microsec max_pkt_age;
 	status st;
@@ -89,14 +89,14 @@ int main(int argc, char* argv[])
 	mmap_file = argv[n++];
 	tcp_addr = argv[n++];
 	tcp_port = atoi(argv[n++]);
+	mcast_interface = argv[n++];
 	mcast_addr = argv[n++];
 	mcast_port = atoi(argv[n++]);
-	mcast_if_addr = (argc == 9 ? argv[n++] : NULL);
 	hb = atoi(argv[n++]);
 	max_pkt_age = atoi(argv[n++]);
 
 	if (FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
-							 mcast_addr, mcast_port, mcast_if_addr,
+							 mcast_addr, mcast_port, mcast_interface,
 							 DEFAULT_TTL, hb, max_pkt_age)) ||
 		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
 		FAILED(advert_publish(adv, sender)))
