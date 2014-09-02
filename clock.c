@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#ifdef _POSIX_TIMERS
+#if _POSIX_TIMERS && (_POSIX_TIMERS - 200112L) >= 0
 
 status clock_sleep(microsec usec)
 {

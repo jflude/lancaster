@@ -2,6 +2,10 @@
 #include "error.h"
 #include <stddef.h>
 
+#ifndef NSIG
+#define NSIG 32
+#endif
+
 static volatile sig_atomic_t is_raised[NSIG];
 
 static void on_signal(int sig)

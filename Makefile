@@ -19,9 +19,8 @@ uudict.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -Wextra -pthread -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
-LDFLAGS = -pthread
-LDLIBS = -lrt -lm
+CFLAGS = -ansi -pedantic -Wall -Wextra -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+LDLIBS = -lm
 OBJS = $(SRCS:.c=.o)
 
 DEPFLAGS = \
@@ -29,6 +28,14 @@ DEPFLAGS = \
 -I/usr/include/x86_64-linux-gnu \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
+
+ifneq (,$(findstring Darwin,$(shell uname -s)))
+CFLAGS += -D_DARWIN_C_SOURCE
+else
+CFLAGS += -pthread
+LDFLAGS += -pthread
+LDLIBS += -lrt
+endif
 
 ifneq (,$(findstring CYGWIN,$(shell uname -s)))
 SO_EXT = .dll
@@ -65,8 +72,9 @@ depend: DEPEND.mk
 	    $(SRCS)
 
 clean:
-	rm -f libcachester.a libcachester$(SO_EXT) \
+	rm -rf libcachester.a libcachester$(SO_EXT) \
 	    writer writer.o publisher publisher.o subscriber subscriber.o reader reader.o \
+		reader.dSYM writer.dSYM publisher.dSYM subscriber.dSYM \
 	    $(OBJS)
 
 distclean: clean

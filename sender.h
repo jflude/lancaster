@@ -15,7 +15,7 @@ struct sender;
 typedef struct sender* sender_handle;
 
 status sender_create(sender_handle* psndr, const char* mmap_file, const char* tcp_address, unsigned short tcp_port,
-					 const char* mcast_address, unsigned short mcast_port, const char* mcast_if_address, short mcast_ttl,
+					 const char* mcast_address, unsigned short mcast_port, const char* mcast_interface, short mcast_ttl,
 					 microsec heartbeat_usec, microsec max_pkt_age_usec);
 void sender_destroy(sender_handle* psndr);
 

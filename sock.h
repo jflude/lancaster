@@ -38,6 +38,7 @@ void sock_set_property(sock_handle sock, void* prop);
 int sock_get_descriptor(sock_handle sock);
 status sock_get_local_address(sock_handle sock, sock_addr_handle addr);
 status sock_get_remote_address(sock_handle sock, sock_addr_handle addr);
+status sock_get_interface_address(sock_handle sock, const char* device, sock_addr_handle addr);
 status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz);
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu);
 

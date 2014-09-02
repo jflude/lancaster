@@ -45,7 +45,7 @@ static const char* escape_quotes(const char* in)
 
 static status make_json_map(advert_handle advert)
 {
-	char buf[8192], host[HOST_NAME_MAX];
+	char buf[8192], host[256];
 	struct notice* it;
 	char* new_msg;
 

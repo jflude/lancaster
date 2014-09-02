@@ -483,13 +483,10 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 	return st;
 }
 
-static status get_udp_mtu(sock_handle sock, const char* dest_address, size_t* pmtu)
+static status get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 {
-	char device[256];
 	status st;
-
-	if (FAILED(st = sock_get_device(dest_address, device, sizeof(device))) ||
-		FAILED(st = sock_get_mtu(sock, device, pmtu)))
+	if (FAILED(st = sock_get_mtu(sock, device, pmtu)))
 		return st;
 
 	*pmtu -= IP_OVERHEAD + UDP_OVERHEAD;
@@ -497,7 +494,7 @@ static status get_udp_mtu(sock_handle sock, const char* dest_address, size_t* pm
 }
 
 status sender_create(sender_handle* psndr, const char* mmap_file, const char* tcp_address, unsigned short tcp_port,
-					 const char* mcast_address, unsigned short mcast_port, const char* mcast_if_address, short mcast_ttl,
+					 const char* mcast_address, unsigned short mcast_port, const char* mcast_interface, short mcast_ttl,
 					 microsec heartbeat_usec, microsec max_pkt_age_usec)
 {
 	status st;
@@ -550,7 +547,7 @@ status sender_create(sender_handle* psndr, const char* mmap_file, const char* tc
 
 	if (FAILED(st = sock_create(&(*psndr)->mcast_sock, SOCK_DGRAM)) ||
 		FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)) ||
-		FAILED(st = get_udp_mtu((*psndr)->mcast_sock, mcast_address, &(*psndr)->mcast_mtu))) {
+		FAILED(st = get_mtu((*psndr)->mcast_sock, mcast_interface, &(*psndr)->mcast_mtu))) {
 		sender_destroy(psndr);
 		return st;
 	}
@@ -569,18 +566,16 @@ status sender_create(sender_handle* psndr, const char* mmap_file, const char* tc
 	if (FAILED(st = accum_create(&(*psndr)->mcast_accum, (*psndr)->mcast_mtu, max_pkt_age_usec)) ||
 		FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, 1)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
-		(mcast_if_address && 
-		 (FAILED(st = sock_addr_create(&sendto_if_addr, mcast_if_address, 0)) ||
-		  FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock, sendto_if_addr)))) ||
+		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock, FALSE)) ||
+		FAILED(st = sock_addr_create(&sendto_if_addr, NULL, 0)) ||
+		FAILED(st = sock_get_interface_address((*psndr)->mcast_sock, mcast_interface, sendto_if_addr)) ||
+		FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock, sendto_if_addr)) ||
 		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr, mcast_address, mcast_port)) ||
-		FAILED(st = sock_bind((*psndr)->mcast_sock, (*psndr)->sendto_addr)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
 		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN)))
 		sender_destroy(psndr);
 
-	if (mcast_if_address)
-		sock_addr_destroy(&sendto_if_addr);
-
+	sock_addr_destroy(&sendto_if_addr);
 	return st;
 }
 
@@ -591,7 +586,8 @@ void sender_destroy(sender_handle* psndr)
 
 	error_save_last();
 
-	poller_process((*psndr)->poller, close_sock_func, *psndr);
+	if ((*psndr)->poller)
+		poller_process((*psndr)->poller, close_sock_func, *psndr);
 
 	poller_destroy(&(*psndr)->poller);
 	accum_destroy(&(*psndr)->mcast_accum);

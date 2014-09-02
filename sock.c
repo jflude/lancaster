@@ -21,11 +21,6 @@
 #define ifr_mtu ifr_metric
 #endif
 
-#ifdef __STRICT_ANSI__
-FILE* popen(const char* command, const char* type);
-int pclose(FILE* stream);
-#endif
-
 struct sock
 {
 	int fd;
@@ -209,52 +204,23 @@ status sock_get_remote_address(sock_handle sock, sock_addr_handle addr)
 	return OK;
 }
 
-status sock_get_device(const char* dest_address, char* pdevice, size_t device_sz)
+status sock_get_interface_address(sock_handle sock, const char* device, sock_addr_handle addr)
 {
-	char out[256], cmd[256] = "ip route get ";
-	FILE* f;
-	int n;
-
-	if (!dest_address || !pdevice || device_sz == 0) {
-		error_invalid_arg("sock_get_device");
+	struct ifreq ifr;
+	if (!device) {
+		error_invalid_arg("sock_get_interface_address");
 		return FAIL;
 	}
 
-	strncat(cmd, dest_address, sizeof(cmd) - strlen(cmd) - 2);
-	fflush(NULL);
+	BZERO(&ifr);
+	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
 
-	errno = ENOMEM;
-	f = popen(cmd, "r");
-	if (!f) {
-		error_errno("popen");
+	if (ioctl(sock->fd, SIOCGIFADDR, &ifr) == -1) {
+		error_errno("ioctl");
 		return FAIL;
 	}
 
-loop:
-	if ((n = fscanf(f, "%*s %*s %*s %255s", out)) == EOF) {
-		if (errno == EINTR)
-			goto loop;
-
-		error_errno("fscanf");
-		return FAIL;
-	}
-
-	if (n != 1) {
-		error_msg("sock_get_device: invalid device format", INVALID_DEVICE_FORMAT);
-		return INVALID_DEVICE_FORMAT;
-	}
-
-	if (pclose(f) == -1) {
-		error_errno("pclose");
-		return FAIL;
-	}
-
-	if (strlen(out) >= device_sz) {
-		error_msg("sock_get_device: buffer too small", BUFFER_TOO_SMALL);
-		return BUFFER_TOO_SMALL;
-	}
-
-	strcpy(pdevice, out);
+	addr->sa.sin_addr = ((struct sockaddr_in*) &ifr.ifr_addr)->sin_addr;
 	return OK;
 }
 
@@ -314,7 +280,7 @@ status sock_set_reuseaddr(sock_handle sock, int reuse)
 
 status sock_set_mcast_ttl(sock_handle sock, short ttl)
 {
-	char val = ttl;
+	unsigned char val = ttl;
 	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
 		error_errno("setsockopt");
 		return FAIL;
