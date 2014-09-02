@@ -105,17 +105,20 @@ status sock_addr_get_text(sock_addr_handle addr, char* text, size_t text_sz)
 	return OK;
 }
 
+boolean sock_addr_is_equal(sock_addr_handle lhs, sock_addr_handle rhs)
+{
+	return lhs && rhs && lhs->sa.sin_addr.s_addr == rhs->sa.sin_addr.s_addr && lhs->sa.sin_port == rhs->sa.sin_port;
+}
+
 void sock_addr_set_none(sock_addr_handle addr)
 {
 	addr->sa.sin_addr.s_addr = htonl(INADDR_NONE);
 	addr->sa.sin_port = 0;
 }
 
-boolean sock_addr_is_equal(sock_addr_handle addr1, sock_addr_handle addr2)
+void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
 {
-	return addr1 && addr2 &&
-		addr1->sa.sin_addr.s_addr == addr2->sa.sin_addr.s_addr &&
-		addr1->sa.sin_port == addr2->sa.sin_port;
+	dest->sa = src->sa;
 }
 
 status sock_create(sock_handle* psock, int type, int protocol)

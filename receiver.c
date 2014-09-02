@@ -136,9 +136,13 @@ static status mcast_on_read(receiver_handle recv)
 		return st;
 
 	if (recv->next_seq == 1)
-		recv->orig_src_addr = recv->last_src_addr;
+		sock_addr_copy(recv->orig_src_addr, recv->last_src_addr);
 	else if (!sock_addr_is_equal(recv->orig_src_addr, recv->last_src_addr)) {
-		error_msg("mcast_on_read: unexpected multicast source", UNEXPECTED_SOURCE);
+		char address[256];
+		if (FAILED(st = sock_addr_get_text(recv->last_src_addr, address, sizeof(address))))
+			sprintf(address, "sock_addr_get_text failed: error #%d", (int) st);
+
+		error_msg("mcast_on_read: unexpected multicast source: %s", UNEXPECTED_SOURCE, address);
 		return UNEXPECTED_SOURCE;
 	}
 
@@ -321,13 +325,13 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 				&proto_ver, mcast_address, &mcast_port, &(*precv)->mcast_mtu,
 				&base_id, &max_id, &val_size, &max_age_usec, &hb_usec, &proto_len);
 
-	if (st == EOF) {
-		error_msg("receiver_create: invalid publisher attributes", PROTOCOL_ERROR);
+	if (st != 9) {
+		error_msg("receiver_create: invalid publisher attributes: \"%s\"", PROTOCOL_ERROR, buf);
 		return PROTOCOL_ERROR;
 	}	
 
-	if (st != 9 || proto_ver != STORAGE_VERSION) {
-		error_msg("receiver_create: unknown protocol", UNKNOWN_PROTOCOL);
+	if (proto_ver != STORAGE_VERSION) {
+		error_msg("receiver_create: unknown protocol version: %d", UNKNOWN_PROTOCOL, proto_ver);
 		return UNKNOWN_PROTOCOL;
 	}
 

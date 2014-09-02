@@ -2,12 +2,13 @@
 #include "spin.h"
 #include "status.h"
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static volatile int msg_lock;
-static char last_msg[128], saved_msg[128];
+static char last_msg[256], saved_msg[256];
 static int last_code, saved_code;
 static boolean is_saved;
 
@@ -35,22 +36,23 @@ void error_report_fatal(void)
 	exit(EXIT_FAILURE);
 }
 
-void error_msg(const char* msg, int code)
+void error_msg(const char* msg, int code, ...)
 {
+	va_list ap;
 	if (!msg) {
 		error_invalid_arg("error_msg");
 		error_report_fatal();
 		return;
 	}
 
+	va_start(ap, code);
+
 	SPIN_WRITE_LOCK(&msg_lock, no_ver);
-
 	last_code = code;
-
-	strncpy(last_msg, msg, sizeof(last_msg) - 1);
-	last_msg[sizeof(last_msg) - 1] = '\0';
-
+	vsprintf(last_msg, msg, ap);
 	SPIN_UNLOCK(&msg_lock, no_ver);
+
+	va_end(ap);
 }
 
 static void format(const char* func, const char* desc, int code)
