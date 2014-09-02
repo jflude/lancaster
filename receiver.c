@@ -81,10 +81,10 @@ static status update_stats(receiver_handle recv, size_t pkt_sz, microsec now, mi
 	recv->stats.mcast_mean_latency += delta / recv->stats.mcast_packets_recv;
 	recv->stats.mcast_M2_latency += delta * (latency - recv->stats.mcast_mean_latency);
 
-	if (latency < recv->stats.mcast_min_latency)
+	if (recv->stats.mcast_min_latency == 0 || latency < recv->stats.mcast_min_latency)
 		recv->stats.mcast_min_latency = latency;
 
-	if (latency > recv->stats.mcast_max_latency)
+	if (recv->stats.mcast_max_latency == 0 || latency > recv->stats.mcast_max_latency)
 		recv->stats.mcast_max_latency = latency;
 
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
@@ -344,8 +344,9 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->val_size = val_size;
 	(*precv)->next_seq = 1;
 	(*precv)->timeout_usec = 5 * hb_usec / 2;
-	(*precv)->stats.mcast_min_latency = DBL_MAX;
-	(*precv)->stats.mcast_max_latency = DBL_MIN;
+
+	(*precv)->stats.mcast_min_latency = 0;
+	(*precv)->stats.mcast_max_latency = 0;
 
 	(*precv)->in_buf = xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
 	if (!(*precv)->in_buf) {
