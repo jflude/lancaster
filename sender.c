@@ -578,7 +578,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr,
 									 mcast_address, mcast_port)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
-		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN)) ||
+		FAILED(st = poller_add((*psndr)->poller,
+							   (*psndr)->listen_sock, POLLIN)) ||
 		FAILED(st = sock_addr_destroy(&sendto_if_addr)))
 		(void) 0;
 

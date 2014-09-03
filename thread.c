@@ -55,7 +55,7 @@ status thread_destroy(thread_handle* pthr)
 {
 	status st = OK;
 	if (!pthr || !*pthr)
-		return OK;
+		return st;
 
 	if ((*pthr)->running)
 		st = thread_stop(*pthr, NULL);

@@ -56,15 +56,15 @@ status dict_create(dict_handle* pdict, size_t dict_sz)
 
 status dict_destroy(dict_handle* pdict)
 {
-	if (!pdict || !*pdict)
-		return OK;
-
-	table_destroy(&(*pdict)->id2s);
-	table_destroy(&(*pdict)->s2id);
+	status st = OK;
+	if (!pdict || !*pdict ||
+		FAILED(st = table_destroy(&(*pdict)->id2s)) ||
+		FAILED(st = table_destroy(&(*pdict)->s2id)))
+		return st;
 
 	xfree(*pdict);
 	*pdict = NULL;
-	return OK;
+	return st;
 }
 
 status dict_assoc(dict_handle dict, const char* symbol, identifier id)

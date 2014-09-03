@@ -53,15 +53,15 @@ status uudict_create(uudict_handle* puudict, size_t dict_sz)
 
 status uudict_destroy(uudict_handle* puudict)
 {
-	if (!puudict || !*puudict)
-		return OK;
-
-	table_destroy(&(*puudict)->id2uu);
-	table_destroy(&(*puudict)->uu2id);
+	status st = OK;
+	if (!puudict || !*puudict ||
+		FAILED(st = table_destroy(&(*puudict)->id2uu)) ||
+		FAILED(st = table_destroy(&(*puudict)->uu2id)))
+		return st;
 
 	xfree(*puudict);
 	*puudict = NULL;
-	return OK;
+	return st;
 }
 
 status uudict_assoc(uudict_handle uudict, union uuid uu, identifier id)

@@ -50,7 +50,7 @@ status sock_addr_create(sock_addr_handle* paddr, const char* address,
 		(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
 	else if (!inet_aton(address, &(*paddr)->sa.sin_addr)) {
 		sock_addr_destroy(paddr);
-		return error_errno("inet_aton");
+		return error_msg("inet_aton: invalid address", INVALID_ADDRESS);
 	}
 
 	return OK;
@@ -140,16 +140,14 @@ status sock_create(sock_handle* psock, int type, int protocol)
 
 status sock_destroy(sock_handle* psock)
 {
-	status st;
-	if (!psock || !*psock)
-		return OK;
-
-	if (FAILED(st = sock_close(*psock)))
+	status st = OK;
+	if (!psock || !*psock ||
+		FAILED(st = sock_close(*psock)))
 		return st;
 
 	xfree(*psock);
 	*psock = NULL;
-	return OK;
+	return st;
 }
 
 void* sock_get_property(sock_handle sock)
