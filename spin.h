@@ -15,7 +15,7 @@
 #define SPIN_CREATE(lock) \
 	do { \
 		SYNC_LOCK_RELEASE(lock); \
-	} while (0);
+	} while (0)
 
 #define SPIN_READ_LOCK(lock, ver) \
 	do { \
@@ -27,7 +27,7 @@
 				CPU_RELAX(); \
 			else \
 				yield(); \
-	} while (0);
+	} while (0)
 
 #define SPIN_WRITE_LOCK(lock, old_ver) \
 	do { \
@@ -39,7 +39,7 @@
 				CPU_RELAX(); \
 			else \
 				yield(); \
-	} while (0);
+	} while (0)
 
 #define SPIN_UNLOCK(lock, new_ver) \
 	do { \
@@ -47,6 +47,6 @@
 		(void) no_ver; \
 		SYNC_SYNCHRONIZE(); \
 		*(lock) = new_ver; \
-	} while (0);
+	} while (0)
 
 #endif

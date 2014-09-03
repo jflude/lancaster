@@ -8,10 +8,8 @@
 
 status yield(void)
 {
-	if (sched_yield() == -1) {
-		error_errno("sched_yield");
-		return FAIL;
-	}
+	if (sched_yield() == -1)
+		return error_errno("sched_yield");
 
 	return OK;
 }

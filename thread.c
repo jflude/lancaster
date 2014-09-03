@@ -25,10 +25,8 @@ static void* wrapper_fn(void* param)
 status thread_create(thread_handle* pthr, thread_func fn, void* param)
 {
 	int e;
-	if (!pthr || !fn) {
-		error_invalid_arg("thread_create");
-		return FAIL;
-	}
+	if (!pthr || !fn)
+		return error_invalid_arg("thread_create");
 
 	*pthr = XMALLOC(struct thread);
 	if (!*pthr)
@@ -41,29 +39,30 @@ status thread_create(thread_handle* pthr, thread_func fn, void* param)
 
 	e = pthread_create(&(*pthr)->sys_thr, NULL, wrapper_fn, *pthr);
 	if (e) {
-		errno = e;
-		error_errno("pthread_create");
+		error_save_last();
 		thread_destroy(pthr);
-		return FAIL;
+		error_restore_last();
+
+		errno = e;
+		return error_errno("pthread_create");
 	}
 
 	(*pthr)->running = TRUE;
 	return OK;
 }
 
-void thread_destroy(thread_handle* pthr)
+status thread_destroy(thread_handle* pthr)
 {
+	status st = OK;
 	if (!pthr || !*pthr)
-		return;
+		return OK;
 
-	if ((*pthr)->running) {
-		error_save_last();
-		thread_stop(*pthr, NULL);
-		error_restore_last();
-	}
+	if ((*pthr)->running)
+		st = thread_stop(*pthr, NULL);
 
 	xfree(*pthr);
 	*pthr = NULL;
+	return st;
 }
 
 void* thread_get_param(thread_handle thr)
@@ -89,8 +88,7 @@ status thread_stop(thread_handle thr, void** presult)
 	e = pthread_join(thr->sys_thr, presult);
 	if (e && e != ESRCH) {
 		errno = e;
-		error_errno("pthread_join");
-		return FAIL;
+		return error_errno("pthread_join");
 	}
 
 	thr->running = FALSE;

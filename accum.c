@@ -16,10 +16,8 @@ struct accum
 
 status accum_create(accum_handle* pacc, size_t capacity, microsec max_age_usec)
 {
-	if (!pacc || capacity == 0 || max_age_usec < 0) {
-		error_invalid_arg("accum_create");
-		return FAIL;
-	}
+	if (!pacc || capacity == 0 || max_age_usec < 0)
+		return error_invalid_arg("accum_create");
 
 	*pacc = xmalloc(sizeof(struct accum) + capacity - 1);
 	if (!*pacc)
@@ -32,13 +30,14 @@ status accum_create(accum_handle* pacc, size_t capacity, microsec max_age_usec)
 	return OK;
 }
 
-void accum_destroy(accum_handle* pacc)
+status accum_destroy(accum_handle* pacc)
 {
 	if (!pacc || !*pacc)
-		return;
+		return OK;
 
 	xfree(*pacc);
 	*pacc = NULL;
+	return OK;
 }
 
 boolean accum_is_empty(accum_handle acc)
@@ -48,9 +47,8 @@ boolean accum_is_empty(accum_handle acc)
 
 status accum_is_stale(accum_handle acc)
 {
-	microsec now;
 	status st;
-
+	microsec now;
 	if (acc->max_age_usec == 0 || acc->insert_time == NO_TIME)
 		return FALSE;
 
@@ -65,13 +63,12 @@ size_t accum_get_available(accum_handle acc)
 	return acc->capacity - (acc->next_free - acc->buf);
 }
 
-status accum_store(accum_handle acc, const void* data, size_t data_sz, void** pstored)
+status accum_store(accum_handle acc, const void* data,
+				   size_t data_sz, void** pstored)
 {
 	status st;
-	if (data_sz == 0 || data_sz > acc->capacity) {
-		error_invalid_arg("accum_store");
-		return FAIL;
-	}
+	if (data_sz == 0 || data_sz > acc->capacity)
+		return error_invalid_arg("accum_store");
 
 	if (data_sz > (acc->capacity - (acc->next_free - acc->buf)))
 		return FALSE;
@@ -84,7 +81,8 @@ status accum_store(accum_handle acc, const void* data, size_t data_sz, void** ps
 
 	acc->next_free += data_sz;
 
-	if (acc->insert_time == NO_TIME && FAILED(st = clock_time(&acc->insert_time)))
+	if (acc->insert_time == NO_TIME &&
+		FAILED(st = clock_time(&acc->insert_time)))
 		return st;
 
 	return TRUE;
@@ -93,10 +91,8 @@ status accum_store(accum_handle acc, const void* data, size_t data_sz, void** ps
 status accum_get_batched(accum_handle acc, const void** pdata, size_t* psz)
 {
 	size_t used;
-	if (!pdata || !psz) {
-		error_invalid_arg("accum_get_batched");
-		return FAIL;
-	}
+	if (!pdata || !psz)
+		return error_invalid_arg("accum_get_batched");
 
 	used = acc->next_free - acc->buf;
 	if (used == 0)

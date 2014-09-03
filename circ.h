@@ -14,7 +14,7 @@ struct circ;
 typedef struct circ* circ_handle;
 
 status circ_create(circ_handle* pcirc, size_t capacity);
-void circ_destroy(circ_handle* pcirc);
+status circ_destroy(circ_handle* pcirc);
 
 size_t circ_get_count(circ_handle circ);
 

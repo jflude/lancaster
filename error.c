@@ -8,9 +8,16 @@
 #include <string.h>
 
 static volatile int msg_lock;
-static char last_msg[256], saved_msg[256];
-static int last_code, saved_code;
-static boolean is_saved;
+static char prog_name[64], last_msg[256], saved_msg[256];
+static int last_code, saved_code, saved_errno;
+
+void error_set_program_name(const char* name)
+{
+	strncpy(prog_name, name, sizeof(prog_name) - 2);
+	prog_name[sizeof(prog_name) - 3] = '\0';
+
+	strcat(prog_name, ": ");
+}
 
 int error_last_code(void)
 {
@@ -36,84 +43,89 @@ void error_report_fatal(void)
 	exit(EXIT_FAILURE);
 }
 
-void error_msg(const char* msg, int code, ...)
+int error_msg(const char* msg, int code, ...)
 {
+	char buf[256];
 	va_list ap;
+
 	if (!msg) {
 		error_invalid_arg("error_msg");
 		error_report_fatal();
-		return;
 	}
 
 	va_start(ap, code);
+	vsprintf(buf, msg, ap);
+	va_end(ap);
 
 	SPIN_WRITE_LOCK(&msg_lock, no_ver);
+
 	last_code = code;
-	vsprintf(last_msg, msg, ap);
+	last_msg[0] = '\0';
+
+	if (prog_name[0] != '\0')
+		strcpy(last_msg, prog_name);
+
+	strncat(last_msg, buf, sizeof(last_msg) - strlen(last_msg) - 1);
+
 	SPIN_UNLOCK(&msg_lock, no_ver);
-
-	va_end(ap);
+	return code;
 }
 
-static void format(const char* func, const char* desc, int code)
+static int format(const char* func, const char* desc, int code)
 {
-	char buf[256];
-	sprintf(buf, "%s: %s", func, (desc ? desc : strerror(code)));
-	error_msg(buf, code);
+	return error_msg("%s: %s", code, func, (desc ? desc : strerror(code)));
 }
 
-void error_eof(const char* func)
+int error_eof(const char* func)
 {
 	if (!func) {
 		error_invalid_arg("error_eof");
 		error_report_fatal();
-		return;
 	}
 
-	format(func, "end of file", EOF);
+	return format(func, "end of file", EOF);
 }
 
-void error_errno(const char* func)
+int error_errno(const char* func)
 {
 	if (!func) {
 		error_invalid_arg("error_errno");
 		error_report_fatal();
-		return;
 	}
 
-	format(func, NULL, errno);
+	return -format(func, NULL, errno);
 }
 
-void error_invalid_arg(const char* func)
+int error_invalid_arg(const char* func)
 {
 	if (!func) {
 		error_invalid_arg("error_invalid_arg");
 		error_report_fatal();
-		return;
 	}
 
-	format(func, NULL, EINVAL);
+	return -format(func, NULL, EINVAL);
 }
 
-void error_unimplemented(const char* func)
+int error_unimplemented(const char* func)
 {
 	if (!func) {
 		error_invalid_arg("error_unimplemented");
 		error_report_fatal();
-		return;
 	}
 
-	format(func, NULL, ENOSYS);
+	return -format(func, NULL, ENOSYS);
 }
 
 void error_save_last(void)
 {
 	SPIN_WRITE_LOCK(&msg_lock, no_ver);
 
-	if (!is_saved) {
+	if (last_code != 0) {
+		saved_errno = errno;
 		saved_code = last_code;
 		strcpy(saved_msg, last_msg);
-		is_saved = TRUE;
+
+		error_reset();
 	}
 
 	SPIN_UNLOCK(&msg_lock, no_ver);
@@ -123,10 +135,13 @@ void error_restore_last(void)
 {
 	SPIN_WRITE_LOCK(&msg_lock, no_ver);
 
-	if (is_saved) {
+	if (saved_code != 0) {
+		errno = saved_errno;
 		last_code = saved_code;
 		strcpy(last_msg, saved_msg);
-		is_saved = FALSE;
+
+		saved_code = 0;
+		saved_msg[0] = '\0';
 	}
 
 	SPIN_UNLOCK(&msg_lock, no_ver);

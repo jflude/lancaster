@@ -14,10 +14,8 @@ struct circ
 status circ_create(circ_handle* pcirc, size_t capacity)
 {
 	/* capacity must be a power of 2 */
-	if (!pcirc || capacity < 2 || (capacity & (capacity - 1)) != 0) {
-		error_invalid_arg("circ_create");
-		return FAIL;
-	}
+	if (!pcirc || capacity < 2 || (capacity & (capacity - 1)) != 0)
+		return error_invalid_arg("circ_create");
 
 	--capacity;
 
@@ -30,13 +28,14 @@ status circ_create(circ_handle* pcirc, size_t capacity)
 	return OK;
 }
 
-void circ_destroy(circ_handle* pcirc)
+status circ_destroy(circ_handle* pcirc)
 {
 	if (!pcirc || !*pcirc)
-		return;
+		return OK;
 
 	xfree(*pcirc);
 	*pcirc = NULL;
+	return OK;
 }
 
 size_t circ_get_count(circ_handle circ)
@@ -61,10 +60,8 @@ status circ_insert(circ_handle circ, void* val)
 status circ_remove(circ_handle circ, void** pval)
 {
 	long n;
-	if (!pval) {
-		error_invalid_arg("circ_remove");
-		return FAIL;
-	}
+	if (!pval)
+		return error_invalid_arg("circ_remove");
 
 	if (circ->write_to == circ->read_from)
 		return BLOCKED;

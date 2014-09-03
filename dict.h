@@ -15,7 +15,7 @@ struct dict;
 typedef struct dict* dict_handle;
 
 status dict_create(dict_handle* pdict, size_t dict_sz);
-void dict_destroy(dict_handle* pdict);
+status dict_destroy(dict_handle* pdict);
 
 status dict_assoc(dict_handle dict, const char* symbol, identifier id);
 

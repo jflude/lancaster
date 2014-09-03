@@ -31,10 +31,12 @@ typedef long version;
 
 #define NEXT_VER(v) (((v) + 1) & VERSION_MAX)
 
-status storage_create(storage_handle* pstore, const char* mmap_file, int open_flags,
-					  identifier base_id, identifier max_id, size_t value_size, size_t q_capacity);
-status storage_open(storage_handle* pstore, const char* mmap_file, int open_flags);
-void storage_destroy(storage_handle* pstore);
+status storage_create(storage_handle* pstore, const char* mmap_file,
+					  int open_flags, identifier base_id, identifier max_id,
+					  size_t value_size, size_t q_capacity);
+status storage_open(storage_handle* pstore, const char* mmap_file,
+					int open_flags);
+status storage_destroy(storage_handle* pstore);
 
 boolean storage_is_read_only(storage_handle store);
 
@@ -60,9 +62,12 @@ queue_index storage_get_queue_head(storage_handle store);
 identifier storage_read_queue(storage_handle store, queue_index index);
 status storage_write_queue(storage_handle store, identifier id);
 
-status storage_get_id(storage_handle store, record_handle rec, identifier* pident);
-status storage_get_record(storage_handle store, identifier id, record_handle* prec);
-status storage_iterate(storage_handle store, storage_iterate_func iter_fn, record_handle prev, void* param);
+status storage_get_id(storage_handle store, record_handle rec,
+					  identifier* pident);
+status storage_get_record(storage_handle store, identifier id,
+						  record_handle* prec);
+status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
+					   record_handle prev, void* param);
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
 

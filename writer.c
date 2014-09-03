@@ -23,7 +23,8 @@ static int delay;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] [delay]\n", prog);
+	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] "
+			"[delay]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -38,7 +39,8 @@ static status update(identifier id, long n)
 	if (signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
 		return FALSE;
 
-	if (FAILED(st = storage_get_record(store, id, &rec)) || FAILED(st = clock_time(&now)))
+	if (FAILED(st = storage_get_record(store, id, &rec)) ||
+		FAILED(st = clock_time(&now)))
 		return st;
 
 	d = record_get_value_ref(rec);
@@ -62,14 +64,19 @@ int main(int argc, char* argv[])
 	status st = OK;
 	long xyz = 0;
 
+	error_set_program_name(argv[0]);
+
 	if (argc != 4)
 		syntax(argv[0]);
 
 	delay = atoi(argv[3]);
 
-	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, argv[1], O_CREAT, 0, MAX_ID, sizeof(struct datum), atoi(argv[2]))) ||
-		FAILED(storage_set_description(store, "TEST")) || FAILED(storage_reset(store)))
+	if (FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(storage_create(&store, argv[1], O_CREAT, 0, MAX_ID,
+							  sizeof(struct datum), atoi(argv[2]))) ||
+		FAILED(storage_set_description(store, "TEST")) ||
+		FAILED(storage_reset(store)))
 		error_report_fatal();
 
 #ifdef SCATTER_UPDATES
@@ -91,16 +98,15 @@ int main(int argc, char* argv[])
 	}
 
 finish:
-	if (FAILED(st))
-		error_report_fatal();
-
 	storage_destroy(&store);
 
 #ifdef SCATTER_UPDATES
 	twist_destroy(&twister);
 #endif
 
-	if (FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 
 	return 0;

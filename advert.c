@@ -51,10 +51,8 @@ static status make_json_map(advert_handle advert)
 
 	strcpy(buf, "{ \"hostname\" : \"");
 
-	if (gethostname(host, sizeof(host)) == -1) {
-		error_errno("gethostname");
-		return FAIL;
-	}
+	if (gethostname(host, sizeof(host)) == -1)
+		return error_errno("gethostname");
 
 	strcat(buf, escape_quotes(host));
 	strcat(buf, "\", \"data\" : [ ");
@@ -85,11 +83,11 @@ static status make_json_notice(sender_handle sender, char** pjson)
 {
 	char buf[512];
 	int n = sprintf(buf, "{ \"port\" : %d, \"description\" : \"%s\" }",
-					sender_get_listen_port(sender), escape_quotes(storage_get_description(sender_get_storage(sender))));
-	if (n < 0) {
-		error_errno("sprintf");
-		return FAIL;
-	}
+					sender_get_listen_port(sender),
+					escape_quotes(
+						storage_get_description(sender_get_storage(sender))));
+	if (n < 0)
+		return error_errno("sprintf");
 
 	*pjson = xstrdup(buf);
 	return *pjson ? OK : NO_MEMORY;
@@ -103,7 +101,8 @@ static void* mcast_func(thread_handle thr)
 	while (!thread_is_stopping(thr)) {
 		SPIN_WRITE_LOCK(&advert->lock, no_ver);
 		if (advert->json_msg)
-			st = sock_sendto(advert->mcast_sock, advert->mcast_addr, advert->json_msg, advert->json_sz);
+			st = sock_sendto(advert->mcast_sock, advert->mcast_addr,
+							 advert->json_msg, advert->json_sz);
 
 		SPIN_UNLOCK(&advert->lock, no_ver);
 		if (FAILED(st) || FAILED(st = clock_sleep(SEND_DELAY_USEC)))
@@ -117,13 +116,12 @@ static void* mcast_func(thread_handle thr)
 	return (void*) (long) st;
 }
 
-status advert_create(advert_handle* padvert, const char* mcast_address, unsigned short mcast_port, short mcast_ttl)
+status advert_create(advert_handle* padvert, const char* mcast_address,
+					 unsigned short mcast_port, short mcast_ttl)
 {
 	status st;
-	if (!mcast_address) {
-		error_invalid_arg("advert_create");
-		return FAIL;
-	}
+	if (!mcast_address)
+		return error_invalid_arg("advert_create");
 
 	*padvert = XMALLOC(struct advert);
 	if (!*padvert)
@@ -132,30 +130,32 @@ status advert_create(advert_handle* padvert, const char* mcast_address, unsigned
 	BZERO(*padvert);
 	SPIN_CREATE(&(*padvert)->lock);
 
-	if (FAILED(st = sock_create(&(*padvert)->mcast_sock, SOCK_DGRAM, IPPROTO_UDP)) ||
+	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
+								SOCK_DGRAM, IPPROTO_UDP)) ||
 		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr, mcast_address, mcast_port)) ||
+		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr,
+									 mcast_address, mcast_port)) ||
 		FAILED(st = sock_bind((*padvert)->mcast_sock, (*padvert)->mcast_addr)) ||
-		FAILED(st = thread_create(&(*padvert)->mcast_thr, mcast_func, *padvert)))
+		FAILED(st = thread_create(&(*padvert)->mcast_thr,
+								  mcast_func, *padvert))) {
+		error_save_last();
 		advert_destroy(padvert);
+		error_restore_last();
+	}
 
 	return st;
 }
 
-void advert_destroy(advert_handle* padvert)
+status advert_destroy(advert_handle* padvert)
 {
+	status st = OK;
 	struct notice* it;
-	if (!padvert || !*padvert)
-		return;
-
-	error_save_last();
-
-	thread_destroy(&(*padvert)->mcast_thr);
-	sock_destroy(&(*padvert)->mcast_sock);
-	sock_addr_destroy(&(*padvert)->mcast_addr);
-
-	error_restore_last();
+	if (!padvert || !*padvert ||
+		FAILED(st = thread_destroy(&(*padvert)->mcast_thr)) ||
+		FAILED(st = sock_destroy(&(*padvert)->mcast_sock)) ||
+		FAILED(st = sock_addr_destroy(&(*padvert)->mcast_addr)))
+		return st;
 
 	for (it = (*padvert)->notices; it; ) {
 		struct notice* next = it->next;
@@ -167,6 +167,7 @@ void advert_destroy(advert_handle* padvert)
 	xfree((*padvert)->json_msg);
 	xfree(*padvert);
 	*padvert = NULL;
+	return st;
 }
 
 boolean advert_is_running(advert_handle advert)
@@ -193,14 +194,12 @@ status advert_publish(advert_handle advert, sender_handle sender)
 	struct notice* it;
 	status st;
 
-	if (!sender) {
-		error_invalid_arg("advert_publish");
-		return FAIL;
-	}
+	if (!sender)
+		return error_invalid_arg("advert_publish");
 
 	for (it = advert->notices; it; it = it->next)
 		if (it->sender == sender)
-			return FAIL;
+			return OK;
 
 	it = XMALLOC(struct notice);
 	if (!it)
@@ -223,18 +222,19 @@ status advert_retract(advert_handle advert, sender_handle sender)
 	struct notice* it;
 	struct notice** prev;
 
-	if (!sender) {
-		error_invalid_arg("advert_retract");
-		return FAIL;
-	}
+	if (!sender)
+		return error_invalid_arg("advert_retract");
 
-	for (prev = &advert->notices, it = advert->notices; it; prev = &it->next, it = it->next)
+	for (prev = &advert->notices, it = advert->notices;
+		 it;
+		 prev = &it->next, it = it->next)
 		if (it->sender == sender) {
 			*prev = it->next;
 			xfree(it->json_desc);
 			xfree(it);
+
 			return make_json_map(advert);
 		}
 
-	return FAIL;
+	return NOT_FOUND;
 }

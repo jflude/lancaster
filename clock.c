@@ -11,10 +11,8 @@
 status clock_sleep(microsec usec)
 {
 	struct timespec req, rem;
-	if (usec < 0) {
-		error_invalid_arg("clock_sleep");
-		return FAIL;
-	}
+	if (usec < 0)
+		return error_invalid_arg("clock_sleep");
 
 	if (usec < 1000000) {
 		req.tv_sec = 0;
@@ -34,8 +32,7 @@ loop:
 			goto loop;
 		}
 
-		error_errno("nanosleep");
-		return FAIL;
+		return error_errno("nanosleep");
 	}
 
 	return OK;
@@ -44,15 +41,11 @@ loop:
 status clock_time(microsec* pusec)
 {
 	struct timespec ts;
-	if (!pusec) {
-		error_invalid_arg("clock_time");
-		return FAIL;
-	}
+	if (!pusec)
+		return error_invalid_arg("clock_time");
 
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-		error_errno("clock_gettime");
-		return FAIL;
-	}
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+		return error_errno("clock_gettime");
 
 	*pusec = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 	return OK;
@@ -67,8 +60,7 @@ loop:
 		if (errno == EINTR)
 			goto loop;
 
-		error_errno("usleep");
-		return FAIL;
+		return error_errno("usleep");
 	}
 
 	return OK;
@@ -78,10 +70,8 @@ status clock_sleep(microsec usec)
 {
 	ldiv_t qr;
 	long s;
-	if (usec < 0) {
-		error_invalid_arg("clock_sleep");
-		return FAIL;
-	}
+	if (usec < 0)
+		return error_invalid_arg("clock_sleep");
 
 	qr = ldiv(usec, 1000000);
 
@@ -97,15 +87,11 @@ status clock_sleep(microsec usec)
 status clock_time(microsec* pusec)
 {
 	struct timeval tv;
-	if (!pusec) {
-		error_invalid_arg("clock_time");
-		return FAIL;
-	}
+	if (!pusec)
+		return error_invalid_arg("clock_time");
 
-	if (gettimeofday(&tv, NULL) == -1) {
-		error_errno("gettimeofday");
-		return FAIL;
-	}
+	if (gettimeofday(&tv, NULL) == -1)
+		return error_errno("gettimeofday");
 
 	*pusec = tv.tv_sec * 1000000 + tv.tv_usec;
 	return OK;

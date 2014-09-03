@@ -10,10 +10,8 @@ struct twist
 
 status twist_create(twist_handle* ptwist)
 {
-	if (!ptwist) {
-		error_invalid_arg("twist_create");
-		return FAIL;
-	}
+	if (!ptwist)
+		return error_invalid_arg("twist_create");
 
 	*ptwist = XMALLOC(struct twist);
 	if (!*ptwist)
@@ -22,13 +20,14 @@ status twist_create(twist_handle* ptwist)
 	return OK;
 }
 
-void twist_destroy(twist_handle* ptwist)
+status twist_destroy(twist_handle* ptwist)
 {
 	if (!ptwist || !*ptwist)
-		return;
+		return OK;
 
 	xfree(*ptwist);
 	*ptwist = NULL;
+	return OK;
 }
 
 void twist_seed(twist_handle twist, unsigned seed)
@@ -38,7 +37,8 @@ void twist_seed(twist_handle twist, unsigned seed)
 	twist->buffer[0] = seed;
 
 	for (i = 1; i < 624; ++i)
-		twist->buffer[i] = 1812433253 * (twist->buffer[i - 1] ^ (twist->buffer[i - 1] >> 30)) + i;
+		twist->buffer[i] = 1812433253 *
+			(twist->buffer[i - 1] ^ (twist->buffer[i - 1] >> 30)) + i;
 }
 
 unsigned twist_rand(twist_handle twist)

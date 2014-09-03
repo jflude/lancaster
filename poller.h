@@ -16,13 +16,14 @@ typedef struct poller* poller_handle;
 typedef status (*poller_func)(poller_handle, sock_handle, short*, void*);
 
 status poller_create(poller_handle* ppoller, int nsock);
-void poller_destroy(poller_handle* ppoller);
+status poller_destroy(poller_handle* ppoller);
 
 int poller_get_count(poller_handle poller);
 
 status poller_add(poller_handle poller, sock_handle sock, short events);
 status poller_remove(poller_handle poller, sock_handle sock);
-status poller_set_event(poller_handle poller, sock_handle sock, short new_events);
+status poller_set_event(poller_handle poller, sock_handle sock,
+						short new_events);
 status poller_events(poller_handle poller, int timeout);
 status poller_process(poller_handle poller, poller_func fn, void* param);
 status poller_process_events(poller_handle poller, poller_func fn, void* param);

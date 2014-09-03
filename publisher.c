@@ -16,11 +16,15 @@
 #define ADVERT_PORT 11227
 #define DEFAULT_TTL 1
 
+static boolean embedded;
+
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [storage file or segment] [TCP address] "
-			"[TCP port] [multicast interface] [multicast address] [multicast port] "
-			"[heartbeat interval] [maximum packet age]\n", prog);
+	fprintf(stderr, "Syntax: %s [-e|--embed] [storage file or segment] "
+			"[TCP address] [TCP port] [multicast interface] [multicast address]"
+			" [multicast port] [heartbeat interval] [maximum packet age]\n",
+			prog);
+
 	exit(EXIT_FAILURE);
 }
 
@@ -33,6 +37,9 @@ static void* stats_func(thread_handle thr)
 	size_t pkt1 = sender_get_mcast_packets_sent(sender);
 	size_t tcp1 = sender_get_tcp_bytes_sent(sender);
 	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
+
+	if (embedded)
+		printf("# RECV\tPKT/s\tGAP\tTCP KB/s\tMCAST KB/s\n");
 
 	if (FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
@@ -52,13 +59,22 @@ static void* stats_func(thread_handle thr)
 		tcp2 = sender_get_tcp_bytes_sent(sender);
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
-		printf("\"%.16s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, TCP KB/s: %.2f, MCAST KB/s: %.2f        \r",
-			   storage_get_description(sender_get_storage(sender)),
-			   sender_get_receiver_count(sender),
-			   (pkt2 - pkt1) / secs,
-			   sender_get_tcp_gap_count(sender),
-			   (tcp2 - tcp1) / secs / 1024,
-			   (mcast2 - mcast1) / secs / 1024);
+		if (embedded)
+			printf("%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+				   sender_get_receiver_count(sender),
+				   (pkt2 - pkt1) / secs,
+				   sender_get_tcp_gap_count(sender),
+				   (tcp2 - tcp1) / secs / 1024,
+				   (mcast2 - mcast1) / secs / 1024);
+		else
+			printf("\"%.16s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
+				   "TCP KB/s: %.2f, MCAST KB/s: %.2f        \r",
+				   storage_get_description(sender_get_storage(sender)),
+				   sender_get_receiver_count(sender),
+				   (pkt2 - pkt1) / secs,
+				   sender_get_tcp_gap_count(sender),
+				   (tcp2 - tcp1) / secs / 1024,
+				   (mcast2 - mcast1) / secs / 1024);
 
 		fflush(stdout);
 
@@ -83,8 +99,18 @@ int main(int argc, char* argv[])
 	microsec max_pkt_age;
 	status st;
 
-	if (argc < 8 || argc > 9)
+	error_set_program_name(argv[0]);
+
+	if (argc < 8 || argc > 10)
 		syntax(argv[0]);
+
+	if (!strcmp(argv[n], "-e") || !strcmp(argv[n], "--embed")) {
+		if (argc != 10)
+			syntax(argv[0]);
+
+		embedded = TRUE;
+		n++;
+	}
 
 	mmap_file = argv[n++];
 	tcp_addr = argv[n++];

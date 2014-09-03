@@ -13,7 +13,7 @@ struct twist;
 typedef struct twist* twist_handle;
 
 status twist_create(twist_handle* ptwist);
-void twist_destroy(twist_handle* ptwist);
+status twist_destroy(twist_handle* ptwist);
 
 void twist_seed(twist_handle twist, unsigned seed);
 unsigned twist_rand(twist_handle twist);

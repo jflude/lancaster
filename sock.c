@@ -31,12 +31,11 @@ struct sock_addr
 	struct sockaddr_in sa;
 };
 
-status sock_addr_create(sock_addr_handle* paddr, const char* address, unsigned short port)
+status sock_addr_create(sock_addr_handle* paddr, const char* address,
+						unsigned short port)
 {
-	if (!paddr) {
-		error_invalid_arg("sock_addr_create");
-		return FAIL;
-	}
+	if (!paddr)
+		return error_invalid_arg("sock_addr_create");
 
 	*paddr = XMALLOC(struct sock_addr);
 	if (!*paddr)
@@ -50,21 +49,21 @@ status sock_addr_create(sock_addr_handle* paddr, const char* address, unsigned s
 	if (!address)
 		(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
 	else if (!inet_aton(address, &(*paddr)->sa.sin_addr)) {
-		error_errno("inet_aton");
 		sock_addr_destroy(paddr);
-		return FAIL;
+		return error_errno("inet_aton");
 	}
 
 	return OK;
 }
 
-void sock_addr_destroy(sock_addr_handle* paddr)
+status sock_addr_destroy(sock_addr_handle* paddr)
 {
 	if (!paddr || !*paddr)
-		return;
+		return OK;
 
 	xfree(*paddr);
 	*paddr = NULL;
+	return OK;
 }
 
 unsigned long sock_addr_get_ip(sock_addr_handle addr)
@@ -80,25 +79,19 @@ unsigned short sock_addr_get_port(sock_addr_handle addr)
 status sock_addr_get_text(sock_addr_handle addr, char* text, size_t text_sz)
 {
 	char a_buf[256], p_buf[16];
-	if (!text || text_sz == 0) {
-		error_invalid_arg("sock_addr_get_text");
-		return FAIL;
-	}
+	if (!text || text_sz < INET_ADDRSTRLEN)
+		return error_invalid_arg("sock_addr_get_text");
 
-	if (!inet_ntop(addr->sa.sin_family, &addr->sa.sin_addr, a_buf, sizeof(a_buf))) {
-		error_errno("inet_ntop");
-		return FAIL;
-	}
+	if (!inet_ntop(addr->sa.sin_family, &addr->sa.sin_addr,
+				   a_buf, sizeof(a_buf)))
+		return error_errno("inet_ntop");
 
-	if (sprintf(p_buf, ":%hu", ntohs(addr->sa.sin_port)) < 0) {
-		error_errno("sock_addr_get_text");
-		return FAIL;
-	}
+	if (sprintf(p_buf, ":%hu", ntohs(addr->sa.sin_port)) < 0)
+		return error_errno("sock_addr_get_text");
 
-	if (strlen(a_buf) + strlen(p_buf) >= text_sz) {
-		error_msg("sock_addr_get_text: buffer too small", BUFFER_TOO_SMALL);
-		return BUFFER_TOO_SMALL;
-	}
+	if (strlen(a_buf) + strlen(p_buf) >= text_sz)
+		return error_msg("sock_addr_get_text: buffer too small",
+						 BUFFER_TOO_SMALL);
 
 	strcpy(text, a_buf);
 	strcat(text, p_buf);
@@ -107,7 +100,9 @@ status sock_addr_get_text(sock_addr_handle addr, char* text, size_t text_sz)
 
 boolean sock_addr_is_equal(sock_addr_handle lhs, sock_addr_handle rhs)
 {
-	return lhs && rhs && lhs->sa.sin_addr.s_addr == rhs->sa.sin_addr.s_addr && lhs->sa.sin_port == rhs->sa.sin_port;
+	return lhs && rhs &&
+		lhs->sa.sin_addr.s_addr == rhs->sa.sin_addr.s_addr &&
+		lhs->sa.sin_port == rhs->sa.sin_port;
 }
 
 void sock_addr_set_none(sock_addr_handle addr)
@@ -123,10 +118,8 @@ void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
 
 status sock_create(sock_handle* psock, int type, int protocol)
 {
-	if (!psock) {
-		error_invalid_arg("sock_create");
-		return FAIL;
-	}
+	if (!psock)
+		return error_invalid_arg("sock_create");
 
 	*psock = XMALLOC(struct sock);
 	if (!*psock)
@@ -136,25 +129,27 @@ status sock_create(sock_handle* psock, int type, int protocol)
 
 	(*psock)->fd = socket(AF_INET, type, protocol);
 	if ((*psock)->fd == -1) {
-		error_errno("socket");
+		error_save_last();
 		sock_destroy(psock);
-		return FAIL;
+		error_restore_last();
+		return error_errno("socket");
 	}
 
 	return OK;
 }
 
-void sock_destroy(sock_handle* psock)
+status sock_destroy(sock_handle* psock)
 {
+	status st;
 	if (!psock || !*psock)
-		return;
+		return OK;
 
-	error_save_last();
-	sock_close(*psock);
-	error_restore_last();
+	if (FAILED(st = sock_close(*psock)))
+		return st;
 
 	xfree(*psock);
 	*psock = NULL;
+	return OK;
 }
 
 void* sock_get_property(sock_handle sock)
@@ -175,16 +170,12 @@ int sock_get_descriptor(sock_handle sock)
 status sock_get_local_address(sock_handle sock, sock_addr_handle addr)
 {
 	socklen_t len;
-	if (!addr) {
-		error_invalid_arg("sock_get_local_address");
-		return FAIL;
-	}
+	if (!addr)
+		return error_invalid_arg("sock_get_local_address");
 
 	len = sizeof(addr->sa);
-	if (getsockname(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1) {
-		error_errno("getsockname");
-		return FAIL;
-	}
+	if (getsockname(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1)
+		return error_errno("getsockname");
 
 	return OK;
 }
@@ -192,35 +183,28 @@ status sock_get_local_address(sock_handle sock, sock_addr_handle addr)
 status sock_get_remote_address(sock_handle sock, sock_addr_handle addr)
 {
 	socklen_t len;
-	if (!addr) {
-		error_invalid_arg("sock_get_remote_address");
-		return FAIL;
-	}
+	if (!addr)
+		return error_invalid_arg("sock_get_remote_address");
 
 	len = sizeof(addr->sa);
-	if (getpeername(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1) {
-		error_errno("getpeername");
-		return FAIL;
-	}
+	if (getpeername(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1)
+		return error_errno("getpeername");
 
 	return OK;
 }
 
-status sock_get_interface_address(sock_handle sock, const char* device, sock_addr_handle addr)
+status sock_get_interface_address(sock_handle sock, const char* device,
+								  sock_addr_handle addr)
 {
 	struct ifreq ifr;
-	if (!device) {
-		error_invalid_arg("sock_get_interface_address");
-		return FAIL;
-	}
+	if (!device)
+		return error_invalid_arg("sock_get_interface_address");
 
 	BZERO(&ifr);
-	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-	if (ioctl(sock->fd, SIOCGIFADDR, &ifr) == -1) {
-		error_errno("ioctl");
-		return FAIL;
-	}
+	if (ioctl(sock->fd, SIOCGIFADDR, &ifr) == -1)
+		return error_errno("ioctl");
 
 	addr->sa.sin_addr = ((struct sockaddr_in*) &ifr.ifr_addr)->sin_addr;
 	return OK;
@@ -229,18 +213,14 @@ status sock_get_interface_address(sock_handle sock, const char* device, sock_add
 status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
 {
 	struct ifreq ifr;
-	if (!device || !pmtu) {
-		error_invalid_arg("sock_get_mtu");
-		return FAIL;
-	}
+	if (!device || !pmtu)
+		return error_invalid_arg("sock_get_mtu");
 
 	BZERO(&ifr);
-	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-	if (ioctl(sock->fd, SIOCGIFMTU, &ifr) == -1) {
-		error_errno("ioctl");
-		return FAIL;
-	}
+	if (ioctl(sock->fd, SIOCGIFMTU, &ifr) == -1)
+		return error_errno("ioctl");
 
 	*pmtu = ifr.ifr_mtu;
 	return OK;
@@ -251,21 +231,15 @@ status sock_set_nonblock(sock_handle sock)
 	int flags;
 #ifdef O_NONBLOCK
 	flags = fcntl(sock->fd, F_GETFL, 0);
-	if (flags == -1) {
-		error_errno("fcntl");
-		return FAIL;
-	}
+	if (flags == -1)
+		return error_errno("fcntl");
 
-	if (fcntl(sock->fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-		error_errno("fcntl");
-		return FAIL;
-	}
+	if (fcntl(sock->fd, F_SETFL, flags | O_NONBLOCK) == -1)
+		return error_errno("fcntl");
 #else
 	flags = 1;
-	if (ioctl(sock->fd, FIOBIO, &flags) == -1) {
-		error_errno("ioctl");
-		return FAIL;
-	}
+	if (ioctl(sock->fd, FIOBIO, &flags) == -1)
+		return error_errno("ioctl");
 #endif
 	return OK;
 }
@@ -273,10 +247,8 @@ status sock_set_nonblock(sock_handle sock)
 status sock_set_reuseaddr(sock_handle sock, boolean reuse)
 {
 	int val = !!reuse;
-	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
@@ -284,35 +256,30 @@ status sock_set_reuseaddr(sock_handle sock, boolean reuse)
 status sock_set_mcast_ttl(sock_handle sock, short ttl)
 {
 	unsigned char val = ttl;
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL, &val, sizeof(val)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL,
+				   &val, sizeof(val)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
 
 status sock_set_mcast_loopback(sock_handle sock, boolean allow_loop)
 {
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_LOOP, &allow_loop, sizeof(allow_loop)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+				   &allow_loop, sizeof(allow_loop)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
 
 status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr)
 {
-	if (!addr) {
-		error_invalid_arg("sock_set_mcast_interface");
-		return FAIL;
-	}
+	if (!addr)
+		return error_invalid_arg("sock_set_mcast_interface");
 
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_IF, &addr->sa.sin_addr, sizeof(addr->sa.sin_addr)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_IF,
+				   &addr->sa.sin_addr, sizeof(addr->sa.sin_addr)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
@@ -320,35 +287,27 @@ status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr)
 status sock_set_rcvbuf(sock_handle sock, size_t buf_sz)
 {
 	int val = buf_sz;
-	if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
 
 status sock_bind(sock_handle sock, sock_addr_handle addr)
 {
-	if (!addr) {
-		error_invalid_arg("sock_bind");
-		return FAIL;
-	}
+	if (!addr)
+		return error_invalid_arg("sock_bind");
 
-	if (bind(sock->fd, (struct sockaddr*) &addr->sa, sizeof(addr->sa)) == -1) {
-		error_errno("bind");
-		return FAIL;
-	}
+	if (bind(sock->fd, (struct sockaddr*) &addr->sa, sizeof(addr->sa)) == -1)
+		return error_errno("bind");
 
 	return OK;
 }
 
 status sock_listen(sock_handle sock, int backlog)
 {
-	if (listen(sock->fd, backlog) == -1) {
-		error_errno("listen");
-		return FAIL;
-	}
+	if (listen(sock->fd, backlog) == -1)
+		return error_errno("listen");
 
 	return OK;
 }
@@ -356,10 +315,8 @@ status sock_listen(sock_handle sock, int backlog)
 status sock_accept(sock_handle sock, sock_handle* new_sock)
 {
 	struct sock accpt;
-	if (!new_sock) {
-		error_invalid_arg("sock_accept");
-		return FAIL;
-	}
+	if (!new_sock)
+		return error_invalid_arg("sock_accept");
 
 	BZERO(&accpt);
 loop:
@@ -375,11 +332,7 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		error_errno("accept");
-		if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
+		return error_errno("accept");
 	}
 
 	*new_sock = XMALLOC(struct sock);
@@ -398,58 +351,46 @@ loop:
 
 status sock_connect(sock_handle sock, sock_addr_handle addr)
 {
-	if (!addr) {
-		error_invalid_arg("sock_connect");
-		return FAIL;
-	}
+	if (!addr)
+		return error_invalid_arg("sock_connect");
 
-	if (connect(sock->fd, (const struct sockaddr*) &addr->sa, sizeof(addr->sa)) == -1) {
-		error_errno("connect");
-		if (errno == ECONNREFUSED)
-			return EOF;
-		else if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
-	}
+	if (connect(sock->fd, (const struct sockaddr*) &addr->sa,
+				sizeof(addr->sa)) == -1)
+		return error_errno("connect");
 
 	return OK;
 }
 
-status sock_mcast_add(sock_handle sock, sock_addr_handle multi_addr, sock_addr_handle iface_addr)
+status sock_mcast_add(sock_handle sock, sock_addr_handle multi_addr,
+					  sock_addr_handle iface_addr)
 {
 	struct ip_mreq mreq;
-	if (!multi_addr || !iface_addr) {
-		error_invalid_arg("sock_mcast_add");
-		return FAIL;
-	}
+	if (!multi_addr || !iface_addr)
+		return error_invalid_arg("sock_mcast_add");
 
 	mreq.imr_multiaddr = multi_addr->sa.sin_addr;
 	mreq.imr_interface = iface_addr->sa.sin_addr;
 
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+				   &mreq, sizeof(mreq)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
 
-status sock_mcast_drop(sock_handle sock, sock_addr_handle multi_addr, sock_addr_handle iface_addr)
+status sock_mcast_drop(sock_handle sock, sock_addr_handle multi_addr,
+					   sock_addr_handle iface_addr)
 {
 	struct ip_mreq mreq;
-	if (!multi_addr || !iface_addr) {
-		error_invalid_arg("sock_mcast_drop");
-		return FAIL;
-	}
+	if (!multi_addr || !iface_addr)
+		return error_invalid_arg("sock_mcast_drop");
 
 	mreq.imr_multiaddr.s_addr = multi_addr->sa.sin_addr.s_addr;
 	mreq.imr_interface.s_addr = iface_addr->sa.sin_addr.s_addr;
 
-	if (setsockopt(sock->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq)) == -1) {
-		error_errno("setsockopt");
-		return FAIL;
-	}
+	if (setsockopt(sock->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+				   &mreq, sizeof(mreq)) == -1)
+		return error_errno("setsockopt");
 
 	return OK;
 }
@@ -457,10 +398,8 @@ status sock_mcast_drop(sock_handle sock, sock_addr_handle multi_addr, sock_addr_
 status sock_write(sock_handle sock, const void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!data || data_sz == 0) {
-		error_invalid_arg("sock_write");
-		return FAIL;
-	}
+	if (!data || data_sz == 0)
+		return error_invalid_arg("sock_write");
 
 loop:
 	count = write(sock->fd, data, data_sz);
@@ -475,16 +414,10 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		if (errno == EPIPE || errno == ECONNRESET) {
-			error_eof("write");
-			return EOF;
-		}
+		if (errno == EPIPE || errno == ECONNRESET)
+			return error_eof("write");
 
-		error_errno("write");
-		if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
+		return error_errno("write");
 	}
 
 	return count;
@@ -493,10 +426,8 @@ loop:
 status sock_read(sock_handle sock, void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!data || data_sz == 0) {
-		error_invalid_arg("sock_read");
-		return FAIL;
-	}
+	if (!data || data_sz == 0)
+		return error_invalid_arg("sock_read");
 
 loop:
 	count = read(sock->fd, data, data_sz);
@@ -511,36 +442,28 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		if (errno == ECONNRESET) {
-			error_eof("read");
-			return EOF;
-		}
+		if (errno == ECONNRESET)
+			return error_eof("read");
 
-		error_errno("read");
-		if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
+		return error_errno("read");
 	}
 
-	if (count == 0) {
-		error_eof("read");
-		return EOF;
-	}
+	if (count == 0)
+		return error_eof("read");
 
 	return count;
 }
 
-status sock_sendto(sock_handle sock, sock_addr_handle addr, const void* data, size_t data_sz)
+status sock_sendto(sock_handle sock, sock_addr_handle addr,
+				   const void* data, size_t data_sz)
 {
 	ssize_t count;
-	if (!addr || !data || data_sz == 0) {
-		error_invalid_arg("sock_sendto");
-		return FAIL;
-	}
+	if (!addr || !data || data_sz == 0)
+		return error_invalid_arg("sock_sendto");
 
 loop:
-	count = sendto(sock->fd, data, data_sz, 0, (const struct sockaddr*) &addr->sa, sizeof(addr->sa));
+	count = sendto(sock->fd, data, data_sz, 0,
+				   (const struct sockaddr*) &addr->sa, sizeof(addr->sa));
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -552,33 +475,27 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		if (errno == EPIPE || errno == ECONNRESET) {
-			error_eof("sendto");
-			return EOF;
-		}
+		if (errno == EPIPE || errno == ECONNRESET)
+			return error_eof("sendto");
 
-		error_errno("sendto");
-		if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
+		return error_errno("sendto");
 	}
 
 	return count;
 }
 
-status sock_recvfrom(sock_handle sock, sock_addr_handle addr, void* data, size_t data_sz)
+status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
+					 void* data, size_t data_sz)
 {
 	ssize_t count;
 	socklen_t addrlen;
-	if (!addr || !data || data_sz == 0) {
-		error_invalid_arg("sock_recvfrom");
-		return FAIL;
-	}
+	if (!addr || !data || data_sz == 0)
+		return error_invalid_arg("sock_recvfrom");
 
 loop:
 	addrlen = sizeof(addr->sa);
-	count = recvfrom(sock->fd, data, data_sz, 0, (struct sockaddr*) &addr->sa, &addrlen);
+	count = recvfrom(sock->fd, data, data_sz, 0,
+					 (struct sockaddr*) &addr->sa, &addrlen);
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -590,32 +507,22 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		if (errno == ECONNRESET) {
-			error_eof("recvfrom");
-			return EOF;
-		}
+		if (errno == ECONNRESET)
+			return error_eof("recvfrom");
 
-		error_errno("recvfrom");
-		if (errno == ETIMEDOUT)
-			return TIMED_OUT;
-		else
-			return FAIL;
+		return error_errno("recvfrom");
 	}
 
-	if (count == 0) {
-		error_eof("recvfrom");
-		return EOF;
-	}
+	if (count == 0)
+		return error_eof("recvfrom");
 
 	return count;
 }
 
 status sock_shutdown(sock_handle sock, int how)
 {
-	if (shutdown(sock->fd, how) == -1) {
-		error_errno("shutdown");
-		return FAIL;
-	}
+	if (shutdown(sock->fd, how) == -1)
+		return error_errno("shutdown");
 
 	return OK;
 }
@@ -628,8 +535,7 @@ status sock_close(sock_handle sock)
 			if (errno == EINTR)
 				goto loop;
 
-			error_errno("close");
-			return FAIL;
+			return error_errno("close");
 		}
 
 		sock->fd = -1;

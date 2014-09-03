@@ -13,7 +13,8 @@
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] [TCP address] [TCP port]\n", prog);
+	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] "
+			"[TCP address] [TCP port]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -45,8 +46,10 @@ static void* stats_func(thread_handle thr)
 		tcp2 = receiver_get_tcp_bytes_recv(recv);
 		mcast2 = receiver_get_mcast_bytes_recv(recv);
 
-		printf("\"%.16s\", PKT/s: %.2f, GAP: %lu, TCP KB/s: %.2f, MCAST KB/s: %.2f, "
-			   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, STD/us: %.2f        \r",
+		printf("\"%.16s\", PKT/s: %.2f, GAP: %lu, "
+			   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
+			   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
+			   "STD/us: %.2f        \r",
 			   storage_get_description(receiver_get_storage(recv)),
 			   (pkt2 - pkt1) / secs,
 			   receiver_get_tcp_gap_count(recv),
@@ -79,6 +82,8 @@ int main(int argc, char* argv[])
 	int n = 1;
 	status st;
 
+	error_set_program_name(argv[0]);
+
 	if (argc != 5)
 		syntax(argv[0]);
 
@@ -87,7 +92,8 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[n++];
 	tcp_port = atoi(argv[n]);
 
-	if (FAILED(receiver_create(&recv, mmap_file, q_capacity, tcp_addr, tcp_port)) ||
+	if (FAILED(receiver_create(&recv, mmap_file, q_capacity,
+							   tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, recv)))
 		error_report_fatal();
 

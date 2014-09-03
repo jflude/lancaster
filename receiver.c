@@ -59,7 +59,8 @@ struct receiver
 	struct receiver_stats stats;
 };
 
-static status update_stats(receiver_handle recv, size_t pkt_sz, microsec now, microsec* pkt_time)
+static status update_stats(receiver_handle recv, size_t pkt_sz,
+						   microsec now, microsec* pkt_time)
 {
 	microsec latency;
 	double delta;
@@ -71,27 +72,30 @@ static status update_stats(receiver_handle recv, size_t pkt_sz, microsec now, mi
 
 	if (pkt_sz < (sizeof(sequence) + sizeof(microsec))) {
 		SPIN_UNLOCK(&recv->stats.lock, no_ver);
-		error_msg("update_stats: packet truncated", PROTOCOL_ERROR);
-		return PROTOCOL_ERROR;
+		return error_msg("update_stats: packet truncated", PROTOCOL_ERROR);
 	}
 
 	latency = now - ntohll(*pkt_time);
 	delta = latency - recv->stats.mcast_mean_latency;
 
 	recv->stats.mcast_mean_latency += delta / recv->stats.mcast_packets_recv;
-	recv->stats.mcast_M2_latency += delta * (latency - recv->stats.mcast_mean_latency);
+	recv->stats.mcast_M2_latency +=
+		delta * (latency - recv->stats.mcast_mean_latency);
 
-	if (recv->stats.mcast_min_latency == 0 || latency < recv->stats.mcast_min_latency)
+	if (recv->stats.mcast_min_latency == 0 ||
+		latency < recv->stats.mcast_min_latency)
 		recv->stats.mcast_min_latency = latency;
 
-	if (recv->stats.mcast_max_latency == 0 || latency > recv->stats.mcast_max_latency)
+	if (recv->stats.mcast_max_latency == 0 ||
+		latency > recv->stats.mcast_max_latency)
 		recv->stats.mcast_max_latency = latency;
 
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
 	return OK;
 }
 
-static status update_record(receiver_handle recv, sequence seq, identifier id, void* new_val)
+static status update_record(receiver_handle recv, sequence seq,
+							identifier id, void* new_val)
 {
 	status st;
 	version ver;
@@ -131,7 +135,8 @@ static status mcast_on_read(receiver_handle recv)
 	sequence* in_seq_ref = (sequence*) buf;
 	microsec* in_stamp_ref = (microsec*) (in_seq_ref + 1);
 
-	if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->last_src_addr, buf, recv->mcast_mtu)) ||
+	if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->last_src_addr,
+										buf, recv->mcast_mtu)) ||
 		FAILED(st = clock_time(&now)))
 		return st;
 
@@ -139,11 +144,12 @@ static status mcast_on_read(receiver_handle recv)
 		sock_addr_copy(recv->orig_src_addr, recv->last_src_addr);
 	else if (!sock_addr_is_equal(recv->orig_src_addr, recv->last_src_addr)) {
 		char address[256];
-		if (FAILED(st = sock_addr_get_text(recv->last_src_addr, address, sizeof(address))))
+		if (FAILED(st = sock_addr_get_text(recv->last_src_addr,
+										   address, sizeof(address))))
 			sprintf(address, "sock_addr_get_text failed: error #%d", (int) st);
 
-		error_msg("mcast_on_read: unexpected multicast source: %s", UNEXPECTED_SOURCE, address);
-		return UNEXPECTED_SOURCE;
+		return error_msg("mcast_on_read: unexpected multicast source: %s",
+						 UNEXPECTED_SOURCE, address);
 	}
 
 	recv->mcast_recv_time = now;
@@ -164,7 +170,8 @@ static status mcast_on_read(receiver_handle recv)
 
 		for (; p < last; p += sizeof(identifier) + recv->val_size) {
 			identifier* id = (identifier*) p;
-			if (FAILED(st = update_record(recv, *in_seq_ref, ntohll(*id), id + 1)))
+			if (FAILED(st = update_record(recv, *in_seq_ref,
+										  ntohll(*id), id + 1)))
 				break;
 		}
 	}
@@ -184,7 +191,8 @@ static status tcp_read_buf(receiver_handle recv)
 	size_t recv_sz = 0;
 
 	while (recv->in_remain > 0) {
-		if (FAILED(st = sock_read(recv->tcp_sock, recv->in_next, recv->in_remain)))
+		if (FAILED(st = sock_read(recv->tcp_sock, recv->in_next,
+								  recv->in_remain)))
 			break;
 
 		recv->in_next += st;
@@ -209,7 +217,8 @@ static status tcp_write_buf(receiver_handle recv)
 {
 	status st = OK;
 	while (recv->out_remain > 0) {
-		if (FAILED(st = sock_write(recv->tcp_sock, recv->out_next, recv->out_remain)))
+		if (FAILED(st = sock_write(recv->tcp_sock, recv->out_next,
+								   recv->out_remain)))
 			break;
 
 		recv->out_next += st;
@@ -271,7 +280,8 @@ static status tcp_on_read(receiver_handle recv)
 	return st;
 }
 
-static status event_func(poller_handle poller, sock_handle sock, short* revents, void* param)
+static status event_func(poller_handle poller, sock_handle sock,
+						 short* revents, void* param)
 {
 	receiver_handle recv = param;
 	status st = OK;
@@ -289,8 +299,9 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 	return st;
 }
 
-status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q_capacity,
-					   const char* tcp_address, unsigned short tcp_port)
+static status init(receiver_handle* precv, const char* mmap_file,
+				   unsigned q_capacity, const char* tcp_address,
+				   unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, mcast_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -299,22 +310,13 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	size_t val_size;
 	status st;
 
-	if (!precv || !tcp_address) {
-		error_invalid_arg("receiver_create");
-		return FAIL;
-	}
-
-	*precv = XMALLOC(struct receiver);
-	if (!*precv)
-		return NO_MEMORY;
-
 	BZERO(*precv);
 
-	if (FAILED(st = sock_create(&(*precv)->tcp_sock, SOCK_STREAM, IPPROTO_TCP)) ||
+	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
+								SOCK_STREAM, IPPROTO_TCP)) ||
 		FAILED(st = sock_addr_create(&bind_addr, tcp_address, tcp_port)) ||
 		FAILED(st = sock_connect((*precv)->tcp_sock, bind_addr)) ||
 		FAILED(st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1)))
-		receiver_destroy(precv);
 
 	sock_addr_destroy(&bind_addr);
 	if (FAILED(st))
@@ -323,17 +325,16 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	buf[st] = '\0';
 	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %ld %n",
 				&proto_ver, mcast_address, &mcast_port, &(*precv)->mcast_mtu,
-				&base_id, &max_id, &val_size, &max_age_usec, &hb_usec, &proto_len);
+				&base_id, &max_id, &val_size, &max_age_usec, &hb_usec,
+				&proto_len);
 
-	if (st != 9) {
-		error_msg("receiver_create: invalid publisher attributes: \"%s\"", PROTOCOL_ERROR, buf);
-		return PROTOCOL_ERROR;
-	}	
+	if (st != 9)
+		return error_msg("receiver_create: invalid publisher attributes: \"%s\"",
+						 PROTOCOL_ERROR, buf);
 
-	if (proto_ver != STORAGE_VERSION) {
-		error_msg("receiver_create: unknown protocol version: %d", UNKNOWN_PROTOCOL, proto_ver);
-		return UNKNOWN_PROTOCOL;
-	}
+	if (proto_ver != STORAGE_VERSION)
+		return error_msg("receiver_create: unknown protocol version: %d",
+						 UNKNOWN_PROTOCOL, proto_ver);
 
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
@@ -348,47 +349,48 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	(*precv)->stats.mcast_min_latency = 0;
 	(*precv)->stats.mcast_max_latency = 0;
 
-	(*precv)->in_buf = xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
-	if (!(*precv)->in_buf) {
-		receiver_destroy(precv);
+	(*precv)->in_buf = xmalloc(
+		sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
+
+	if (!(*precv)->in_buf)
 		return NO_MEMORY;
-	}
 
 	(*precv)->out_buf = XMALLOC(struct sequence_range);
-	if (!(*precv)->out_buf) {
-		receiver_destroy(precv);
+	if (!(*precv)->out_buf)
 		return NO_MEMORY;
-	}
 
 	(*precv)->in_next = (*precv)->in_buf;
 	(*precv)->in_remain = sizeof(sequence);
 
 	(*precv)->slot_seqs = xcalloc(max_id - base_id, sizeof(sequence));
-	if (!(*precv)->slot_seqs) {
-		receiver_destroy(precv);
+	if (!(*precv)->slot_seqs)
 		return NO_MEMORY;
-	}
 
-	if (FAILED(st = storage_create(&(*precv)->store, mmap_file, O_CREAT | O_TRUNC, base_id, max_id, val_size, q_capacity)) ||
-		FAILED(st = storage_set_description((*precv)->store, buf + proto_len)) ||
-	    FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, IPPROTO_UDP)) ||
-		FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) ||
-		FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) ||
-		FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) ||
-		FAILED(st = sock_addr_create(&mcast_addr, mcast_address, mcast_port)) ||
-		FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) ||
-		FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) ||
-		FAILED(st = sock_mcast_add((*precv)->mcast_sock, mcast_addr, iface_addr)) ||
-		FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) ||
-		FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) ||
-		FAILED(st = sock_addr_create(&(*precv)->orig_src_addr, NULL, 0)) ||
-		FAILED(st = sock_addr_create(&(*precv)->last_src_addr, NULL, 0)) ||
-		FAILED(st = poller_create(&(*precv)->poller, 10)) ||
-		FAILED(st = poller_add((*precv)->poller, (*precv)->mcast_sock, POLLIN)) ||
-		FAILED(st = poller_add((*precv)->poller, (*precv)->tcp_sock, POLLIN | POLLOUT)) ||
-		FAILED(st = clock_time(&(*precv)->mcast_recv_time)))
-		receiver_destroy(precv);
-	else
+	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
+								   O_CREAT | O_TRUNC, base_id, max_id,
+								   val_size, q_capacity)) &&
+		!FAILED(st = storage_set_description((*precv)->store,
+											 buf + proto_len)) &&
+	    !FAILED(st = sock_create(&(*precv)->mcast_sock,
+								SOCK_DGRAM, IPPROTO_UDP)) &&
+		!FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
+		!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
+		!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
+		!FAILED(st = sock_addr_create(&mcast_addr, mcast_address, mcast_port)) &&
+		!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
+		!FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) &&
+		!FAILED(st = sock_mcast_add((*precv)->mcast_sock,
+								   mcast_addr, iface_addr)) &&
+		!FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) &&
+		!FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) &&
+		!FAILED(st = sock_addr_create(&(*precv)->orig_src_addr, NULL, 0)) &&
+		!FAILED(st = sock_addr_create(&(*precv)->last_src_addr, NULL, 0)) &&
+		!FAILED(st = poller_create(&(*precv)->poller, 2)) &&
+		!FAILED(st = poller_add((*precv)->poller,
+							   (*precv)->mcast_sock, POLLIN)) &&
+		!FAILED(st = poller_add((*precv)->poller,
+							   (*precv)->tcp_sock, POLLIN | POLLOUT)) &&
+		!FAILED(st = clock_time(&(*precv)->mcast_recv_time)))
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
 
 	sock_addr_destroy(&bind_addr);
@@ -397,27 +399,45 @@ status receiver_create(receiver_handle* precv, const char* mmap_file, unsigned q
 	return st;
 }
 
-void receiver_destroy(receiver_handle* precv)
+status receiver_create(receiver_handle* precv, const char* mmap_file,
+					   unsigned q_capacity, const char* tcp_address,
+					   unsigned short tcp_port)
 {
-	if (!precv || !*precv)
-		return;
+	status st;
+	if (!precv || !mmap_file || !tcp_address)
+		return error_invalid_arg("receiver_create");
 
-	error_save_last();
+	*precv = XMALLOC(struct receiver);
+	if (!*precv)
+		return NO_MEMORY;
 
-	poller_destroy(&(*precv)->poller);
-	sock_destroy(&(*precv)->mcast_sock);
-	sock_destroy(&(*precv)->tcp_sock);
-	sock_addr_destroy(&(*precv)->orig_src_addr);
-	sock_addr_destroy(&(*precv)->last_src_addr);
-	storage_destroy(&(*precv)->store);
+	if (FAILED(st = init(precv, mmap_file, q_capacity, tcp_address, tcp_port))) {
+		error_save_last();
+		receiver_destroy(precv);
+		error_restore_last();
+	}
 
-	error_restore_last();
+	return st;
+}
+
+status receiver_destroy(receiver_handle* precv)
+{
+	status st = OK;
+	if (!precv || !*precv ||
+		FAILED(st = poller_destroy(&(*precv)->poller)) ||
+		FAILED(st = sock_destroy(&(*precv)->mcast_sock)) ||
+		FAILED(st = sock_destroy(&(*precv)->tcp_sock)) ||
+		FAILED(st = sock_addr_destroy(&(*precv)->orig_src_addr)) ||
+		FAILED(st = sock_addr_destroy(&(*precv)->last_src_addr)) ||
+		FAILED(st = storage_destroy(&(*precv)->store)))
+		return st;
 
 	xfree((*precv)->in_buf);
 	xfree((*precv)->out_buf);
 	xfree((*precv)->slot_seqs);
 	xfree(*precv);
 	*precv = NULL;
+	return st;
 }
 
 storage_handle receiver_get_storage(receiver_handle recv)
@@ -432,9 +452,11 @@ status receiver_run(receiver_handle recv)
 	while (!recv->is_stopping) {
 		microsec now;
 		if (FAILED(st = poller_events(recv->poller, 0)) ||
-			(st > 0 && FAILED(st = poller_process_events(recv->poller, event_func, recv))) ||
+			(st > 0 && FAILED(st = poller_process_events(recv->poller,
+														 event_func, recv))) ||
 			FAILED(st = clock_time(&now)) ||
-			((now - recv->touched_time) >= TOUCH_PERIOD_USEC && FAILED(st = storage_touch(recv->store))))
+			((now - recv->touched_time) >= TOUCH_PERIOD_USEC &&
+			 FAILED(st = storage_touch(recv->store))))
 			break;
 
 		if ((now - recv->mcast_recv_time) >= recv->timeout_usec) {
@@ -513,7 +535,12 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 {
 	double n;
 	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-	n = (recv->stats.mcast_packets_recv > 1 ? sqrt(recv->stats.mcast_M2_latency / (recv->stats.mcast_packets_recv - 1)) : 0);
+
+	n = (recv->stats.mcast_packets_recv > 1
+		 ? sqrt(recv->stats.mcast_M2_latency /
+				(recv->stats.mcast_packets_recv - 1))
+		 : 0);
+
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
 	return n;
 }

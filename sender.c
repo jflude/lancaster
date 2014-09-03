@@ -79,7 +79,8 @@ static status mcast_send_accum(sender_handle sndr)
 	microsec now;
 	status st;
 
-	if (FAILED(st = accum_get_batched(sndr->mcast_accum, &data, &sz)) || !st || FAILED(clock_time(&now)))
+	if (FAILED(st = accum_get_batched(sndr->mcast_accum, &data, &sz)) || !st ||
+		FAILED(clock_time(&now)))
 		return st;
 
 	*sndr->time_stored_at = htonll(now);
@@ -96,7 +97,8 @@ static status mcast_send_accum(sender_handle sndr)
 	accum_clear(sndr->mcast_accum);
 
 	if (++sndr->next_seq < 0)
-		error_msg("mcast_send_accum: sequence sign overflow", st = SIGN_OVERFLOW);
+		return error_msg("mcast_send_accum: sequence sign overflow",
+						 SIGN_OVERFLOW);
 
 	return st;
 }
@@ -106,15 +108,18 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	status st = OK;
 	record_handle rec;
 	identifier nid;
+	size_t required = sndr->val_size + sizeof(identifier);
 
-	if (accum_get_available(sndr->mcast_accum) < sndr->val_size + sizeof(identifier) &&
+	if (accum_get_available(sndr->mcast_accum) < required &&
 		FAILED(st = mcast_send_accum(sndr)))
 		return st;
 		
 	if (accum_is_empty(sndr->mcast_accum)) {
 		sequence seq = htonll(sndr->next_seq);
-		if (FAILED(st = accum_store(sndr->mcast_accum, &seq, sizeof(seq), NULL)) ||
-			FAILED(st = accum_store(sndr->mcast_accum, NULL, sizeof(microsec), (void**) &sndr->time_stored_at)))
+		if (FAILED(st = accum_store(sndr->mcast_accum, &seq,
+									sizeof(seq), NULL)) ||
+			FAILED(st = accum_store(sndr->mcast_accum, NULL, sizeof(microsec),
+									(void**) &sndr->time_stored_at)))
 			return st;
 	}
 
@@ -131,7 +136,8 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 			ver = record_read_lock(rec);
 			if (stored_at)
 				memcpy(stored_at, val_at, sndr->val_size);
-			else if (FAILED(st = accum_store(sndr->mcast_accum, val_at, sndr->val_size, &stored_at)))
+			else if (FAILED(st = accum_store(sndr->mcast_accum, val_at,
+											 sndr->val_size, &stored_at)))
 				return st;
 		} while (ver != record_get_version(rec));
 
@@ -148,14 +154,15 @@ static status mcast_on_write(sender_handle sndr)
 	queue_index qi = new_q_idx - sndr->last_q_idx;
 
 	if (qi > 0) {
-		if ((size_t) qi > storage_get_queue_capacity(sndr->store)) {
-			error_msg("mcast_on_write: change queue overrun", st = CHANGE_QUEUE_OVERRUN);
-			return st;
-		}
+		if ((size_t) qi > storage_get_queue_capacity(sndr->store))
+			return error_msg("mcast_on_write: change queue overrun",
+							 CHANGE_QUEUE_OVERRUN);
 
-		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi)
-			if (FAILED(st = mcast_accum_record(sndr, storage_read_queue(sndr->store, qi))))
+		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
+			identifier id = storage_read_queue(sndr->store, qi);
+			if (FAILED(st = mcast_accum_record(sndr, id)))
 				break;
+		}
 
 		sndr->last_q_idx = qi;
 		if (st == BLOCKED)
@@ -164,13 +171,17 @@ static status mcast_on_write(sender_handle sndr)
 		st = mcast_send_accum(sndr);
 	else {
 		microsec now;
-		if (!FAILED(st = clock_time(&now)) && (now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
+		if (!FAILED(st = clock_time(&now)) &&
+			(now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
 			if (!accum_is_empty(sndr->mcast_accum))
 				st = mcast_send_accum(sndr);
 			else {
 				sequence hb_seq = htonll(-sndr->next_seq);
-				if (!FAILED(st = accum_store(sndr->mcast_accum, &hb_seq, sizeof(hb_seq), NULL)) &&
-					!FAILED(st = accum_store(sndr->mcast_accum, NULL, sizeof(microsec), (void**) &sndr->time_stored_at)))
+				if (!FAILED(st = accum_store(sndr->mcast_accum, &hb_seq,
+											 sizeof(hb_seq), NULL)) &&
+					!FAILED(st = accum_store(sndr->mcast_accum, NULL,
+											 sizeof(microsec),
+											 (void**) &sndr->time_stored_at)))
 					st = mcast_send_accum(sndr);
 			}
 		}
@@ -199,7 +210,8 @@ static status tcp_write_buf(struct tcp_client* clnt)
 	size_t sent_sz = 0;
 
 	while (clnt->out_remain > 0) {
-		if (FAILED(st = sock_write(clnt->sock, clnt->out_next, clnt->out_remain)))
+		if (FAILED(st = sock_write(clnt->sock, clnt->out_next,
+								   clnt->out_remain)))
 			break;
 
 		clnt->out_next += st;
@@ -288,7 +300,8 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	return st;
 }
 
-static status close_sock_func(poller_handle poller, sock_handle sock, short* events, void* param)
+static status close_sock_func(poller_handle poller, sock_handle sock,
+							  short* events, void* param)
 {
 	struct tcp_client* clnt = sock_get_property(sock);
 	status st;
@@ -308,7 +321,8 @@ static status close_sock_func(poller_handle poller, sock_handle sock, short* eve
 	return st;
 }
 
-static status tcp_will_quit_func(poller_handle poller, sock_handle sock, short* events, void* param)
+static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
+								 short* events, void* param)
 {
 	struct tcp_client* clnt = sock_get_property(sock);
 	sequence* out_seq_ref;
@@ -352,7 +366,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 	status st = tcp_write_buf(clnt);
 	if (st == BLOCKED)
 		st = OK;
-	else if (st == EOF || st == TIMED_OUT)
+	else if (st == EOF || st == ETIMEDOUT)
 		return tcp_on_hup(sndr, sock);
 	else if (FAILED(st))
 		return st;
@@ -371,7 +385,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					record_handle rec;
 					version ver;
 					void* val_at;
-					if (FAILED(st = storage_get_record(sndr->store, clnt->reply_id, &rec)))
+					if (FAILED(st = storage_get_record(sndr->store,
+													   clnt->reply_id, &rec)))
 						return st;
 
 					val_at = record_get_value_ref(rec);
@@ -392,7 +407,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 			sndr->min_seq = clnt->min_seq_found;
 			INVALIDATE_RANGE(clnt->reply_range);
-		} else if (!FAILED(st = clock_time(&now)) && (now - clnt->tcp_send_time) >= sndr->heartbeat_usec) {
+		} else if (!FAILED(st = clock_time(&now)) &&
+				   (now - clnt->tcp_send_time) >= sndr->heartbeat_usec) {
 			*out_seq_ref = htonll(HEARTBEAT_SEQ);
 			clnt->out_next = clnt->out_buf;
 			clnt->out_remain = sizeof(sequence);
@@ -427,7 +443,7 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	status st = tcp_read_buf(clnt);
 	if (st == BLOCKED)
 		st = OK;
-	else if (st == EOF || st == TIMED_OUT)
+	else if (st == EOF || st == ETIMEDOUT)
 		return tcp_on_hup(sndr, sock);
 	else if (FAILED(st))
 		return st;
@@ -437,10 +453,9 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		r->low = ntohll(r->low);
 		r->high = ntohll(r->high);
 
-		if (!IS_VALID_RANGE(*r)) {
-			error_msg("tcp_on_read: invalid sequence range", st = PROTOCOL_ERROR);
-			return st;
-		}
+		if (!IS_VALID_RANGE(*r))
+			return error_msg("tcp_on_read: invalid sequence range",
+							 PROTOCOL_ERROR);
 
 		if (r->low < clnt->union_range.low)
 			clnt->union_range.low = r->low;
@@ -459,7 +474,8 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	return st;
 }
 
-static status event_func(poller_handle poller, sock_handle sock, short* revents, void* param)
+static status event_func(poller_handle poller, sock_handle sock,
+						 short* revents, void* param)
 {
 	sender_handle sndr = param;
 	status st = OK;
@@ -474,7 +490,9 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 	if (*revents & POLLHUP)
 		return tcp_on_hup(sndr, sock);
 
-	if (FAILED(st = (*revents & POLLIN ? tcp_on_read(sndr, sock) : tcp_on_read_blocked(sndr, sock))))
+	if (FAILED(st = (*revents & POLLIN
+					 ? tcp_on_read(sndr, sock)
+					 : tcp_on_read_blocked(sndr, sock))))
 		return st;
 
 	if (*revents & POLLOUT)
@@ -483,27 +501,18 @@ static status event_func(poller_handle poller, sock_handle sock, short* revents,
 	return st;
 }
 
-status sender_create(sender_handle* psndr, const char* mmap_file, const char* tcp_address, unsigned short tcp_port,
-					 const char* mcast_address, unsigned short mcast_port, const char* mcast_interface, short mcast_ttl,
+static status init(sender_handle* psndr, const char* mmap_file,
+					 const char* tcp_address, unsigned short tcp_port,
+					 const char* mcast_address, unsigned short mcast_port,
+					 const char* mcast_interface, short mcast_ttl,
 					 microsec heartbeat_usec, microsec max_pkt_age_usec)
 {
 	status st;
 	sock_addr_handle sendto_if_addr = NULL;
-	if (!psndr || !mmap_file || heartbeat_usec <= 0 || max_pkt_age_usec < 0 || !mcast_address || !tcp_address) {
-		error_invalid_arg("sender_create");
-		return FAIL;
-	}
-
-	*psndr = XMALLOC(struct sender);
-	if (!*psndr)
-		return NO_MEMORY;
-
 	BZERO(*psndr);
 
-	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY))) {
-		sender_destroy(psndr);
+	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
 		return st;
-	}
 
 	SPIN_CREATE(&(*psndr)->stats.lock);
 
@@ -516,81 +525,110 @@ status sender_create(sender_handle* psndr, const char* mmap_file, const char* tc
 	(*psndr)->heartbeat_usec = heartbeat_usec;
 	(*psndr)->store_created_time = storage_get_created_time((*psndr)->store);
 
-	(*psndr)->slot_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id, sizeof(sequence));
-	if (!(*psndr)->slot_seqs) {
-		sender_destroy(psndr);
+	(*psndr)->slot_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id,
+								  sizeof(sequence));
+	if (!(*psndr)->slot_seqs)
 		return NO_MEMORY;
-	}
 
-	if (FAILED(st = sock_create(&(*psndr)->listen_sock, SOCK_STREAM, IPPROTO_TCP)) ||
+	if (FAILED(st = sock_create(&(*psndr)->listen_sock,
+								SOCK_STREAM, IPPROTO_TCP)) ||
 		FAILED(st = sock_set_reuseaddr((*psndr)->listen_sock, TRUE)) ||
-		FAILED(st = sock_addr_create(&(*psndr)->listen_addr, tcp_address, tcp_port)) ||
+		FAILED(st = sock_addr_create(&(*psndr)->listen_addr,
+									 tcp_address, tcp_port)) ||
 		FAILED(st = sock_bind((*psndr)->listen_sock, (*psndr)->listen_addr)) ||
 		FAILED(st = sock_listen((*psndr)->listen_sock, 5)) ||
-		FAILED(st = sock_get_local_address((*psndr)->listen_sock, (*psndr)->listen_addr))) {
-		sender_destroy(psndr);
+		FAILED(st = sock_get_local_address((*psndr)->listen_sock,
+										   (*psndr)->listen_addr)))
 		return st;
-	}
 
 	if (mcast_port == 0)
 		mcast_port = sock_addr_get_port((*psndr)->listen_addr);
 
-	if (FAILED(st = sock_create(&(*psndr)->mcast_sock, SOCK_DGRAM, IPPROTO_UDP)) ||
+	if (FAILED(st = sock_create(&(*psndr)->mcast_sock,
+								SOCK_DGRAM, IPPROTO_UDP)) ||
 		FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)) ||
-		FAILED(st = sock_get_mtu((*psndr)->mcast_sock, mcast_interface, &(*psndr)->mcast_mtu))) {
-		sender_destroy(psndr);
+		FAILED(st = sock_get_mtu((*psndr)->mcast_sock,
+								 mcast_interface, &(*psndr)->mcast_mtu)))
 		return st;
-	}
 
 	(*psndr)->mcast_mtu -= IP_OVERHEAD + UDP_OVERHEAD;
 
-	st = sprintf((*psndr)->hello_str, "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 STORAGE_VERSION, mcast_address, mcast_port, (*psndr)->mcast_mtu, (long) (*psndr)->base_id,
-				 (long) (*psndr)->max_id, storage_get_value_size((*psndr)->store), max_pkt_age_usec, (*psndr)->heartbeat_usec);
+	st = sprintf((*psndr)->hello_str,
+				 "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 STORAGE_VERSION, mcast_address, mcast_port,
+				 (*psndr)->mcast_mtu, (long) (*psndr)->base_id,
+				 (long) (*psndr)->max_id,
+				 storage_get_value_size((*psndr)->store),
+				 max_pkt_age_usec, (*psndr)->heartbeat_usec);
 
-	if (st < 0) {
-		error_errno("sprintf");
-		sender_destroy(psndr);
-		return FAIL;
-	}
+	if (st < 0)
+		return error_errno("sprintf");
 
-	if (FAILED(st = accum_create(&(*psndr)->mcast_accum, (*psndr)->mcast_mtu, max_pkt_age_usec)) ||
+	if (FAILED(st = accum_create(&(*psndr)->mcast_accum,
+								 (*psndr)->mcast_mtu, max_pkt_age_usec)) ||
 		FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock, FALSE)) ||
 		FAILED(st = sock_addr_create(&sendto_if_addr, NULL, 0)) ||
-		FAILED(st = sock_get_interface_address((*psndr)->mcast_sock, mcast_interface, sendto_if_addr)) ||
-		FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock, sendto_if_addr)) ||
-		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr, mcast_address, mcast_port)) ||
+		FAILED(st = sock_get_interface_address((*psndr)->mcast_sock,
+											   mcast_interface,
+											   sendto_if_addr)) ||
+		FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock,
+											 sendto_if_addr)) ||
+		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr,
+									 mcast_address, mcast_port)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
-		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN)))
-		sender_destroy(psndr);
+		FAILED(st = poller_add((*psndr)->poller, (*psndr)->listen_sock, POLLIN)) ||
+		FAILED(st = sock_addr_destroy(&sendto_if_addr)))
+		(void) 0;
 
-	sock_addr_destroy(&sendto_if_addr);
 	return st;
 }
 
-void sender_destroy(sender_handle* psndr)
+status sender_create(sender_handle* psndr, const char* mmap_file,
+					 const char* tcp_address, unsigned short tcp_port,
+					 const char* mcast_address, unsigned short mcast_port,
+					 const char* mcast_interface, short mcast_ttl,
+					 microsec heartbeat_usec, microsec max_pkt_age_usec)
 {
-	if (!psndr || !*psndr)
-		return;
+	status st;
+	if (!psndr || !mmap_file || heartbeat_usec <= 0 ||
+		max_pkt_age_usec < 0 || !mcast_address || !tcp_address)
+		return error_invalid_arg("sender_create");
 
-	error_save_last();
+	*psndr = XMALLOC(struct sender);
+	if (!*psndr)
+		return NO_MEMORY;
 
-	if ((*psndr)->poller)
-		poller_process((*psndr)->poller, close_sock_func, *psndr);
+	if (FAILED(st = init(psndr, mmap_file, tcp_address, tcp_port,
+						 mcast_address, mcast_port, mcast_interface,
+						 mcast_ttl, heartbeat_usec, max_pkt_age_usec))) {
+		error_save_last();
+		sender_destroy(psndr);
+		error_restore_last();
+	}
 
-	poller_destroy(&(*psndr)->poller);
-	accum_destroy(&(*psndr)->mcast_accum);
-	storage_destroy(&(*psndr)->store);
-	sock_addr_destroy(&(*psndr)->sendto_addr);
-	sock_addr_destroy(&(*psndr)->listen_addr);
+	return st;
+}
 
-	error_restore_last();
+status sender_destroy(sender_handle* psndr)
+{
+	status st = OK;
+	if (!psndr || !*psndr ||
+		((*psndr)->poller && FAILED(st = poller_process((*psndr)->poller,
+														close_sock_func,
+														*psndr))) ||
+		FAILED(st = poller_destroy(&(*psndr)->poller)) ||
+		FAILED(st = accum_destroy(&(*psndr)->mcast_accum)) ||
+		FAILED(st = storage_destroy(&(*psndr)->store)) ||
+		FAILED(st = sock_addr_destroy(&(*psndr)->sendto_addr)) ||
+		FAILED(st = sock_addr_destroy(&(*psndr)->listen_addr)))
+		return st;
 
 	xfree((*psndr)->slot_seqs);
 	xfree(*psndr);
 	*psndr = NULL;
+	return st;
 }
 
 storage_handle sender_get_storage(sender_handle sndr)
@@ -608,19 +646,22 @@ status sender_run(sender_handle sndr)
 	status st = OK, st2;
 
 	while (!sndr->is_stopping) {
-		microsec now;
+		microsec now, touched;
 		if (FAILED(st = poller_events(sndr->poller, 0)) ||
-			(st > 0 && FAILED(st = poller_process_events(sndr->poller, event_func, sndr))) ||
+			(st > 0 && FAILED(st = poller_process_events(sndr->poller,
+														 event_func, sndr))) ||
 			FAILED(st = clock_time(&now)))
 			break;
 
-		if ((now - storage_get_touched_time(sndr->store)) >= ORPHAN_TIMEOUT_USEC) {
+		touched = now - storage_get_touched_time(sndr->store);
+		if (touched >= ORPHAN_TIMEOUT_USEC) {
 			error_msg("sender_run: storage is orphaned", st = STORAGE_ORPHANED);
 			break;
 		}
 
 		if (storage_get_created_time(sndr->store) != sndr->store_created_time) {
-			error_msg("sender_run: storage is recreated", st = STORAGE_RECREATED);
+			error_msg("sender_run: storage is recreated",
+					  st = STORAGE_RECREATED);
 			break;
 		}
 

@@ -19,7 +19,8 @@ uudict.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -Wextra -D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -g
+CFLAGS = -ansi -pedantic -Wall -Wextra -g \
+	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE
 LDLIBS = -lm
 OBJS = $(SRCS:.c=.o)
 
@@ -73,7 +74,8 @@ depend: DEPEND.mk
 
 clean:
 	rm -rf libcachester.a libcachester$(SO_EXT) \
-	    writer writer.o publisher publisher.o subscriber subscriber.o reader reader.o \
+	    writer writer.o publisher publisher.o \
+	    subscriber subscriber.o reader reader.o \
 		reader.dSYM writer.dSYM publisher.dSYM subscriber.dSYM \
 	    $(OBJS)
 

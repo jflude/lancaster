@@ -12,25 +12,62 @@
 #define ORPHAN_TIMEOUT_USEC 3000000
 #define DISPLAY_DELAY_USEC 200000
 
+static storage_handle store;
+int event;
+
 static void syntax(const char* prog)
 {
 	fprintf(stderr, "Syntax: %s [storage file or segment]\n", prog);
 	exit(EXIT_FAILURE);
 }
 
+static status update(queue_index q)
+{
+	record_handle rec;
+	struct datum* d;
+	version ver;
+	long xyz;
+	status st;
+	identifier id;
+
+	if (signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+		return FALSE;
+
+	id = storage_read_queue(store, q);
+	if (id == -1)
+		return TRUE;
+
+	if (FAILED(st = storage_get_record(store, id, &rec)))
+		return st;
+
+	d = record_get_value_ref(rec);
+	do {
+		ver = record_read_lock(rec);
+		xyz = d->xyz;
+	} while (ver != record_get_version(rec));
+
+	event |= 1;
+
+	if (q > xyz)
+		event |= 2;
+
+	return TRUE;
+}
+
 int main(int argc, char* argv[])
 {
-	storage_handle store = NULL;
 	status st = OK;
 	size_t q_capacity;
 	long old_head;
-	int event = 0;
 	microsec last_print, created_time;
+
+	error_set_program_name(argv[0]);
 
 	if (argc != 2)
 		syntax(argv[0]);
 
-	if (FAILED(signal_add_handler(SIGINT)) || FAILED(signal_add_handler(SIGTERM)) ||
+	if (FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_open(&store, argv[1], O_RDONLY)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
@@ -53,32 +90,11 @@ int main(int argc, char* argv[])
 				event |= 4;
 			}
 
-			for (q = old_head; q < new_head; ++q) {
-				record_handle rec;
-				struct datum* d;
-				version ver;
-				long xyz;
-
-				identifier id = storage_read_queue(store, q);
-				if (id == -1)
-					continue;
-
-				if (FAILED(st = storage_get_record(store, id, &rec)))
+			for (q = old_head; q < new_head; ++q)
+				if (FAILED(st = update(q)) || !st)
 					goto finish;
 
-				d = record_get_value_ref(rec);
-				do {
-					ver = record_read_lock(rec);
-					xyz = d->xyz;
-				} while (ver != record_get_version(rec));
-
-				event |= 1;
-
-				if (q > xyz)
-					event |= 2;
-
-				old_head = new_head;
-			}
+			old_head = new_head;
 		}
 
 		if (storage_get_created_time(store) != created_time) {
@@ -106,9 +122,11 @@ int main(int argc, char* argv[])
 
 finish:
 	putchar('\n');
-
 	storage_destroy(&store);
-	if (FAILED(st) || FAILED(signal_remove_handler(SIGINT)) || FAILED(signal_remove_handler(SIGTERM)))
+
+	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 
 	return 0;

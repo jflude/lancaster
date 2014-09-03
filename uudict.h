@@ -21,7 +21,7 @@ struct uudict;
 typedef struct uudict* uudict_handle;
 
 status uudict_create(uudict_handle* puudict, size_t dict_sz);
-void uudict_destroy(uudict_handle* puudict);
+status uudict_destroy(uudict_handle* puudict);
 
 status uudict_assoc(uudict_handle uudict, union uuid uu, identifier id);
 

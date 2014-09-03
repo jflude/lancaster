@@ -21,10 +21,8 @@ struct table
 status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
 					table_equality_func eq_fn, table_destroy_func dtor_fn)
 {
-	if (!ptab || tab_sz == 0) {
-		error_invalid_arg("table_create");
-		return FAIL;
-	}
+	if (!ptab || tab_sz == 0)
+		return error_invalid_arg("table_create");
 
 	*ptab = XMALLOC(struct table);
 	if (!*ptab)
@@ -44,11 +42,11 @@ status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
 	return OK;
 }
 
-void table_destroy(table_handle* ptab)
+status table_destroy(table_handle* ptab)
 {
 	size_t i;
 	if (!ptab || !*ptab)
-		return;
+		return OK;
 
 	for (i = 0; i < (*ptab)->size; ++i) {
 		struct chain* c = (*ptab)->array[i];
@@ -66,16 +64,15 @@ void table_destroy(table_handle* ptab)
 	xfree((*ptab)->array);
 	xfree(*ptab);
 	*ptab = NULL;
+	return OK;
 }
 
 status table_lookup(table_handle tab, table_key key, table_value* pval)
 {
 	struct chain* c;
 	size_t hash;
-	if (!pval) {
-		error_invalid_arg("table_lookup");
-		return FAIL;
-	}
+	if (!pval)
+		return error_invalid_arg("table_lookup");
 
 	hash = (tab->h_fn ? tab->h_fn(key) : (long) key) % tab->size;
 
@@ -157,17 +154,15 @@ status table_remove(table_handle tab, table_key key)
 		return OK;
 	}
 
-	return FAIL;
+	return NOT_FOUND;
 }
 
 status table_iterate(table_handle tab, table_iterate_func iter_fn)
 {
 	status st = TRUE;
 	size_t i;
-	if (!iter_fn) {
-		error_invalid_arg("table_iterate");
-		return FAIL;
-	}
+	if (!iter_fn)
+		return error_invalid_arg("table_iterate");
 
 	for (i = 0; i < tab->size; ++i) {
 		struct chain* c;
