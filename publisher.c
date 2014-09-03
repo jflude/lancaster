@@ -16,6 +16,7 @@
 #define ADVERT_PORT 11227
 #define DEFAULT_TTL 1
 
+static const char* mmap_file;
 static boolean embedded;
 
 static void syntax(const char* prog)
@@ -39,7 +40,7 @@ static void* stats_func(thread_handle thr)
 	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
 
 	if (embedded)
-		printf("# RECV\tPKT/s\tGAP\tTCP KB/s\tMCAST KB/s\n");
+		printf("# STORAGE\tRECV\tPKT/s\tGAP\tTCP/s\tMCAST/s\n");
 
 	if (FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
@@ -60,7 +61,8 @@ static void* stats_func(thread_handle thr)
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
 		if (embedded)
-			printf("%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+			printf("%s\t%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+				   mmap_file,
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
 				   sender_get_tcp_gap_count(sender),
@@ -94,7 +96,7 @@ int main(int argc, char* argv[])
 	sender_handle sender;
 	thread_handle stats_thread;
 	int hb, n = 1;
-	const char *mmap_file, *mcast_addr, *mcast_interface, *tcp_addr;
+	const char *mcast_addr, *mcast_interface, *tcp_addr;
 	int mcast_port, tcp_port;
 	microsec max_pkt_age;
 	status st;
