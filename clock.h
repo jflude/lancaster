@@ -4,6 +4,7 @@
 #define CLOCK_H
 
 #include "status.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +14,8 @@ typedef long microsec;
 
 status clock_sleep(microsec usec);
 status clock_time(microsec* pusec);
+
+status clock_get_text(microsec usec, char* text, size_t text_sz);
 
 #ifdef __cplusplus
 }

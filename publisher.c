@@ -40,7 +40,7 @@ static void* stats_func(thread_handle thr)
 	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
 
 	if (embedded)
-		printf("# STORAGE\tRECV\tPKT/s\tGAP\tTCP/s\tMCAST/s\n");
+		printf("# TIME\tSTORAGE\tRECV\tPKT/s\tGAP\tTCP/s\tMCAST/s\n");
 
 	if (FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
@@ -60,15 +60,20 @@ static void* stats_func(thread_handle thr)
 		tcp2 = sender_get_tcp_bytes_sent(sender);
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
-		if (embedded)
-			printf("%s\t%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+		if (embedded) {
+			char ts[64];
+			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
+				break;
+
+			printf("%s\t%s\t%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+				   ts,
 				   mmap_file,
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
 				   sender_get_tcp_gap_count(sender),
 				   (tcp2 - tcp1) / secs / 1024,
 				   (mcast2 - mcast1) / secs / 1024);
-		else
+		} else
 			printf("\"%.16s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f        \r",
 				   storage_get_description(sender_get_storage(sender)),

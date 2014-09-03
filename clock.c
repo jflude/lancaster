@@ -1,7 +1,9 @@
 #include "clock.h"
 #include "error.h"
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -98,3 +100,24 @@ status clock_time(microsec* pusec)
 }
 
 #endif
+
+status clock_get_text(microsec usec, char* text, size_t text_sz)
+{
+	time_t t;
+	struct tm* ptm;
+	char fract[12];
+
+	if (!text || text_sz == 0)
+		return error_invalid_arg("clock_get_text");
+
+	t = usec / 1000000;
+	if (!(ptm = localtime(&t)))
+		return error_errno("localtime");
+
+	if (!strftime(text, text_sz - 7, "%Y-%m-%d %H:%M:%S", ptm))
+		return error_msg("clock_get_text: buffer too small", BUFFER_TOO_SMALL);
+
+	sprintf(fract, ".%06ld", usec % 1000000);
+	strcat(text, fract);
+	return OK;
+}
