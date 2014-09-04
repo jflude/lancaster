@@ -30,11 +30,9 @@ status circ_create(circ_handle* pcirc, size_t capacity)
 
 status circ_destroy(circ_handle* pcirc)
 {
-	if (!pcirc || !*pcirc)
-		return OK;
+	if (pcirc && *pcirc)
+		XFREE(*pcirc);
 
-	xfree(*pcirc);
-	*pcirc = NULL;
 	return OK;
 }
 

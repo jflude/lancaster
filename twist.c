@@ -25,8 +25,7 @@ status twist_destroy(twist_handle* ptwist)
 	if (!ptwist || !*ptwist)
 		return OK;
 
-	xfree(*ptwist);
-	*ptwist = NULL;
+	XFREE(*ptwist);
 	return OK;
 }
 

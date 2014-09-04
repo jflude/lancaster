@@ -60,8 +60,7 @@ status thread_destroy(thread_handle* pthr)
 	if ((*pthr)->running)
 		st = thread_stop(*pthr, NULL);
 
-	xfree(*pthr);
-	*pthr = NULL;
+	XFREE(*pthr);
 	return st;
 }
 

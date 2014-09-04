@@ -1,5 +1,4 @@
 #include "sender.h"
-#include "accum.h"
 #include "error.h"
 #include "h2n2h.h"
 #include "poller.h"
@@ -32,10 +31,7 @@ struct sender
 	sock_handle mcast_sock;
 	sock_addr_handle sendto_addr;
 	poller_handle poller;
-	accum_handle mcast_accum;
 	storage_handle store;
-	queue_index last_q_idx;
-	size_t mcast_mtu;
 	identifier base_id;
 	identifier max_id;
 	size_t val_size;
@@ -48,7 +44,11 @@ struct sender
 	microsec mcast_send_time;
 	microsec heartbeat_usec;
 	microsec max_pkt_age_usec;
-	microsec* time_stored_at;
+	microsec mcast_insert_time;
+	size_t mcast_mtu;
+	char* pkt_buf;
+	char* pkt_next;
+	queue_index last_q_idx;
 	struct sender_stats stats;
 	volatile boolean is_stopping;
 	char hello_str[128];
@@ -72,32 +72,31 @@ struct tcp_client
 	sequence min_seq_found;
 };
 
-static status mcast_send_accum(sender_handle sndr)
+static status mcast_send_pkt(sender_handle sndr)
 {
-	const void* data;
-	size_t sz;
-	microsec now;
 	status st;
-
-	if (FAILED(st = accum_get_batched(sndr->mcast_accum, &data, &sz)) || !st ||
-		FAILED(clock_time(&now)))
+	microsec now;
+	if (FAILED(st = clock_time(&now)))
 		return st;
 
-	*sndr->time_stored_at = htonll(now);
-	if (FAILED(st = sock_sendto(sndr->mcast_sock, sndr->sendto_addr, data, sz)))
+	*((microsec*) (sndr->pkt_buf + sizeof(sequence))) = htonll(now);
+
+	if (FAILED(st = sock_sendto(sndr->mcast_sock, sndr->sendto_addr,
+								sndr->pkt_buf, sndr->pkt_next - sndr->pkt_buf)))
 		return st;
 
 	sndr->last_activity = sndr->mcast_send_time = now;
 
 	SPIN_WRITE_LOCK(&sndr->stats.lock, no_ver);
-	sndr->stats.mcast_bytes_sent += sz;
+	sndr->stats.mcast_bytes_sent += st;
 	++sndr->stats.mcast_packets_sent;
 	SPIN_UNLOCK(&sndr->stats.lock, no_ver);
 
-	accum_clear(sndr->mcast_accum);
+	sndr->pkt_next = sndr->pkt_buf;
+	sndr->mcast_insert_time = 0;
 
 	if (++sndr->next_seq < 0)
-		return error_msg("mcast_send_accum: sequence sign overflow",
+		return error_msg("mcast_send_pkt: sequence sign overflow",
 						 SIGN_OVERFLOW);
 
 	return st;
@@ -105,46 +104,35 @@ static status mcast_send_accum(sender_handle sndr)
 
 static status mcast_accum_record(sender_handle sndr, identifier id)
 {
-	status st = OK;
+	status st;
+	version ver;
 	record_handle rec;
-	identifier nid;
-	size_t required = sndr->val_size + sizeof(identifier);
+	size_t avail_sz = sndr->mcast_mtu - (sndr->pkt_next - sndr->pkt_buf);
 
-	if (accum_get_available(sndr->mcast_accum) < required &&
-		FAILED(st = mcast_send_accum(sndr)))
+	if (avail_sz < (sizeof(identifier) + sndr->val_size) &&
+		FAILED(st = mcast_send_pkt(sndr)))
 		return st;
 		
-	if (accum_is_empty(sndr->mcast_accum)) {
-		sequence seq = htonll(sndr->next_seq);
-		if (FAILED(st = accum_store(sndr->mcast_accum, &seq,
-									sizeof(seq), NULL)) ||
-			FAILED(st = accum_store(sndr->mcast_accum, NULL, sizeof(microsec),
-									(void**) &sndr->time_stored_at)))
-			return st;
+	if (sndr->pkt_next == sndr->pkt_buf) {
+		*((sequence*) sndr->pkt_buf) = htonll(sndr->next_seq);
+		sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 	}
 
 	if (FAILED(st = storage_get_record(sndr->store, id, &rec)))
 		return st;
 
-	nid = htonll(id);
-	if (!FAILED(st = accum_store(sndr->mcast_accum, &nid, sizeof(nid), NULL))) {
-		void* val_at = record_get_value_ref(rec);
-		void* stored_at = NULL;
-		version ver;
+	*((identifier*) sndr->pkt_next) = htonll(id);
+	sndr->pkt_next += sizeof(identifier);
 
-		do {
-			ver = record_read_lock(rec);
-			if (stored_at)
-				memcpy(stored_at, val_at, sndr->val_size);
-			else if (FAILED(st = accum_store(sndr->mcast_accum, val_at,
-											 sndr->val_size, &stored_at)))
-				return st;
-		} while (ver != record_get_version(rec));
+	do {
+		ver = record_read_lock(rec);
+		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
+	} while (ver != record_get_version(rec));
 
-		sndr->slot_seqs[id - sndr->base_id] = sndr->next_seq;
-	}
+	sndr->pkt_next += sndr->val_size;
+	sndr->slot_seqs[id - sndr->base_id] = sndr->next_seq;
 
-	return st;
+	return clock_time(&sndr->mcast_insert_time);
 }
 
 static status mcast_on_write(sender_handle sndr)
@@ -152,6 +140,11 @@ static status mcast_on_write(sender_handle sndr)
 	status st = OK;
 	queue_index new_q_idx = storage_get_queue_head(sndr->store);
 	queue_index qi = new_q_idx - sndr->last_q_idx;
+
+	if (qi < 0) {
+		sndr->last_q_idx = new_q_idx;
+		qi = 0;
+	}
 
 	if (qi > 0) {
 		if ((size_t) qi > storage_get_queue_capacity(sndr->store))
@@ -167,22 +160,21 @@ static status mcast_on_write(sender_handle sndr)
 		sndr->last_q_idx = qi;
 		if (st == BLOCKED)
 			st = OK;
-	} else if (accum_is_stale(sndr->mcast_accum))
-		st = mcast_send_accum(sndr);
-	else {
+	} else {
 		microsec now;
-		if (!FAILED(st = clock_time(&now)) &&
-			(now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
-			if (!accum_is_empty(sndr->mcast_accum))
-				st = mcast_send_accum(sndr);
+		if (!FAILED(st = clock_time(&now))) {
+			if (sndr->mcast_insert_time &&
+				(now - sndr->mcast_insert_time) >= sndr->max_pkt_age_usec)
+				st = mcast_send_pkt(sndr);
 			else {
-				sequence hb_seq = htonll(-sndr->next_seq);
-				if (!FAILED(st = accum_store(sndr->mcast_accum, &hb_seq,
-											 sizeof(hb_seq), NULL)) &&
-					!FAILED(st = accum_store(sndr->mcast_accum, NULL,
-											 sizeof(microsec),
-											 (void**) &sndr->time_stored_at)))
-					st = mcast_send_accum(sndr);
+				if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
+					if (sndr->pkt_next == sndr->pkt_buf) {
+						*((sequence*) sndr->pkt_buf) = htonll(-sndr->next_seq);
+						sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
+					}
+
+					st = mcast_send_pkt(sndr);
+				}
 			}
 		}
 	}
@@ -259,7 +251,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	clnt->in_buf = XMALLOC(struct sequence_range);
 	if (!clnt->in_buf) {
-		xfree(clnt);
+		XFREE(clnt);
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
@@ -274,13 +266,13 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	clnt->out_buf = xmalloc(clnt->pkt_size);
 	if (!clnt->out_buf) {
-		xfree(clnt->in_buf);
-		xfree(clnt);
+		XFREE(clnt->in_buf);
+		XFREE(clnt);
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
 
-	sock_set_property(accepted, clnt);
+	sock_set_property_ref(accepted, clnt);
 
 	if (FAILED(st = clock_time(&clnt->tcp_send_time)) ||
 		FAILED(st = sock_set_nonblock(accepted)) ||
@@ -303,14 +295,14 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 static status close_sock_func(poller_handle poller, sock_handle sock,
 							  short* events, void* param)
 {
-	struct tcp_client* clnt = sock_get_property(sock);
+	struct tcp_client* clnt = sock_get_property_ref(sock);
 	status st;
 	(void) events; (void) param;
 
 	if (clnt) {
-		xfree(clnt->out_buf);
-		xfree(clnt->in_buf);
-		xfree(clnt);
+		XFREE(clnt->out_buf);
+		XFREE(clnt->in_buf);
+		XFREE(clnt);
 	}
 
 	if (FAILED(st = poller_remove(poller, sock)))
@@ -324,7 +316,7 @@ static status close_sock_func(poller_handle poller, sock_handle sock,
 static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
 								 short* events, void* param)
 {
-	struct tcp_client* clnt = sock_get_property(sock);
+	struct tcp_client* clnt = sock_get_property_ref(sock);
 	sequence* out_seq_ref;
 	status st;
 	(void) poller; (void) events; (void) param;
@@ -360,7 +352,7 @@ static status tcp_on_hup(sender_handle sndr, sock_handle sock)
 
 static status tcp_on_write(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property(sock);
+	struct tcp_client* clnt = sock_get_property_ref(sock);
 	microsec now;
 
 	status st = tcp_write_buf(clnt);
@@ -420,7 +412,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property(sock);
+	struct tcp_client* clnt = sock_get_property_ref(sock);
 
 	if (clnt->in_next == clnt->in_buf) {
 		if (clnt->union_range.high <= sndr->min_seq)
@@ -438,7 +430,7 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 
 static status tcp_on_read(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property(sock);
+	struct tcp_client* clnt = sock_get_property_ref(sock);
 
 	status st = tcp_read_buf(clnt);
 	if (st == BLOCKED)
@@ -553,20 +545,28 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	(*psndr)->mcast_mtu -= IP_OVERHEAD + UDP_OVERHEAD;
 
+	(*psndr)->pkt_buf = xmalloc((*psndr)->mcast_mtu);
+	if (!(*psndr)->pkt_buf)
+		return NO_MEMORY;
+
+	(*psndr)->pkt_next = (*psndr)->pkt_buf;
+
 	st = sprintf((*psndr)->hello_str,
 				 "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 STORAGE_VERSION, mcast_address, mcast_port,
-				 (*psndr)->mcast_mtu, (long) (*psndr)->base_id,
+				 STORAGE_VERSION,
+				 mcast_address,
+				 mcast_port,
+				 (*psndr)->mcast_mtu,
+				 (long) (*psndr)->base_id,
 				 (long) (*psndr)->max_id,
 				 storage_get_value_size((*psndr)->store),
-				 max_pkt_age_usec, (*psndr)->heartbeat_usec);
+				 max_pkt_age_usec,
+				 (*psndr)->heartbeat_usec);
 
 	if (st < 0)
 		return error_errno("sprintf");
 
-	if (FAILED(st = accum_create(&(*psndr)->mcast_accum,
-								 (*psndr)->mcast_mtu, max_pkt_age_usec)) ||
-		FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
+	if (FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock, FALSE)) ||
 		FAILED(st = sock_addr_create(&sendto_if_addr, NULL, 0)) ||
@@ -620,15 +620,14 @@ status sender_destroy(sender_handle* psndr)
 														close_sock_func,
 														*psndr))) ||
 		FAILED(st = poller_destroy(&(*psndr)->poller)) ||
-		FAILED(st = accum_destroy(&(*psndr)->mcast_accum)) ||
 		FAILED(st = storage_destroy(&(*psndr)->store)) ||
 		FAILED(st = sock_addr_destroy(&(*psndr)->sendto_addr)) ||
 		FAILED(st = sock_addr_destroy(&(*psndr)->listen_addr)))
 		return st;
 
-	xfree((*psndr)->slot_seqs);
-	xfree(*psndr);
-	*psndr = NULL;
+	XFREE((*psndr)->pkt_buf);
+	XFREE((*psndr)->slot_seqs);
+	XFREE(*psndr);
 	return st;
 }
 

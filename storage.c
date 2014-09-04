@@ -23,6 +23,9 @@ struct segment
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
+	size_t val_offset;
+	size_t prop_size;
+	size_t prop_offset;
 	identifier base_id;
 	identifier max_id;
 	microsec last_created;
@@ -49,16 +52,27 @@ struct storage
 
 static status init_create(storage_handle* pstore, const char* mmap_file,
 						  int open_flags, identifier base_id, identifier max_id,
-						  size_t value_size, size_t q_capacity)
+						  size_t value_size, size_t property_size,
+						  size_t q_capacity)
 {
 	status st;
-	size_t rec_sz, hdr_sz, seg_sz;
+	size_t rec_sz, hdr_sz, seg_sz, val_aln_sz, prop_offset;
 
 	BZERO(*pstore);
 
-	rec_sz = ALIGNED_SIZE(struct record, DEFAULT_ALIGNMENT, val, value_size);
-	hdr_sz = ALIGNED_SIZE(struct segment, DEFAULT_ALIGNMENT, change_q,
-						  q_capacity > 0 ? q_capacity : 1);
+	val_aln_sz = ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
+	rec_sz = offsetof(struct record, val) + val_aln_sz;
+
+	if (property_size > 0) {
+		rec_sz += ALIGNED_SIZE(property_size, DEFAULT_ALIGNMENT);
+		prop_offset = offsetof(struct record, val) + val_aln_sz;
+	} else
+		prop_offset = 0;
+
+	hdr_sz = offsetof(struct segment, change_q) +
+		ALIGNED_SIZE(sizeof(identifier) * (q_capacity > 0 ? q_capacity : 1),
+					 DEFAULT_ALIGNMENT);
+
 	seg_sz = hdr_sz + rec_sz * (max_id - base_id);
 
 	if (!mmap_file) {
@@ -133,6 +147,9 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
 		(*pstore)->seg->val_size = value_size;
+		(*pstore)->seg->val_offset = offsetof(struct record, val);
+		(*pstore)->seg->prop_size = property_size;
+		(*pstore)->seg->prop_offset = prop_offset;
 		(*pstore)->seg->base_id = base_id;
 		(*pstore)->seg->max_id = max_id;
 		(*pstore)->seg->q_mask = q_capacity - 1;
@@ -142,6 +159,9 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 			   (*pstore)->seg->hdr_size != hdr_sz ||
 			   (*pstore)->seg->rec_size != rec_sz ||
 			   (*pstore)->seg->val_size != value_size ||
+			   (*pstore)->seg->val_offset != offsetof(struct record, val) ||
+			   (*pstore)->seg->prop_size != property_size ||
+			   (*pstore)->seg->prop_offset != prop_offset ||
 			   (*pstore)->seg->q_mask != (q_capacity - 1))
 		return error_msg("storage_create: storage is unequal structure",
 						 STORAGE_CORRUPTED);
@@ -253,7 +273,8 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
 					  int open_flags, identifier base_id, identifier max_id,
-					  size_t value_size, size_t q_capacity)
+					  size_t value_size, size_t property_size,
+					  size_t q_capacity)
 {
 	/* q_capacity must be a power of 2 */
 	status st;
@@ -267,7 +288,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file,
 		return NO_MEMORY;
 
 	if (FAILED(st = init_create(pstore, mmap_file, open_flags, base_id,
-								max_id, value_size, q_capacity))) {
+								max_id, value_size, property_size,
+								q_capacity))) {
 		error_save_last();
 		storage_destroy(pstore);
 		error_restore_last();
@@ -313,7 +335,7 @@ loop:
 
 	if ((*pstore)->seg) {
 		if ((*pstore)->seg->mmap_size == 0)
-			xfree((*pstore)->seg);
+			XFREE((*pstore)->seg);
 		else {
 			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
 				return error_errno("munmap");
@@ -324,9 +346,8 @@ loop:
 		}
 	}
 
-	xfree((*pstore)->mmap_file);
-	xfree(*pstore);
-	*pstore = NULL;
+	XFREE((*pstore)->mmap_file);
+	XFREE(*pstore);
 	return st;
 }
 
@@ -355,6 +376,11 @@ size_t storage_get_record_size(storage_handle store)
 	return store->seg->rec_size;
 }
 
+size_t storage_get_property_size(storage_handle store)
+{
+	return store->seg->prop_size;
+}
+
 size_t storage_get_value_size(storage_handle store)
 {
 	return store->seg->val_size;
@@ -362,8 +388,12 @@ size_t storage_get_value_size(storage_handle store)
 
 size_t storage_get_value_offset(storage_handle store)
 {
-	(void) store;
-	return offsetof(struct record, val);
+	return store->seg->val_offset;
+}
+
+size_t storage_get_property_offset(storage_handle store)
+{
+	return store->seg->prop_offset;
 }
 
 const char* storage_get_file(storage_handle store)
@@ -410,23 +440,17 @@ microsec storage_get_touched_time(storage_handle store)
 	return t;
 }
 
-status storage_touch(storage_handle store)
+status storage_touch(storage_handle store, microsec when)
 {
-	status st;
 	version ver;
-	microsec now;
-
 	if (store->is_read_only)
 		return error_msg("storage_touch: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	if (FAILED(st = clock_time(&now)))
-		return st;
-
 	SPIN_WRITE_LOCK(&store->seg->last_touched_ver, ver);
-	store->seg->last_touched = now;
+	store->seg->last_touched = when;
 	SPIN_UNLOCK(&store->seg->last_touched_ver, NEXT_VER(ver));
-	return st;
+	return OK;
 }
 
 const identifier* storage_get_queue_base_ref(storage_handle store)
@@ -549,6 +573,11 @@ status storage_reset(storage_handle store)
 
 	SYNC_SYNCHRONIZE();
 	return OK;
+}
+
+void* storage_get_property_ref(storage_handle store, record_handle rec)
+{
+	return store->seg->prop_offset ? ((char*) rec + store->seg->prop_offset) : NULL;
 }
 
 void* record_get_value_ref(record_handle rec)

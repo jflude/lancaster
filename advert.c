@@ -71,7 +71,7 @@ static status make_json_map(advert_handle advert)
 
 	SPIN_WRITE_LOCK(&advert->lock, no_ver);
 
-	xfree(advert->json_msg);
+	XFREE(advert->json_msg);
 	advert->json_msg = new_msg;
 	advert->json_sz = strlen(advert->json_msg) + 1;
 
@@ -159,14 +159,13 @@ status advert_destroy(advert_handle* padvert)
 
 	for (it = (*padvert)->notices; it; ) {
 		struct notice* next = it->next;
-		xfree(it->json_desc);
+		XFREE(it->json_desc);
 		xfree(it);
 		it = next;
 	}
 
-	xfree((*padvert)->json_msg);
-	xfree(*padvert);
-	*padvert = NULL;
+	XFREE((*padvert)->json_msg);
+	XFREE(*padvert);
 	return st;
 }
 
@@ -206,7 +205,7 @@ status advert_publish(advert_handle advert, sender_handle sender)
 		return NO_MEMORY;
 
 	if (FAILED(st = make_json_notice(sender, &it->json_desc))) {
-		xfree(it);
+		XFREE(it);
 		return st;
 	}
 
@@ -230,8 +229,8 @@ status advert_retract(advert_handle advert, sender_handle sender)
 		 prev = &it->next, it = it->next)
 		if (it->sender == sender) {
 			*prev = it->next;
-			xfree(it->json_desc);
-			xfree(it);
+			XFREE(it->json_desc);
+			XFREE(it);
 
 			return make_json_map(advert);
 		}

@@ -13,8 +13,8 @@ struct receiver;
 typedef struct receiver* receiver_handle;
 
 status receiver_create(receiver_handle* precv, const char* mmap_file,
-					   unsigned q_capacity, const char* tcp_address,
-					   unsigned short tcp_port);
+					   unsigned q_capacity, size_t property_size,
+					   const char* tcp_address, unsigned short tcp_port);
 status receiver_destroy(receiver_handle* precv);
 
 storage_handle receiver_get_storage(receiver_handle recv);

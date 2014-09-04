@@ -52,7 +52,7 @@ static status update(identifier id, long n)
 	record_set_version(rec, ver);
 
 	if (FAILED(st = storage_write_queue(store, id)) ||
-		FAILED(st = storage_touch(store)) ||
+		FAILED(st = storage_touch(store, now)) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))
 		return st;
 
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 	if (FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, argv[1], O_CREAT, 0, MAX_ID,
-							  sizeof(struct datum), atoi(argv[2]))) ||
+							  sizeof(struct datum), 0, atoi(argv[2]))) ||
 		FAILED(storage_set_description(store, "TEST")) ||
 		FAILED(storage_reset(store)))
 		error_report_fatal();

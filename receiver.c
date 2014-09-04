@@ -300,8 +300,8 @@ static status event_func(poller_handle poller, sock_handle sock,
 }
 
 static status init(receiver_handle* precv, const char* mmap_file,
-				   unsigned q_capacity, const char* tcp_address,
-				   unsigned short tcp_port)
+				   unsigned q_capacity, size_t property_size,
+				   const char* tcp_address, unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, mcast_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -367,12 +367,12 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return NO_MEMORY;
 
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
-								   O_CREAT | O_TRUNC, base_id, max_id,
-								   val_size, q_capacity)) &&
+									O_CREAT | O_TRUNC, base_id, max_id,
+									val_size, property_size, q_capacity)) &&
 		!FAILED(st = storage_set_description((*precv)->store,
 											 buf + proto_len)) &&
 	    !FAILED(st = sock_create(&(*precv)->mcast_sock,
-								SOCK_DGRAM, IPPROTO_UDP)) &&
+								 SOCK_DGRAM, IPPROTO_UDP)) &&
 		!FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
 		!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
 		!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
@@ -380,16 +380,16 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
 		!FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) &&
 		!FAILED(st = sock_mcast_add((*precv)->mcast_sock,
-								   mcast_addr, iface_addr)) &&
+									mcast_addr, iface_addr)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) &&
 		!FAILED(st = sock_addr_create(&(*precv)->orig_src_addr, NULL, 0)) &&
 		!FAILED(st = sock_addr_create(&(*precv)->last_src_addr, NULL, 0)) &&
 		!FAILED(st = poller_create(&(*precv)->poller, 2)) &&
 		!FAILED(st = poller_add((*precv)->poller,
-							   (*precv)->mcast_sock, POLLIN)) &&
+								(*precv)->mcast_sock, POLLIN)) &&
 		!FAILED(st = poller_add((*precv)->poller,
-							   (*precv)->tcp_sock, POLLIN | POLLOUT)) &&
+								(*precv)->tcp_sock, POLLIN | POLLOUT)) &&
 		!FAILED(st = clock_time(&(*precv)->mcast_recv_time)))
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
 
@@ -400,8 +400,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 }
 
 status receiver_create(receiver_handle* precv, const char* mmap_file,
-					   unsigned q_capacity, const char* tcp_address,
-					   unsigned short tcp_port)
+					   unsigned q_capacity, size_t property_size,
+					   const char* tcp_address, unsigned short tcp_port)
 {
 	status st;
 	if (!precv || !mmap_file || !tcp_address)
@@ -411,7 +411,8 @@ status receiver_create(receiver_handle* precv, const char* mmap_file,
 	if (!*precv)
 		return NO_MEMORY;
 
-	if (FAILED(st = init(precv, mmap_file, q_capacity, tcp_address, tcp_port))) {
+	if (FAILED(st = init(precv, mmap_file, q_capacity,
+						 property_size, tcp_address, tcp_port))) {
 		error_save_last();
 		receiver_destroy(precv);
 		error_restore_last();
@@ -432,11 +433,10 @@ status receiver_destroy(receiver_handle* precv)
 		FAILED(st = storage_destroy(&(*precv)->store)))
 		return st;
 
-	xfree((*precv)->in_buf);
-	xfree((*precv)->out_buf);
-	xfree((*precv)->slot_seqs);
-	xfree(*precv);
-	*precv = NULL;
+	XFREE((*precv)->in_buf);
+	XFREE((*precv)->out_buf);
+	XFREE((*precv)->slot_seqs);
+	XFREE(*precv);
 	return st;
 }
 
@@ -456,7 +456,7 @@ status receiver_run(receiver_handle recv)
 														 event_func, recv))) ||
 			FAILED(st = clock_time(&now)) ||
 			((now - recv->touched_time) >= TOUCH_PERIOD_USEC &&
-			 FAILED(st = storage_touch(recv->store))))
+			 FAILED(st = storage_touch(recv->store, now))))
 			break;
 
 		if ((now - recv->mcast_recv_time) >= recv->timeout_usec) {

@@ -28,7 +28,7 @@ static boolean s2id_eq_fn(table_key key1, table_key key2)
 static void s2id_dtor_fn(table_key key, table_value val)
 {
 	(void) val;
-	xfree(key);
+	XFREE(key);
 }
 
 status dict_create(dict_handle* pdict, size_t dict_sz)
@@ -62,8 +62,7 @@ status dict_destroy(dict_handle* pdict)
 		FAILED(st = table_destroy(&(*pdict)->s2id)))
 		return st;
 
-	xfree(*pdict);
-	*pdict = NULL;
+	XFREE(*pdict);
 	return st;
 }
 

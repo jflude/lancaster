@@ -23,7 +23,7 @@
 struct sock
 {
 	int fd;
-	void* property;
+	void* prop_ref;
 };
 
 struct sock_addr
@@ -58,11 +58,9 @@ status sock_addr_create(sock_addr_handle* paddr, const char* address,
 
 status sock_addr_destroy(sock_addr_handle* paddr)
 {
-	if (!paddr || !*paddr)
-		return OK;
+	if (paddr && *paddr)
+		XFREE(*paddr);
 
-	xfree(*paddr);
-	*paddr = NULL;
 	return OK;
 }
 
@@ -145,19 +143,18 @@ status sock_destroy(sock_handle* psock)
 		FAILED(st = sock_close(*psock)))
 		return st;
 
-	xfree(*psock);
-	*psock = NULL;
+	XFREE(*psock);
 	return st;
 }
 
-void* sock_get_property(sock_handle sock)
+void* sock_get_property_ref(sock_handle sock)
 {
-	return sock->property;
+	return sock->prop_ref;
 }
 
-void sock_set_property(sock_handle sock, void* prop)
+void sock_set_property_ref(sock_handle sock, void* prop)
 {
-	sock->property = prop;
+	sock->prop_ref = prop;
 }
 
 int sock_get_descriptor(sock_handle sock)

@@ -1,5 +1,4 @@
 SRCS = \
-accum.c \
 advert.c \
 circ.c \
 clock.c \
@@ -15,7 +14,6 @@ storage.c \
 table.c \
 thread.c \
 twist.c \
-uudict.c \
 xalloc.c \
 yield.c
 

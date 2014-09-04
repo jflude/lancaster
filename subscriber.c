@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 	tcp_port = atoi(argv[n]);
 
 	if (FAILED(receiver_create(&recv, mmap_file, q_capacity,
-							   tcp_addr, tcp_port)) ||
+							   0, tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, recv)))
 		error_report_fatal();
 
