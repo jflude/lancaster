@@ -43,6 +43,7 @@ struct storage
 	record_handle limit;
 	char* mmap_file;
 	boolean is_read_only;
+	boolean is_persistent;
 	int fd;
 };
 
@@ -56,9 +57,11 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 						  size_t q_capacity)
 {
 	status st;
-	size_t rec_sz, hdr_sz, seg_sz, val_aln_sz, prop_offset;
+	size_t rec_sz, hdr_sz, seg_sz, page_sz, val_aln_sz, prop_offset;
 
 	BZERO(*pstore);
+
+	(*pstore)->is_persistent = TRUE;
 
 	val_aln_sz = ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
 	rec_sz = offsetof(struct record, val) + val_aln_sz;
@@ -73,75 +76,66 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		ALIGNED_SIZE(sizeof(identifier) * (q_capacity > 0 ? q_capacity : 1),
 					 DEFAULT_ALIGNMENT);
 
-	seg_sz = hdr_sz + rec_sz * (max_id - base_id);
+	page_sz = sysconf(_SC_PAGESIZE);
+	seg_sz =
+		(hdr_sz + (rec_sz * (max_id - base_id)) + page_sz - 1) & ~(page_sz - 1);
 
-	if (!mmap_file) {
-		(*pstore)->seg = xmalloc(seg_sz);
-		if (!(*pstore)->seg)
-			return NO_MEMORY;
+	if (strncmp(mmap_file, "shm:", 4) == 0) {
+		open_flags &= ~O_TRUNC;
+	shm_loop:
+		(*pstore)->fd =
+			shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 
-		seg_sz = 0;
+		if ((*pstore)->fd == -1) {
+			if (errno == EINTR)
+				goto shm_loop;
+
+			return error_errno("shm_open");
+		}
 	} else {
-		size_t page_sz = sysconf(_SC_PAGESIZE);
-		seg_sz = (seg_sz + page_sz - 1) & ~(page_sz - 1);
+	open_loop:
+		(*pstore)->fd =
+			open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 
-		if (strncmp(mmap_file, "shm:", 4) == 0) {
-			open_flags &= ~O_TRUNC;
-		shm_loop:
-			(*pstore)->fd =
-				shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
+		if ((*pstore)->fd == -1) {
+			if (errno == EINTR)
+				goto open_loop;
 
-			if ((*pstore)->fd == -1) {
-				if (errno == EINTR)
-					goto shm_loop;
-
-				return error_errno("shm_open");
-			}
-		} else {
-		open_loop:
-			(*pstore)->fd =
-				open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
-
-			if ((*pstore)->fd == -1) {
-				if (errno == EINTR)
-					goto open_loop;
-
-				return error_errno("open");
-			}
+			return error_errno("open");
 		}
-
-		if (open_flags & (O_CREAT | O_TRUNC)) {
-		trunc_loop:
-			if (ftruncate((*pstore)->fd, seg_sz) == -1) {
-				if (errno == EINTR)
-					goto trunc_loop;
-
-				return error_errno("ftruncate");
-			}
-		} else {
-			struct stat file_stat;
-			if (fstat((*pstore)->fd, &file_stat) == -1)
-				return error_errno("fstat");
-
-			if ((size_t) file_stat.st_size != seg_sz)
-				return error_msg("storage_create: storage is unequal size",
-								 STORAGE_CORRUPTED);
-		}
-
-		(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE,
-							  MAP_SHARED, (*pstore)->fd, 0);
-
-		if ((*pstore)->seg == MAP_FAILED) {
-			(*pstore)->seg = NULL;
-			return error_errno("mmap");
-		}
-
-		(*pstore)->mmap_file = xstrdup(mmap_file);
-		if (!(*pstore)->mmap_file)
-			return NO_MEMORY;
 	}
 
-	if (!mmap_file || (open_flags & (O_CREAT | O_TRUNC))) {
+	if (open_flags & (O_CREAT | O_TRUNC)) {
+	trunc_loop:
+		if (ftruncate((*pstore)->fd, seg_sz) == -1) {
+			if (errno == EINTR)
+				goto trunc_loop;
+
+			return error_errno("ftruncate");
+		}
+	} else {
+		struct stat file_stat;
+		if (fstat((*pstore)->fd, &file_stat) == -1)
+			return error_errno("fstat");
+
+		if ((size_t) file_stat.st_size != seg_sz)
+			return error_msg("storage_create: storage is unequal size",
+							 STORAGE_CORRUPTED);
+	}
+
+	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE,
+						  MAP_SHARED, (*pstore)->fd, 0);
+
+	if ((*pstore)->seg == MAP_FAILED) {
+		(*pstore)->seg = NULL;
+		return error_errno("mmap");
+	}
+
+	(*pstore)->mmap_file = xstrdup(mmap_file);
+	if (!(*pstore)->mmap_file)
+		return NO_MEMORY;
+
+	if (open_flags & (O_CREAT | O_TRUNC)) {
 		(*pstore)->seg->magic = MAGIC_NUMBER;
 		(*pstore)->seg->mmap_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
@@ -174,7 +168,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->first, max_id - base_id);
 
-	if (mmap_file && (open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
+	if ((open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
 		record_handle r;
 		for (r = (*pstore)->first;
 			 r < (*pstore)->limit;
@@ -198,6 +192,8 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	size_t seg_sz;
 
 	BZERO(*pstore);
+
+	(*pstore)->is_persistent = TRUE;
 
 	if (open_flags == O_RDONLY)
 		(*pstore)->is_read_only = TRUE;
@@ -278,7 +274,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file,
 {
 	/* q_capacity must be a power of 2 */
 	status st;
-	if (!pstore || open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
+	if (!pstore || !mmap_file ||
+		open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
 		max_id <= base_id || value_size == 0 ||
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
 		return error_invalid_arg("storage_create");
@@ -302,8 +299,8 @@ status storage_open(storage_handle* pstore, const char* mmap_file,
 					int open_flags)
 {
 	status st;
-	if (!pstore || (open_flags != O_RDONLY && open_flags != O_RDWR) ||
-		!mmap_file)
+	if (!pstore || !mmap_file ||
+		(open_flags != O_RDONLY && open_flags != O_RDWR))
 		return error_invalid_arg("storage_open");
 
 	*pstore = XMALLOC(struct storage);
@@ -334,15 +331,17 @@ loop:
 	}
 
 	if ((*pstore)->seg) {
-		if ((*pstore)->seg->mmap_size == 0)
-			XFREE((*pstore)->seg);
-		else {
-			if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
-				return error_errno("munmap");
-			else if (!(*pstore)->is_read_only &&
-					 strncmp((*pstore)->mmap_file, "shm:", 4) == 0 &&
-					 shm_unlink((*pstore)->mmap_file + 4) == -1)
-				return error_errno("shm_unlink");
+		if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
+			return error_errno("munmap");
+
+		if (!(*pstore)->is_persistent) {
+			if (strncmp((*pstore)->mmap_file, "shm:", 4) == 0) {
+				if (shm_unlink((*pstore)->mmap_file + 4) == -1)
+					return error_errno("shm_unlink");
+			} else {
+				if (unlink((*pstore)->mmap_file) == -1)
+					return error_errno("unlink");
+			}
 		}
 	}
 
@@ -354,6 +353,18 @@ loop:
 boolean storage_is_read_only(storage_handle store)
 {
 	return store->is_read_only;
+}
+
+status storage_set_persistence(storage_handle store, boolean persist)
+{
+	boolean old_val;
+	if (store->is_read_only)
+		return error_msg("storage_set_persistence: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	old_val = store->is_persistent;
+	store->is_persistent = persist;
+	return old_val;
 }
 
 record_handle storage_get_array(storage_handle store)

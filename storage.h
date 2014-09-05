@@ -39,6 +39,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file,
 status storage_destroy(storage_handle* pstore);
 
 boolean storage_is_read_only(storage_handle store);
+status storage_set_persistence(storage_handle store, boolean persist);
 
 record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);
