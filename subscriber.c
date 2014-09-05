@@ -46,7 +46,7 @@ static void* stats_func(thread_handle thr)
 		tcp2 = receiver_get_tcp_bytes_recv(recv);
 		mcast2 = receiver_get_mcast_bytes_recv(recv);
 
-		printf("\"%.16s\", PKT/s: %.2f, GAP: %lu, "
+		printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
 			   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 			   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
 			   "STD/us: %.2f        \r",
