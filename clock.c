@@ -105,7 +105,7 @@ status clock_get_text(microsec usec, char* text, size_t text_sz)
 {
 	time_t t;
 	struct tm* ptm;
-	char fract[12];
+	char fract[32];
 
 	if (!text || text_sz == 0)
 		return error_invalid_arg("clock_get_text");
@@ -114,10 +114,10 @@ status clock_get_text(microsec usec, char* text, size_t text_sz)
 	if (!(ptm = localtime(&t)))
 		return error_errno("localtime");
 
-	if (!strftime(text, text_sz - 7, "%Y-%m-%d %H:%M:%S", ptm))
+	if (!strftime(text, text_sz - 13, "%Y-%m-%dT%H:%M:%S", ptm))
 		return error_msg("clock_get_text: buffer too small", BUFFER_TOO_SMALL);
 
-	sprintf(fract, ".%06ld", usec % 1000000);
+	sprintf(fract, ".%06ld%+03ld:00", usec % 1000000, ptm->tm_gmtoff/(60*60));
 	strcat(text, fract);
 	return OK;
 }

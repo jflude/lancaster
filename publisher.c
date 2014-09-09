@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define DISPLAY_DELAY_USEC 1000000
 
@@ -18,6 +19,17 @@
 
 static const char* mmap_file;
 static boolean embedded;
+
+static char* get_hostname() 
+{
+	static char __host[HOST_NAME_MAX] = {0};
+	if (__host[0] == 0) {
+		if (gethostname(__host, HOST_NAME_MAX) < 0) {
+			strncpy(__host, "unknown", sizeof(__host));
+		}
+	}
+	return __host;
+}
 
 static void syntax(const char* prog)
 {
@@ -38,9 +50,6 @@ static void* stats_func(thread_handle thr)
 	size_t pkt1 = sender_get_mcast_packets_sent(sender);
 	size_t tcp1 = sender_get_tcp_bytes_sent(sender);
 	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
-
-	if (embedded)
-		printf("# TIME\tSTORAGE\tRECV\tPKT/s\tGAP\tTCP/s\tMCAST/s\n");
 
 	if (FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
@@ -65,8 +74,10 @@ static void* stats_func(thread_handle thr)
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
 
-			printf("%s\t%s\t%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
-				   ts,
+			printf("{\"@timestamp\":\"%s\",\"app\":\"Receiver\",\"cat\":\"data_feed\","
+				"\"host\":\"%s\",\"storage\":\"%s\",\"recv\":%ld,\"pkt/s\":%.2f,\"gap\":%lu,"
+				"\"tcp/s\":%.2f,\"mcast/s\":%.2f}\n",
+				   ts, get_hostname(),
 				   mmap_file,
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
@@ -84,7 +95,6 @@ static void* stats_func(thread_handle thr)
 				   (mcast2 - mcast1) / secs / 1024);
 
 		fflush(stdout);
-
 		last_print = now;
 		pkt1 = pkt2;
 		tcp1 = tcp2;
@@ -127,7 +137,7 @@ int main(int argc, char* argv[])
 	mcast_port = atoi(argv[n++]);
 	hb = atoi(argv[n++]);
 	max_pkt_age = atoi(argv[n++]);
-
+	get_hostname();
 	if (FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_interface,
 							 DEFAULT_TTL, hb, max_pkt_age)) ||
