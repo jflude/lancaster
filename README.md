@@ -5,7 +5,7 @@ Syntax of the four test programs:-
 
 	writer STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE DELAY
 
-	publisher [-e] [-i DEVICE] [-a ADDRESS:PORT] [-t TTL] STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT \
+	publisher [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT \
 			  MULTICAST-ADDRESS:PORT HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE
 
 	subscriber [-e] STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
@@ -30,7 +30,8 @@ The multicast address in the PUBLISHER command above is safe for testing.
 
 The PUBLISHER and SUBSCRIBER programs are generic - they will work for any kind of data within a storage file/segment.
 To advertize the presence of the PUBLISHER on the network, use the -a option.  The multicast interface to publish on
-can be specified by the -i option.
+can be specified by the -i option.  Multicast traffic will "loopback" (be delivered on the sending host) if the -l
+option is specified.
 
 A POSIX shared memory segment can be used instead of a memory-mapped file - specify the name of the memory segment
 with a prefix of shm:, eg. "shm:/my_local_segment".

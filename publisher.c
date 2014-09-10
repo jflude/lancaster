@@ -19,9 +19,10 @@ static boolean embedded;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [-e] [-i DEVICE] [-a ADDRESS:PORT] [-t TTL] "
-			"STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
-			"HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n", prog);
+	fprintf(stderr, "Syntax: %s [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
+			"[-t TTL] STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT "
+			"MULTICAST-ADDRESS:PORT HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n",
+			prog);
 
 	exit(EXIT_FAILURE);
 }
@@ -117,12 +118,13 @@ int main(int argc, char* argv[])
 	const char *mcast_iface = NULL, *adv_addr = NULL;
 	char* colon;
 	int mcast_port, tcp_port, adv_port = 0;
+	boolean loopback = FALSE;
 	microsec max_pkt_age;
 	status st;
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "a:i:e")) != -1)
+	while ((opt = getopt(argc, argv, "a:ei:l")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
@@ -138,6 +140,9 @@ int main(int argc, char* argv[])
 			break;
 		case 'i':
 			mcast_iface = optarg;
+			break;
+		case 'l':
+			loopback = TRUE;
 			break;
 		case 't':
 			ttl = atoi(optarg);
@@ -175,9 +180,9 @@ int main(int argc, char* argv[])
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_iface,
-							 ttl, hb, max_pkt_age)) ||
+							 ttl, loopback, hb, max_pkt_age)) ||
 		(adv_addr &&
-		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl)) ||
+		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl, loopback)) ||
 		  FAILED(advert_publish(adv, sender)))))
 		error_report_fatal();
 

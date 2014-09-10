@@ -494,10 +494,11 @@ static status event_func(poller_handle poller, sock_handle sock,
 }
 
 static status init(sender_handle* psndr, const char* mmap_file,
-					 const char* tcp_address, unsigned short tcp_port,
-					 const char* mcast_address, unsigned short mcast_port,
-					 const char* mcast_interface, short mcast_ttl,
-					 microsec heartbeat_usec, microsec max_pkt_age_usec)
+				   const char* tcp_address, unsigned short tcp_port,
+				   const char* mcast_address, unsigned short mcast_port,
+				   const char* mcast_interface, short mcast_ttl,
+				   boolean mcast_loopback, microsec heartbeat_usec,
+				   microsec max_pkt_age_usec)
 {
 	status st;
 	BZERO(*psndr);
@@ -580,7 +581,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	if (FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock, FALSE)) ||
+		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock,
+											mcast_loopback)) ||
 		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr,
 									 mcast_address, mcast_port)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
@@ -596,7 +598,8 @@ status sender_create(sender_handle* psndr, const char* mmap_file,
 					 const char* tcp_address, unsigned short tcp_port,
 					 const char* mcast_address, unsigned short mcast_port,
 					 const char* mcast_interface, short mcast_ttl,
-					 microsec heartbeat_usec, microsec max_pkt_age_usec)
+					 boolean mcast_loopback, microsec heartbeat_usec,
+					 microsec max_pkt_age_usec)
 {
 	status st;
 	if (!psndr || !mmap_file || heartbeat_usec <= 0 ||
@@ -609,7 +612,8 @@ status sender_create(sender_handle* psndr, const char* mmap_file,
 
 	if (FAILED(st = init(psndr, mmap_file, tcp_address, tcp_port,
 						 mcast_address, mcast_port, mcast_interface,
-						 mcast_ttl, heartbeat_usec, max_pkt_age_usec))) {
+						 mcast_ttl, mcast_loopback, heartbeat_usec,
+						 max_pkt_age_usec))) {
 		error_save_last();
 		sender_destroy(psndr);
 		error_restore_last();

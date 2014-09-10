@@ -117,7 +117,8 @@ static void* mcast_func(thread_handle thr)
 }
 
 status advert_create(advert_handle* padvert, const char* mcast_address,
-					 unsigned short mcast_port, short mcast_ttl)
+					 unsigned short mcast_port, short mcast_ttl,
+					 boolean mcast_loopback)
 {
 	status st;
 	if (!mcast_address)
@@ -134,6 +135,8 @@ status advert_create(advert_handle* padvert, const char* mcast_address,
 								SOCK_DGRAM, IPPROTO_UDP)) ||
 		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
+		FAILED(st = sock_set_mcast_loopback((*padvert)->mcast_sock,
+											mcast_loopback)) ||
 		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr,
 									 mcast_address, mcast_port)) ||
 		FAILED(st = sock_bind((*padvert)->mcast_sock, (*padvert)->mcast_addr)) ||
