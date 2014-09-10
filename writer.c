@@ -5,6 +5,7 @@
 #include "error.h"
 #include "signals.h"
 #include "storage.h"
+#include "thread.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,7 +37,9 @@ static status update(identifier id, long n)
 	microsec now;
 	status st = OK;
 
-	if (signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+	if (signal_is_raised(SIGHUP) ||
+		signal_is_raised(SIGINT) ||
+		signal_is_raised(SIGTERM))
 		return FALSE;
 
 	if (FAILED(st = storage_get_record(store, id, &rec)) ||
@@ -52,15 +55,29 @@ static status update(identifier id, long n)
 	record_set_version(rec, ver);
 
 	if (FAILED(st = storage_write_queue(store, id)) ||
-		FAILED(st = storage_touch(store, now)) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))
 		return st;
 
 	return TRUE;
 }
 
+static void* touch_func(thread_handle thr)
+{
+	status st = OK;
+	while (!thread_is_stopping(thr)) {
+		microsec now;
+		if (FAILED(st = clock_time(&now)) ||
+			FAILED(st = storage_touch(store, now)) ||
+			FAILED(st = clock_sleep(1000000)))
+			break;
+	}
+
+	return (void*) (long) st;
+}
+
 int main(int argc, char* argv[])
 {
+	thread_handle touch_thread;
 	status st = OK;
 	long xyz = 0;
 
@@ -71,12 +88,14 @@ int main(int argc, char* argv[])
 
 	delay = atoi(argv[3]);
 
-	if (FAILED(signal_add_handler(SIGINT)) ||
+	if (FAILED(signal_add_handler(SIGHUP)) ||
+		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, argv[1], O_CREAT, 0, MAX_ID,
+		FAILED(storage_create(&store, argv[1], FALSE, O_CREAT, 0, MAX_ID,
 							  sizeof(struct datum), 0, atoi(argv[2]))) ||
 		FAILED(storage_set_description(store, "TEST")) ||
-		FAILED(storage_reset(store)))
+		FAILED(storage_reset(store)) ||
+		FAILED(thread_create(&touch_thread, touch_func, NULL)))
 		error_report_fatal();
 
 #ifdef SCATTER_UPDATES
@@ -98,6 +117,7 @@ int main(int argc, char* argv[])
 	}
 
 finish:
+	thread_destroy(&touch_thread);
 	storage_destroy(&store);
 
 #ifdef SCATTER_UPDATES
@@ -105,6 +125,7 @@ finish:
 #endif
 
 	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();

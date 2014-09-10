@@ -4,13 +4,14 @@
 #include "clock.h"
 #include "error.h"
 #include "sender.h"
+#include "signals.h"
 #include "sock.h"
 #include "thread.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define DISPLAY_DELAY_USEC 1000000
+#define DISPLAY_DELAY_USEC (1 * 1000000)
 
 #define ADVERT_ADDRESS "227.1.1.227"
 #define ADVERT_PORT 11227
@@ -50,6 +51,13 @@ static void* stats_func(thread_handle thr)
 		size_t pkt2, tcp2, mcast2;
 		microsec now, elapsed;
 
+		if (signal_is_raised(SIGHUP) ||
+			signal_is_raised(SIGINT) ||
+			signal_is_raised(SIGTERM)) {
+			sender_stop(sender);
+			break;
+		}
+
 		if (FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
 			FAILED(st = clock_time(&now)))
 			break;
@@ -74,8 +82,8 @@ static void* stats_func(thread_handle thr)
 				   (tcp2 - tcp1) / secs / 1024,
 				   (mcast2 - mcast1) / secs / 1024);
 		} else
-			printf("\"%.16s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
-				   "TCP KB/s: %.2f, MCAST KB/s: %.2f        \r",
+			printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
+				   "TCP KB/s: %.2f, MCAST KB/s: %.2f         \r",
 				   storage_get_description(sender_get_storage(sender)),
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
@@ -128,7 +136,10 @@ int main(int argc, char* argv[])
 	hb = atoi(argv[n++]);
 	max_pkt_age = atoi(argv[n++]);
 
-	if (FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
+	if (FAILED(signal_add_handler(SIGHUP)) ||
+		FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_interface,
 							 DEFAULT_TTL, hb, max_pkt_age)) ||
 		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
@@ -145,9 +156,15 @@ int main(int argc, char* argv[])
 
 	advert_destroy(&adv);
 	thread_destroy(&stats_thread);
-	putchar('\n');
+	sender_destroy(&sender);
 
-	if (FAILED(st))
+	if (!embedded)
+		putchar('\n');
+
+	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGHUP)) ||
+		FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 
 	return 0;

@@ -30,5 +30,5 @@ reader
 .gradle
 
 # etc
+core
 DEPEND.mk
-

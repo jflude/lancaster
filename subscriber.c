@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DISPLAY_DELAY_USEC 1000000
+#define DISPLAY_DELAY_USEC (1 * 1000000)
 
 static void syntax(const char* prog)
 {
@@ -36,6 +36,13 @@ static void* stats_func(thread_handle thr)
 		size_t pkt2, tcp2, mcast2;
 		microsec now, elapsed;
 
+		if (signal_is_raised(SIGHUP) ||
+			signal_is_raised(SIGINT) ||
+			signal_is_raised(SIGTERM)) {
+			receiver_stop(recv);
+			break;
+		}
+
 		if (FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
 			FAILED(st = clock_time(&now)))
 			break;
@@ -49,7 +56,7 @@ static void* stats_func(thread_handle thr)
 		printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
 			   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 			   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
-			   "STD/us: %.2f        \r",
+			   "STD/us: %.2f         \r",
 			   storage_get_description(receiver_get_storage(recv)),
 			   (pkt2 - pkt1) / secs,
 			   receiver_get_tcp_gap_count(recv),
@@ -92,7 +99,10 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[n++];
 	tcp_port = atoi(argv[n]);
 
-	if (FAILED(receiver_create(&recv, mmap_file, q_capacity,
+	if (FAILED(signal_add_handler(SIGHUP)) ||
+		FAILED(signal_add_handler(SIGINT)) ||
+		FAILED(signal_add_handler(SIGTERM)) ||
+		FAILED(receiver_create(&recv, mmap_file, q_capacity,
 							   0, tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, recv)))
 		error_report_fatal();
@@ -100,9 +110,14 @@ int main(int argc, char* argv[])
 	st = receiver_run(recv);
 
 	thread_destroy(&stats_thread);
+	receiver_destroy(&recv);
+
 	putchar('\n');
 
-	if (FAILED(st))
+	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGHUP)) ||
+		FAILED(signal_remove_handler(SIGINT)) ||
+		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();
 	
 	return 0;

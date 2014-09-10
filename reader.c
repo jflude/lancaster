@@ -9,8 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ORPHAN_TIMEOUT_USEC 3000000
-#define DISPLAY_DELAY_USEC 200000
+#define ORPHAN_TIMEOUT_USEC (3 * 1000000)
+#define DISPLAY_DELAY_USEC (0.2 * 1000000)
 
 static storage_handle store;
 int event;
@@ -30,7 +30,9 @@ static status update(queue_index q)
 	status st;
 	identifier id;
 
-	if (signal_is_raised(SIGINT) || signal_is_raised(SIGTERM))
+	if (signal_is_raised(SIGHUP) ||
+		signal_is_raised(SIGINT) ||
+		signal_is_raised(SIGTERM))
 		return FALSE;
 
 	id = storage_read_queue(store, q);
@@ -66,13 +68,14 @@ int main(int argc, char* argv[])
 	if (argc != 2)
 		syntax(argv[0]);
 
-	if (FAILED(signal_add_handler(SIGINT)) ||
+	if (FAILED(signal_add_handler(SIGHUP)) ||
+		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_open(&store, argv[1], O_RDONLY)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	printf("\"%.16s\", ", storage_get_description(store));
+	printf("\"%.20s\", ", storage_get_description(store));
 
 	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
@@ -99,7 +102,7 @@ int main(int argc, char* argv[])
 
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage is recreated\n", argv[0]);
+			fprintf(stderr, "%s: main: storage is recreated\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -108,7 +111,7 @@ int main(int argc, char* argv[])
 
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: error: storage is orphaned\n", argv[0]);
+			fprintf(stderr, "%s: main: storage is orphaned\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -121,10 +124,12 @@ int main(int argc, char* argv[])
 	}
 
 finish:
-	putchar('\n');
 	storage_destroy(&store);
 
+	putchar('\n');
+
 	if (FAILED(st) ||
+		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM)))
 		error_report_fatal();

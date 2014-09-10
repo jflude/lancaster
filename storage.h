@@ -12,7 +12,8 @@
 extern "C" {
 #endif
 
-#define STORAGE_VERSION 1
+#define STORAGE_MAJOR_VERSION 1
+#define STORAGE_MINOR_VERSION 0
 
 struct storage;
 typedef struct storage* storage_handle;
@@ -32,14 +33,19 @@ typedef long version;
 #define NEXT_VER(v) (((v) + 1) & VERSION_MAX)
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
-					  int open_flags, identifier base_id, identifier max_id,
-					  size_t value_size, size_t property_size, size_t q_capacity);
+					  boolean persist, int open_flags, identifier base_id,
+					  identifier max_id, size_t value_size, size_t property_size,
+					  size_t q_capacity);
 status storage_open(storage_handle* pstore, const char* mmap_file,
 					int open_flags);
 status storage_destroy(storage_handle* pstore);
 
 boolean storage_is_read_only(storage_handle store);
 status storage_set_persistence(storage_handle store, boolean persist);
+
+unsigned short storage_get_lib_version(storage_handle store);
+unsigned short storage_get_app_version(storage_handle store);
+status storage_set_app_version(storage_handle store, unsigned short app_ver);
 
 record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);

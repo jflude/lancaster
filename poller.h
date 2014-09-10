@@ -26,7 +26,8 @@ status poller_set_event(poller_handle poller, sock_handle sock,
 						short new_events);
 status poller_events(poller_handle poller, int timeout);
 status poller_process(poller_handle poller, poller_func fn, void* param);
-status poller_process_events(poller_handle poller, poller_func fn, void* param);
+status poller_process_events(poller_handle poller, poller_func event_fn,
+							 void* param);
 
 #ifdef __cplusplus
 }

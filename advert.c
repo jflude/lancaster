@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-#define SEND_DELAY_USEC (3 * 1000 * 1000)
+#define SEND_DELAY_USEC (3 * 1000000)
 
 struct notice
 {

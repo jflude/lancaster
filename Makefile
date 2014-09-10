@@ -1,6 +1,5 @@
 SRCS = \
 advert.c \
-circ.c \
 clock.c \
 dump.c \
 dict.c \
@@ -17,7 +16,7 @@ twist.c \
 xalloc.c \
 yield.c
 
-CFLAGS = -ansi -pedantic -Wall -Wextra -g \
+CFLAGS = -ansi -pedantic -Wall -Wextra -Werror -g \
 	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE
 LDLIBS = -lm
 OBJS = $(SRCS:.c=.o)
@@ -43,18 +42,18 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-all: writer publisher subscriber reader libcachester$(SO_EXT)
+all: libcachester$(SO_EXT) publisher subscriber reader writer
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
 
-writer: libcachester.a
+publisher: publisher.o libcachester.a
 
-publisher: libcachester.a
+subscriber: subscriber.o libcachester.a
 
-subscriber: libcachester.a
+reader: reader.o libcachester.a
 
-reader: libcachester.a
+writer: writer.o libcachester.a
 
 libcachester.a: $(OBJS)
 	ar -r libcachester.a $(OBJS)

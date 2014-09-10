@@ -11,7 +11,9 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
-#define ORPHAN_TIMEOUT_USEC 3000000
+#define PROTOCOL_VERSION 1
+
+#define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define IDLE_TIMEOUT_USEC 10
 #define IDLE_SLEEP_USEC 1
 
@@ -36,15 +38,15 @@ struct sender
 	identifier max_id;
 	size_t val_size;
 	size_t client_count;
-	sequence* slot_seqs;
+	sequence* record_seqs;
 	sequence next_seq;
 	sequence min_seq;
 	microsec store_created_time;
-	microsec last_activity;
+	microsec mcast_insert_time;
 	microsec mcast_send_time;
+	microsec last_active_time;
 	microsec heartbeat_usec;
 	microsec max_pkt_age_usec;
-	microsec mcast_insert_time;
 	size_t mcast_mtu;
 	char* pkt_buf;
 	char* pkt_next;
@@ -85,7 +87,7 @@ static status mcast_send_pkt(sender_handle sndr)
 								sndr->pkt_buf, sndr->pkt_next - sndr->pkt_buf)))
 		return st;
 
-	sndr->last_activity = sndr->mcast_send_time = now;
+	sndr->last_active_time = sndr->mcast_send_time = now;
 
 	SPIN_WRITE_LOCK(&sndr->stats.lock, no_ver);
 	sndr->stats.mcast_bytes_sent += st;
@@ -130,7 +132,7 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	} while (ver != record_get_version(rec));
 
 	sndr->pkt_next += sndr->val_size;
-	sndr->slot_seqs[id - sndr->base_id] = sndr->next_seq;
+	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
 
 	return clock_time(&sndr->mcast_insert_time);
 }
@@ -216,7 +218,7 @@ static status tcp_write_buf(struct tcp_client* clnt)
 		if (!FAILED(st))
 			st = st2;
 
-		clnt->sndr->last_activity = clnt->tcp_send_time;
+		clnt->sndr->last_active_time = clnt->tcp_send_time;
 
 		SPIN_WRITE_LOCK(&clnt->sndr->stats.lock, no_ver);
 		clnt->sndr->stats.tcp_bytes_sent += sent_sz;
@@ -279,7 +281,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 		FAILED(st = poller_add(sndr->poller, accepted, POLLIN | POLLOUT)))
 		return st;
 
-	sndr->last_activity = clnt->tcp_send_time;
+	sndr->last_active_time = clnt->tcp_send_time;
 
 	if (++sndr->client_count == 1) {
 		if (FAILED(st = poller_add(sndr->poller, sndr->mcast_sock, POLLOUT)) ||
@@ -369,7 +371,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 		if (IS_VALID_RANGE(clnt->reply_range)) {
 			for (; clnt->reply_id < sndr->max_id; ++clnt->reply_id) {
-				sequence seq = sndr->slot_seqs[clnt->reply_id - sndr->base_id];
+				sequence seq = sndr->record_seqs[clnt->reply_id - sndr->base_id];
 				if (seq < clnt->min_seq_found)
 					clnt->min_seq_found = seq;
 
@@ -482,15 +484,13 @@ static status event_func(poller_handle poller, sock_handle sock,
 	if (*revents & POLLHUP)
 		return tcp_on_hup(sndr, sock);
 
-	if (FAILED(st = (*revents & POLLIN
-					 ? tcp_on_read(sndr, sock)
-					 : tcp_on_read_blocked(sndr, sock))))
-		return st;
+	st = (*revents & POLLIN
+		  ? tcp_on_read(sndr, sock) : tcp_on_read_blocked(sndr, sock));
 
-	if (*revents & POLLOUT)
+	if (!FAILED(st) && *revents & POLLOUT)
 		st = tcp_on_write(sndr, sock);
 
-	return st;
+	return st == EOF ? tcp_on_hup(sndr, sock) : st;
 }
 
 static status init(sender_handle* psndr, const char* mmap_file,
@@ -517,9 +517,9 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	(*psndr)->heartbeat_usec = heartbeat_usec;
 	(*psndr)->store_created_time = storage_get_created_time((*psndr)->store);
 
-	(*psndr)->slot_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id,
+	(*psndr)->record_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id,
 								  sizeof(sequence));
-	if (!(*psndr)->slot_seqs)
+	if (!(*psndr)->record_seqs)
 		return NO_MEMORY;
 
 	if (FAILED(st = sock_create(&(*psndr)->listen_sock,
@@ -553,7 +553,7 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	st = sprintf((*psndr)->hello_str,
 				 "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 STORAGE_VERSION,
+				 PROTOCOL_VERSION,
 				 mcast_address,
 				 mcast_port,
 				 (*psndr)->mcast_mtu,
@@ -580,7 +580,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
 		FAILED(st = poller_add((*psndr)->poller,
 							   (*psndr)->listen_sock, POLLIN)) ||
-		FAILED(st = sock_addr_destroy(&sendto_if_addr)))
+		FAILED(st = sock_addr_destroy(&sendto_if_addr)) ||
+		FAILED(st = clock_time(&(*psndr)->last_active_time)))
 		(void) 0;
 
 	return st;
@@ -626,7 +627,7 @@ status sender_destroy(sender_handle* psndr)
 		return st;
 
 	XFREE((*psndr)->pkt_buf);
-	XFREE((*psndr)->slot_seqs);
+	XFREE((*psndr)->record_seqs);
 	XFREE(*psndr);
 	return st;
 }
@@ -665,7 +666,7 @@ status sender_run(sender_handle sndr)
 			break;
 		}
 
-		if ((now - sndr->last_activity) >= IDLE_TIMEOUT_USEC &&
+		if ((now - sndr->last_active_time) >= IDLE_TIMEOUT_USEC &&
 			FAILED(st = clock_sleep(IDLE_SLEEP_USEC)))
 			break;
 	}

@@ -7,7 +7,7 @@
 struct poller
 {
 	nfds_t count;
-	nfds_t free_slot;
+	nfds_t free_idx;
 	struct pollfd* fds;
 	sock_handle* socks;
 };
@@ -36,7 +36,7 @@ status poller_create(poller_handle* ppoller, int nsock)
 	}
 
 	(*ppoller)->count = nsock;
-	(*ppoller)->free_slot = 0;
+	(*ppoller)->free_idx = 0;
 	return OK;
 }
 
@@ -53,7 +53,7 @@ status poller_destroy(poller_handle* ppoller)
 
 int poller_get_count(poller_handle poller)
 {
-	return poller->free_slot;
+	return poller->free_idx;
 }
 
 status poller_add(poller_handle poller, sock_handle sock, short events)
@@ -62,7 +62,7 @@ status poller_add(poller_handle poller, sock_handle sock, short events)
 	if (!sock)
 		return error_invalid_arg("poller_add");
 
-	if (poller->free_slot == poller->count) {
+	if (poller->free_idx == poller->count) {
 		struct pollfd* new_fds;
 		sock_handle* new_socks;
 		int n = 2 * poller->count;
@@ -81,14 +81,14 @@ status poller_add(poller_handle poller, sock_handle sock, short events)
 		poller->count = n;
 	}
 
-	fds = &poller->fds[poller->free_slot];
+	fds = &poller->fds[poller->free_idx];
 
 	fds->fd = sock_get_descriptor(sock);
 	fds->events = events;
 	fds->revents = 0;
 
-	poller->socks[poller->free_slot] = sock;
-	++poller->free_slot;
+	poller->socks[poller->free_idx] = sock;
+	++poller->free_idx;
 	return OK;
 }
 
@@ -98,15 +98,15 @@ status poller_remove(poller_handle poller, sock_handle sock)
 	if (!sock)
 		return error_invalid_arg("poller_remove");
 
-	for (i = 0; i < poller->free_slot; ++i)
+	for (i = 0; i < poller->free_idx; ++i)
 		if (poller->socks[i] == sock) {
-			nfds_t j = poller->free_slot - 1;
+			nfds_t j = poller->free_idx - 1;
 			if (i != j) {
 				poller->fds[i] = poller->fds[j];
 				poller->socks[i] = poller->socks[j];
 			}
 
-			poller->free_slot--;
+			poller->free_idx--;
 			return OK;
 		}
 
@@ -120,7 +120,7 @@ status poller_set_event(poller_handle poller, sock_handle sock,
 	if (!sock)
 		return error_invalid_arg("poller_set_event");
 
-	for (i = 0; i < poller->free_slot; ++i)
+	for (i = 0; i < poller->free_idx; ++i)
 		if (poller->socks[i] == sock) {
 			poller->fds[i].events = new_events;
 			return OK;
@@ -133,7 +133,7 @@ status poller_events(poller_handle poller, int timeout)
 {
 	status st;
 loop:
-	st = poll(poller->fds, poller->free_slot, timeout);
+	st = poll(poller->fds, poller->free_idx, timeout);
 	if (st == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -151,7 +151,7 @@ status poller_process(poller_handle poller, poller_func fn, void* param)
 	if (!fn)
 		return error_invalid_arg("poller_process");
 
-	for (i = poller->free_slot - 1; i >= 0; --i)
+	for (i = poller->free_idx - 1; i >= 0; --i)
 		if (FAILED(st = fn(poller, poller->socks[i],
 						   &poller->fds[i].events, param)))
 			break;
@@ -159,17 +159,18 @@ status poller_process(poller_handle poller, poller_func fn, void* param)
 	return st;
 }
 
-status poller_process_events(poller_handle poller, poller_func fn, void* param)
+status poller_process_events(poller_handle poller, poller_func event_fn,
+							 void* param)
 {
 	int i;
 	status st = OK;
-	if (!fn)
+	if (!event_fn)
 		return error_invalid_arg("poller_process");
 
-	for (i = poller->free_slot - 1; i >= 0; --i)
+	for (i = poller->free_idx - 1; i >= 0; --i)
 		if (poller->fds[i].revents &&
-			FAILED(st = fn(poller, poller->socks[i],
-						   &poller->fds[i].revents, param)))
+			FAILED(st = event_fn(poller, poller->socks[i],
+								 &poller->fds[i].revents, param)))
 			break;
 
 	return st;

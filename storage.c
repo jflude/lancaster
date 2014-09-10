@@ -18,8 +18,10 @@ struct record
 struct segment
 {
 	unsigned magic;
+	unsigned short lib_version;
+	unsigned short app_version;
 	char description[256];
-	size_t mmap_size;
+	size_t seg_size;
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
@@ -33,6 +35,7 @@ struct segment
 	volatile version last_touched_ver;
 	size_t q_mask;
 	queue_index q_head;
+	char reserved[1024];
 	identifier change_q[1];
 };
 
@@ -42,6 +45,7 @@ struct storage
 	record_handle first;
 	record_handle limit;
 	char* mmap_file;
+	size_t mmap_size;
 	boolean is_read_only;
 	boolean is_persistent;
 	int fd;
@@ -52,16 +56,15 @@ struct storage
 	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 
 static status init_create(storage_handle* pstore, const char* mmap_file,
-						  int open_flags, identifier base_id, identifier max_id,
-						  size_t value_size, size_t property_size,
-						  size_t q_capacity)
+						  boolean persist, int open_flags, identifier base_id,
+						  identifier max_id, size_t value_size,
+						  size_t property_size, size_t q_capacity)
 {
 	status st;
 	size_t rec_sz, hdr_sz, seg_sz, page_sz, val_aln_sz, prop_offset;
 
 	BZERO(*pstore);
-
-	(*pstore)->is_persistent = TRUE;
+	(*pstore)->is_persistent = persist;
 
 	val_aln_sz = ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
 	rec_sz = offsetof(struct record, val) + val_aln_sz;
@@ -131,13 +134,16 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return error_errno("mmap");
 	}
 
+	(*pstore)->mmap_size = seg_sz;
 	(*pstore)->mmap_file = xstrdup(mmap_file);
 	if (!(*pstore)->mmap_file)
 		return NO_MEMORY;
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
 		(*pstore)->seg->magic = MAGIC_NUMBER;
-		(*pstore)->seg->mmap_size = seg_sz;
+		(*pstore)->seg->lib_version =
+			(STORAGE_MAJOR_VERSION << 8) | STORAGE_MINOR_VERSION;
+		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
 		(*pstore)->seg->val_size = value_size;
@@ -149,14 +155,17 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
 		BZERO((*pstore)->seg->description);
-	} else if ((*pstore)->seg->mmap_size != seg_sz ||
-			   (*pstore)->seg->hdr_size != hdr_sz ||
-			   (*pstore)->seg->rec_size != rec_sz ||
-			   (*pstore)->seg->val_size != value_size ||
-			   (*pstore)->seg->val_offset != offsetof(struct record, val) ||
-			   (*pstore)->seg->prop_size != property_size ||
-			   (*pstore)->seg->prop_offset != prop_offset ||
-			   (*pstore)->seg->q_mask != (q_capacity - 1))
+	} else if (((*pstore)->seg->lib_version >> 8) != STORAGE_MAJOR_VERSION)
+		return error_msg("storage_create: incompatible library version",
+						 STORAGE_WRONG_VERSION);
+	else if ((*pstore)->seg->seg_size != seg_sz ||
+			 (*pstore)->seg->hdr_size != hdr_sz ||
+			 (*pstore)->seg->rec_size != rec_sz ||
+			 (*pstore)->seg->val_size != value_size ||
+			 (*pstore)->seg->val_offset != offsetof(struct record, val) ||
+			 (*pstore)->seg->prop_size != property_size ||
+			 (*pstore)->seg->prop_offset != prop_offset ||
+			 (*pstore)->seg->q_mask != (q_capacity - 1))
 		return error_msg("storage_create: storage is unequal structure",
 						 STORAGE_CORRUPTED);
 
@@ -192,7 +201,6 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	size_t seg_sz;
 
 	BZERO(*pstore);
-
 	(*pstore)->is_persistent = TRUE;
 
 	if (open_flags == O_RDONLY)
@@ -238,12 +246,18 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		return error_errno("mmap");
 	}
 
+	(*pstore)->mmap_size = sizeof(struct segment);
+
 	if ((*pstore)->seg->magic != MAGIC_NUMBER)
 		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 
-	seg_sz = (*pstore)->seg->mmap_size;
+	if (((*pstore)->seg->lib_version >> 8) != STORAGE_MAJOR_VERSION)
+		return error_msg("storage_create: incompatible library version",
+						 STORAGE_WRONG_VERSION);
 
-	if (munmap((*pstore)->seg, sizeof(struct segment)) == -1)
+	seg_sz = (*pstore)->seg->seg_size;
+
+	if (munmap((*pstore)->seg, (*pstore)->mmap_size) == -1)
 		return error_errno("munmap");
 
 	(*pstore)->seg =
@@ -254,6 +268,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		return error_errno("mmap");
 	}
 
+	(*pstore)->mmap_size = seg_sz;
 	(*pstore)->mmap_file = xstrdup(mmap_file);
 	if (!(*pstore)->mmap_file)
 		return NO_MEMORY;
@@ -268,9 +283,9 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 }
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
-					  int open_flags, identifier base_id, identifier max_id,
-					  size_t value_size, size_t property_size,
-					  size_t q_capacity)
+					  boolean persist, int open_flags, identifier base_id,
+					  identifier max_id, size_t value_size,
+					  size_t property_size, size_t q_capacity)
 {
 	/* q_capacity must be a power of 2 */
 	status st;
@@ -284,8 +299,8 @@ status storage_create(storage_handle* pstore, const char* mmap_file,
 	if (!*pstore)
 		return NO_MEMORY;
 
-	if (FAILED(st = init_create(pstore, mmap_file, open_flags, base_id,
-								max_id, value_size, property_size,
+	if (FAILED(st = init_create(pstore, mmap_file, persist, open_flags,
+								base_id, max_id, value_size, property_size,
 								q_capacity))) {
 		error_save_last();
 		storage_destroy(pstore);
@@ -331,7 +346,7 @@ loop:
 	}
 
 	if ((*pstore)->seg) {
-		if (munmap((*pstore)->seg, (*pstore)->seg->mmap_size) == -1)
+		if (munmap((*pstore)->seg, (*pstore)->mmap_size) == -1)
 			return error_errno("munmap");
 
 		if (!(*pstore)->is_persistent) {
@@ -365,6 +380,26 @@ status storage_set_persistence(storage_handle store, boolean persist)
 	old_val = store->is_persistent;
 	store->is_persistent = persist;
 	return old_val;
+}
+
+unsigned short storage_get_lib_version(storage_handle store)
+{
+	return store->seg->lib_version;
+}
+
+unsigned short storage_get_app_version(storage_handle store)
+{
+	return store->seg->app_version;
+}
+
+status storage_set_app_version(storage_handle store, unsigned short app_ver)
+{
+	if (store->is_read_only)
+		return error_msg("storage_set_app_version: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	store->seg->app_version = app_ver;
+	return OK;
 }
 
 record_handle storage_get_array(storage_handle store)
@@ -491,7 +526,6 @@ identifier storage_read_queue(storage_handle store, queue_index index)
 
 status storage_write_queue(storage_handle store, identifier id)
 {
-	queue_index n;
 	if (store->is_read_only)
 		return error_msg("storage_write_queue: storage is read-only",
 						 STORAGE_READ_ONLY);
@@ -500,15 +534,7 @@ status storage_write_queue(storage_handle store, identifier id)
 		return error_msg("storage_write_queue: no change queue",
 						 STORAGE_NO_CHANGE_QUEUE);
 
-	do {
-		n = store->seg->q_head;
-		store->seg->change_q[n & store->seg->q_mask] = id;
-	} while (!SYNC_BOOL_COMPARE_AND_SWAP(&store->seg->q_head, n, n + 1));
-
-	if ((n + 1) < 0)
-		return error_msg("storage_write_queue: index sign overflow",
-						 SIGN_OVERFLOW);
-
+	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
 	return OK;
 }
 
@@ -562,8 +588,8 @@ status storage_sync(storage_handle store)
 		return error_msg("storage_sync: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	if (store->seg->mmap_size > 0 &&
-		msync(store->seg, store->seg->mmap_size, MS_SYNC) == -1)
+	if (store->seg->seg_size > 0 &&
+		msync(store->seg, store->seg->seg_size, MS_SYNC) == -1)
 		return error_errno("msync");
 
 	return OK;
@@ -588,7 +614,9 @@ status storage_reset(storage_handle store)
 
 void* storage_get_property_ref(storage_handle store, record_handle rec)
 {
-	return store->seg->prop_offset ? ((char*) rec + store->seg->prop_offset) : NULL;
+	return store->seg->prop_offset
+		? ((char*) rec + store->seg->prop_offset)
+		: NULL;
 }
 
 void* record_get_value_ref(record_handle rec)
