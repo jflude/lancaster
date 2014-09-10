@@ -36,6 +36,8 @@ typedef struct sock* sock_handle;
 status sock_create(sock_handle* psock, int type, int protocol);
 status sock_destroy(sock_handle* psock);
 
+status sock_get_hostname(char* name, size_t name_sz);
+
 void* sock_get_property_ref(sock_handle sock);
 void sock_set_property_ref(sock_handle sock, void* prop);
 

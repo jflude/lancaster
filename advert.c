@@ -4,7 +4,6 @@
 #include "thread.h"
 #include "xalloc.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <sys/socket.h>
 
 #define SEND_DELAY_USEC (3 * 1000000)
@@ -45,16 +44,17 @@ static const char* escape_quotes(const char* in)
 
 static status make_json_map(advert_handle advert)
 {
-	char buf[8192], host[256];
+	char buf[8192], hostname[256];
 	struct notice* it;
 	char* new_msg;
+	status st;
 
 	strcpy(buf, "{ \"hostname\" : \"");
 
-	if (gethostname(host, sizeof(host)) == -1)
-		return error_errno("gethostname");
+	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))))
+		return st;
 
-	strcat(buf, escape_quotes(host));
+	strcat(buf, escape_quotes(hostname));
 	strcat(buf, "\", \"data\" : [ ");
 
 	for (it = advert->notices; it; it = it->next) {

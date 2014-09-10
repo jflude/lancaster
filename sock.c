@@ -147,6 +147,18 @@ status sock_destroy(sock_handle* psock)
 	return st;
 }
 
+status sock_get_hostname(char* name, size_t name_sz)
+{
+	if (!name || name_sz == 0)
+		return error_invalid_arg("sock_get_hostname");
+
+	if (gethostname(name, name_sz) == -1)
+		return error_errno("sock_get_hostname");
+
+	name[name_sz - 1] = '\0';
+	return OK;
+}
+
 void* sock_get_property_ref(sock_handle sock)
 {
 	return sock->prop_ref;

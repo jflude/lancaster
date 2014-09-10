@@ -17,15 +17,14 @@
 #define ADVERT_PORT 11227
 #define DEFAULT_TTL 1
 
-static const char* mmap_file;
 static boolean embedded;
 
 static void syntax(const char* prog)
 {
 	fprintf(stderr, "Syntax: %s [-e|--embed] [storage file or segment] "
-			"[TCP address] [TCP port] [multicast interface] [multicast address]"
-			" [multicast port] [heartbeat interval] [maximum packet age]\n",
-			prog);
+			"[TCP address] [TCP port] [multicast interface] "
+			"[multicast address] [multicast port] [heartbeat interval] "
+			"[maximum packet age]\n", prog);
 
 	exit(EXIT_FAILURE);
 }
@@ -33,6 +32,7 @@ static void syntax(const char* prog)
 static void* stats_func(thread_handle thr)
 {
 	sender_handle sender = thread_get_param(thr);
+	char hostname[256];
 	microsec last_print;
 	status st;
 
@@ -40,10 +40,8 @@ static void* stats_func(thread_handle thr)
 	size_t tcp1 = sender_get_tcp_bytes_sent(sender);
 	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
 
-	if (embedded)
-		printf("# TIME\tSTORAGE\tRECV\tPKT/s\tGAP\tTCP/s\tMCAST/s\n");
-
-	if (FAILED(st = clock_time(&last_print)))
+	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
+		FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
 
 	while (!thread_is_stopping(thr)) {
@@ -73,9 +71,19 @@ static void* stats_func(thread_handle thr)
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
 
-			printf("%s\t%s\t%ld\t%.2f\t%lu\t%.2f\t%.2f\n",
+			printf("{ \"@timestamp\" : \"%s\", "
+				   "\"app\" : \"publisher\", "
+				   "\"cat\" : \"data_feed\", "
+				   "\"host\" : \"%s\", "
+				   "\"storage\" : \"%s\", "
+				   "\"recv\" : %ld, "
+				   "\"pkt/s\" : %.2f, "
+				   "\"gap\" : %lu, "
+				   "\"tcp/s\" : %.2f, "
+				   "\"mcast/s\" : %.2f }\n",
 				   ts,
-				   mmap_file,
+				   hostname,
+				   storage_get_file(sender_get_storage(sender)),
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
 				   sender_get_tcp_gap_count(sender),
@@ -92,7 +100,6 @@ static void* stats_func(thread_handle thr)
 				   (mcast2 - mcast1) / secs / 1024);
 
 		fflush(stdout);
-
 		last_print = now;
 		pkt1 = pkt2;
 		tcp1 = tcp2;
@@ -109,7 +116,7 @@ int main(int argc, char* argv[])
 	sender_handle sender;
 	thread_handle stats_thread;
 	int hb, n = 1;
-	const char *mcast_addr, *mcast_interface, *tcp_addr;
+	const char *mmap_file, *mcast_addr, *mcast_interface, *tcp_addr;
 	int mcast_port, tcp_port;
 	microsec max_pkt_age;
 	status st;
@@ -119,7 +126,7 @@ int main(int argc, char* argv[])
 	if (argc < 8 || argc > 10)
 		syntax(argv[0]);
 
-	if (!strcmp(argv[n], "-e") || !strcmp(argv[n], "--embed")) {
+	if (strcmp(argv[n], "-e") == 0 || strcmp(argv[n], "--embed") == 0) {
 		if (argc != 10)
 			syntax(argv[0]);
 
@@ -146,7 +153,7 @@ int main(int argc, char* argv[])
 		FAILED(advert_publish(adv, sender)))
 		error_report_fatal();
 
-	if (tcp_port == 0)
+	if (!embedded && tcp_port == 0)
 		printf("listening on port %d\n", sender_get_listen_port(sender));
 
 	if (FAILED(thread_create(&stats_thread, stats_func, sender)))
