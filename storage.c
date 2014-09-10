@@ -35,7 +35,7 @@ struct segment
 	volatile version last_touched_ver;
 	size_t q_mask;
 	queue_index q_head;
-	char reserved[1024];
+	union { char reserved[1024]; } new_fields;
 	identifier change_q[1];
 };
 

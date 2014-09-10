@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 
@@ -16,8 +17,8 @@ boolean embedded = FALSE;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [-e|--embed] [storage file or segment] "
-			"[change queue size] [TCP address] [TCP port]\n", prog);
+	fprintf(stderr, "Syntax: %s [-e] STORAGE-FILE-OR-SEGMENT "
+			"CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -131,28 +132,36 @@ int main(int argc, char* argv[])
 	receiver_handle recv;
 	thread_handle stats_thread;
 	const char *mmap_file, *tcp_addr;
+	char* colon;
 	int tcp_port;
 	size_t q_capacity;
-	int n = 1;
+	int opt;
 	status st;
 
 	error_set_program_name(argv[0]);
 
-	if (argc < 5 || argc > 6)
+	while ((opt = getopt(argc, argv, "e")) != -1)
+		switch (opt) {
+		case 'e':
+			embedded = TRUE;
+			break;
+		default:
+			syntax(argv[0]);
+		}
+
+	if ((argc - optind) != 3)
 		syntax(argv[0]);
 
-	if (strcmp(argv[n], "-e") == 0 || strcmp(argv[n], "--embed") == 0) {
-		if (argc != 6)
-			syntax(argv[0]);
+	mmap_file = argv[optind++];
+	q_capacity = atoi(argv[optind++]);
 
-		embedded = TRUE;
-		n++;
-	}
+	tcp_addr = argv[optind++];
+	colon = strchr(tcp_addr, ':');
+	if (!colon)
+		syntax(argv[0]);
 
-	mmap_file = argv[n++];
-	q_capacity = atoi(argv[n++]);
-	tcp_addr = argv[n++];
-	tcp_port = atoi(argv[n++]);
+	*colon = '\0';
+	tcp_port = atoi(colon + 1);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||

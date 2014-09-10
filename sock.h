@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
+#define DEFAULT_MTU 1500
 #define IP_OVERHEAD 20
 #define UDP_OVERHEAD 8
 

@@ -500,7 +500,6 @@ static status init(sender_handle* psndr, const char* mmap_file,
 					 microsec heartbeat_usec, microsec max_pkt_age_usec)
 {
 	status st;
-	sock_addr_handle sendto_if_addr = NULL;
 	BZERO(*psndr);
 
 	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
@@ -538,10 +537,23 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	if (FAILED(st = sock_create(&(*psndr)->mcast_sock,
 								SOCK_DGRAM, IPPROTO_UDP)) ||
-		FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)) ||
-		FAILED(st = sock_get_mtu((*psndr)->mcast_sock,
-								 mcast_interface, &(*psndr)->mcast_mtu)))
+		FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)))
 		return st;
+
+	if (!mcast_interface)
+		(*psndr)->mcast_mtu = DEFAULT_MTU;
+	else {
+		sock_addr_handle if_addr;
+		if (FAILED(st = sock_get_mtu((*psndr)->mcast_sock, mcast_interface,
+									 &(*psndr)->mcast_mtu)) ||
+			FAILED(st = sock_addr_create(&if_addr, NULL, 0)) ||
+			FAILED(st = sock_get_interface_address((*psndr)->mcast_sock,
+												   mcast_interface,
+												   if_addr)) ||
+			FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock, if_addr)) ||
+			FAILED(st = sock_addr_destroy(&if_addr)))
+			return st;
+	}
 
 	(*psndr)->mcast_mtu -= IP_OVERHEAD + UDP_OVERHEAD;
 
@@ -569,18 +581,11 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	if (FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock, FALSE)) ||
-		FAILED(st = sock_addr_create(&sendto_if_addr, NULL, 0)) ||
-		FAILED(st = sock_get_interface_address((*psndr)->mcast_sock,
-											   mcast_interface,
-											   sendto_if_addr)) ||
-		FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock,
-											 sendto_if_addr)) ||
 		FAILED(st = sock_addr_create(&(*psndr)->sendto_addr,
 									 mcast_address, mcast_port)) ||
 		FAILED(st = poller_create(&(*psndr)->poller, 10)) ||
 		FAILED(st = poller_add((*psndr)->poller,
 							   (*psndr)->listen_sock, POLLIN)) ||
-		FAILED(st = sock_addr_destroy(&sendto_if_addr)) ||
 		FAILED(st = clock_time(&(*psndr)->last_active_time)))
 		(void) 0;
 
@@ -671,17 +676,19 @@ status sender_run(sender_handle sndr)
 			break;
 	}
 
-	st2 = poller_process(sndr->poller, tcp_will_quit_func, sndr);
-	if (!FAILED(st))
-		st = st2;
+	if (sndr->client_count > 0) {
+		st2 = poller_process(sndr->poller, tcp_will_quit_func, sndr);
+		if (!FAILED(st))
+			st = st2;
 
-	st2 = clock_sleep(1000000);
-	if (!FAILED(st))
-		st = st2;
+		st2 = clock_sleep(1000000);
+		if (!FAILED(st))
+			st = st2;
 
-	st2 = poller_process(sndr->poller, close_sock_func, sndr);
-	if (!FAILED(st))
-		st = st2;
+		st2 = poller_process(sndr->poller, close_sock_func, sndr);
+		if (!FAILED(st))
+			st = st2;
+	}
 
 	return st;
 }

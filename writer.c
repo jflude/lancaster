@@ -24,8 +24,10 @@ static int delay;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [storage file or segment] [change queue size] "
-			"[delay]\n", prog);
+	fprintf(stderr,
+			"Syntax: %s STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE DELAY\n",
+			prog);
+
 	exit(EXIT_FAILURE);
 }
 

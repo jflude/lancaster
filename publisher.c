@@ -10,21 +10,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
-
-#define ADVERT_ADDRESS "227.1.1.227"
-#define ADVERT_PORT 11227
 #define DEFAULT_TTL 1
 
 static boolean embedded;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [-e|--embed] [storage file or segment] "
-			"[TCP address] [TCP port] [multicast interface] "
-			"[multicast address] [multicast port] [heartbeat interval] "
-			"[maximum packet age]\n", prog);
+	fprintf(stderr, "Syntax: %s [-e] [-i DEVICE] [-a ADDRESS:PORT] [-t TTL] "
+			"STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
+			"HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n", prog);
 
 	exit(EXIT_FAILURE);
 }
@@ -115,53 +112,86 @@ int main(int argc, char* argv[])
 	advert_handle adv;
 	sender_handle sender;
 	thread_handle stats_thread;
-	int hb, n = 1;
-	const char *mmap_file, *mcast_addr, *mcast_interface, *tcp_addr;
-	int mcast_port, tcp_port;
+	int hb, opt, ttl = DEFAULT_TTL;
+	const char *mmap_file, *mcast_addr, *tcp_addr;
+	const char *mcast_iface = NULL, *adv_addr = NULL;
+	char* colon;
+	int mcast_port, tcp_port, adv_port = 0;
 	microsec max_pkt_age;
 	status st;
 
 	error_set_program_name(argv[0]);
 
-	if (argc < 8 || argc > 10)
+	while ((opt = getopt(argc, argv, "a:i:e")) != -1)
+		switch (opt) {
+		case 'a':
+			adv_addr = optarg;
+			colon = strchr(adv_addr, ':');
+			if (!colon)
+				syntax(argv[0]);
+
+			*colon = '\0';
+			adv_port = atoi(colon + 1);
+			break;
+		case 'e':
+			embedded = TRUE;
+			break;
+		case 'i':
+			mcast_iface = optarg;
+			break;
+		case 't':
+			ttl = atoi(optarg);
+			break;
+		default:
+			syntax(argv[0]);
+		}
+
+	if ((argc - optind) != 5)
 		syntax(argv[0]);
 
-	if (strcmp(argv[n], "-e") == 0 || strcmp(argv[n], "--embed") == 0) {
-		if (argc != 10)
-			syntax(argv[0]);
+	mmap_file = argv[optind++];
 
-		embedded = TRUE;
-		n++;
-	}
+	tcp_addr = argv[optind++];
+	colon = strchr(tcp_addr, ':');
+	if (!colon)
+		syntax(argv[0]);
 
-	mmap_file = argv[n++];
-	tcp_addr = argv[n++];
-	tcp_port = atoi(argv[n++]);
-	mcast_interface = argv[n++];
-	mcast_addr = argv[n++];
-	mcast_port = atoi(argv[n++]);
-	hb = atoi(argv[n++]);
-	max_pkt_age = atoi(argv[n++]);
+	*colon = '\0';
+	tcp_port = atoi(colon + 1);
+
+	mcast_addr = argv[optind++];
+	colon = strchr(mcast_addr, ':');
+	if (!colon)
+		syntax(argv[0]);
+
+	*colon = '\0';
+	mcast_port = atoi(colon + 1);
+
+	hb = atoi(argv[optind++]);
+	max_pkt_age = atoi(argv[optind++]);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
-							 mcast_addr, mcast_port, mcast_interface,
-							 DEFAULT_TTL, hb, max_pkt_age)) ||
-		FAILED(advert_create(&adv, ADVERT_ADDRESS, ADVERT_PORT, DEFAULT_TTL)) ||
-		FAILED(advert_publish(adv, sender)))
+							 mcast_addr, mcast_port, mcast_iface,
+							 ttl, hb, max_pkt_age)) ||
+		(adv_addr &&
+		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl)) ||
+		  FAILED(advert_publish(adv, sender)))))
 		error_report_fatal();
 
 	if (!embedded && tcp_port == 0)
-		printf("listening on port %d\n", sender_get_listen_port(sender));
+		printf("listening on port %d\n", (int) sender_get_listen_port(sender));
 
 	if (FAILED(thread_create(&stats_thread, stats_func, sender)))
 		error_report_fatal();
 
 	st = sender_run(sender);
 
-	advert_destroy(&adv);
+	if (adv_addr)
+		advert_destroy(&adv);
+
 	thread_destroy(&stats_thread);
 	sender_destroy(&sender);
 

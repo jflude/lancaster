@@ -17,7 +17,7 @@ int event;
 
 static void syntax(const char* prog)
 {
-	fprintf(stderr, "Syntax: %s [storage file or segment]\n", prog);
+	fprintf(stderr, "Syntax: %s STORAGE-FILE-OR-SEGMENT\n", prog);
 	exit(EXIT_FAILURE);
 }
 
