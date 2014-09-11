@@ -19,9 +19,7 @@ const char* error_get_program_name(void)
 void error_set_program_name(const char* name)
 {
 	strncpy(prog_name, name, sizeof(prog_name) - 2);
-	prog_name[sizeof(prog_name) - 3] = '\0';
-
-	strcat(prog_name, ": ");
+	prog_name[sizeof(prog_name) - 1] = '\0';
 }
 
 int error_last_code(void)
@@ -67,8 +65,10 @@ int error_msg(const char* msg, int code, ...)
 	last_code = code;
 	last_msg[0] = '\0';
 
-	if (prog_name[0] != '\0')
+	if (prog_name[0] != '\0') {
 		strcpy(last_msg, prog_name);
+		strcat(last_msg, ": ");
+	}
 
 	strncat(last_msg, buf, sizeof(last_msg) - strlen(last_msg) - 1);
 
