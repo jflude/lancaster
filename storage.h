@@ -80,6 +80,11 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
 
+status storage_grow(storage_handle store, storage_handle* pnewstore,
+					const char* new_mmap_file, identifier new_base_id,
+					identifier new_max_id, size_t new_value_size,
+					size_t new_property_size, size_t new_q_capacity);
+
 void* storage_get_property_ref(storage_handle store, record_handle rec);
 void* record_get_value_ref(record_handle rec);
 

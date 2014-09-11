@@ -15,11 +15,18 @@
 
 boolean embedded = FALSE;
 
-static void syntax(const char* prog)
+static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-e] STORAGE-FILE-OR-SEGMENT "
-			"CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT\n", prog);
+	fprintf(stderr, "Syntax: %s [-v] [-e] STORAGE-FILE CHANGE-QUEUE-SIZE "
+			"TCP-ADDRESS:PORT\n", error_get_program_name());
+
 	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("subscriber 1.0\n");
+	exit(EXIT_SUCCESS);
 }
 
 static void* stats_func(thread_handle thr)
@@ -140,17 +147,19 @@ int main(int argc, char* argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "e")) != -1)
+	while ((opt = getopt(argc, argv, "ev")) != -1)
 		switch (opt) {
 		case 'e':
 			embedded = TRUE;
 			break;
+		case 'v':
+			show_version();
 		default:
-			syntax(argv[0]);
+			show_syntax();
 		}
 
 	if ((argc - optind) != 3)
-		syntax(argv[0]);
+		show_syntax();
 
 	mmap_file = argv[optind++];
 	q_capacity = atoi(argv[optind++]);
@@ -158,7 +167,7 @@ int main(int argc, char* argv[])
 	tcp_addr = argv[optind++];
 	colon = strchr(tcp_addr, ':');
 	if (!colon)
-		syntax(argv[0]);
+		show_syntax();
 
 	*colon = '\0';
 	tcp_port = atoi(colon + 1);

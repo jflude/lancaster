@@ -8,8 +8,13 @@
 #include <string.h>
 
 static volatile int msg_lock;
-static char prog_name[64], last_msg[256], saved_msg[256];
+static char prog_name[128], last_msg[256], saved_msg[256];
 static int last_code, saved_code, saved_errno;
+
+const char* error_get_program_name(void)
+{
+	return prog_name;
+}
 
 void error_set_program_name(const char* name)
 {

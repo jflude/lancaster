@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+const char* error_get_program_name(void);
 void error_set_program_name(const char* name);
 
 int error_last_code(void);

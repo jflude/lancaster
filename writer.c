@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* #define SCATTER_UPDATES */
 
@@ -22,13 +23,18 @@ static twist_handle twister;
 static storage_handle store;
 static int delay;
 
-static void syntax(const char* prog)
+static void show_syntax(void)
 {
-	fprintf(stderr,
-			"Syntax: %s STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE DELAY\n",
-			prog);
+	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE "
+			"CHANGE-QUEUE-SIZE DELAY\n", error_get_program_name());
 
 	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("writer 1.0\n");
+	exit(EXIT_SUCCESS);
 }
 
 static status update(identifier id, long n)
@@ -85,8 +91,14 @@ int main(int argc, char* argv[])
 
 	error_set_program_name(argv[0]);
 
+	if (argc < 2)
+		show_syntax();
+
+	if (strcmp(argv[1], "-v") == 0)
+		show_version();
+
 	if (argc != 4)
-		syntax(argv[0]);
+		show_syntax();
 
 	delay = atoi(argv[3]);
 

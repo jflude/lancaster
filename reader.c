@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define DISPLAY_DELAY_USEC (0.2 * 1000000)
@@ -15,10 +16,16 @@
 static storage_handle store;
 int event;
 
-static void syntax(const char* prog)
+static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s STORAGE-FILE-OR-SEGMENT\n", prog);
+	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
 	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("reader 1.0\n");
+	exit(EXIT_SUCCESS);
 }
 
 static status update(queue_index q)
@@ -66,7 +73,10 @@ int main(int argc, char* argv[])
 	error_set_program_name(argv[0]);
 
 	if (argc != 2)
-		syntax(argv[0]);
+		show_syntax();
+
+	if (strcmp(argv[1], "-v") == 0)
+		show_version();
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||

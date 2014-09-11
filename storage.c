@@ -60,7 +60,6 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 						  identifier max_id, size_t value_size,
 						  size_t property_size, size_t q_capacity)
 {
-	status st;
 	size_t rec_sz, hdr_sz, seg_sz, page_sz, val_aln_sz, prop_offset;
 
 	BZERO(*pstore);
@@ -188,10 +187,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		SYNC_SYNCHRONIZE();
 	}
 
-	if (FAILED(st = clock_time(&(*pstore)->seg->last_created)))
-		return st;
-
-	return OK;
+	return clock_time(&(*pstore)->seg->last_created);
 }
 
 static status init_open(storage_handle* pstore, const char* mmap_file,
@@ -612,11 +608,67 @@ status storage_reset(storage_handle store)
 	return OK;
 }
 
+status storage_grow(storage_handle store, storage_handle* pnewstore,
+					const char* new_mmap_file, identifier new_base_id,
+					identifier new_max_id, size_t new_value_size,
+					size_t new_property_size, size_t new_q_capacity)
+{
+	status st;
+	size_t copy_sz;
+	record_handle old_r, new_r;
+
+	if (!pnewstore || !new_mmap_file ||
+		strcmp(new_mmap_file, store->mmap_file) == 0)
+		return error_invalid_arg("storage_grow");
+
+	if (FAILED(st = storage_create(pnewstore, new_mmap_file, FALSE,
+								   O_CREAT | O_TRUNC, new_base_id, new_max_id,
+								   new_value_size, new_property_size,
+								   new_q_capacity)))
+		return st;
+
+	copy_sz = sizeof(version) +
+		(store->seg->val_size < (*pnewstore)->seg->val_size
+		 ? store->seg->val_size : (*pnewstore)->seg->val_size);
+
+	for (old_r = store->first, new_r = (*pnewstore)->first;
+		 old_r < store->limit && new_r < (*pnewstore)->limit;
+		 old_r = RECORD_ADDR(store, old_r, 1),
+			 new_r = RECORD_ADDR(*pnewstore, new_r, 1))
+		memcpy(new_r, old_r, copy_sz);
+
+	SYNC_SYNCHRONIZE();
+
+	if (new_property_size > 0) {
+		copy_sz = (store->seg->prop_size < (*pnewstore)->seg->prop_size
+				   ? store->seg->prop_size : (*pnewstore)->seg->prop_size);
+
+		for (old_r = store->first, new_r = (*pnewstore)->first;
+			 old_r < store->limit && new_r < (*pnewstore)->limit;
+			 old_r = RECORD_ADDR(store, old_r, 1),
+				 new_r = RECORD_ADDR(*pnewstore, new_r, 1))
+			memcpy((char*) new_r + (*pnewstore)->seg->prop_offset,
+				   (char*) old_r + store->seg->prop_offset, copy_sz);
+	}
+
+	(*pnewstore)->seg->app_version = store->seg->app_version;
+	strcpy((*pnewstore)->seg->description, store->seg->description);
+
+	if (FAILED(st = clock_time(&(*pnewstore)->seg->last_created))) {
+		error_save_last();
+		storage_destroy(pnewstore);
+		error_restore_last();
+		return st;
+	}
+
+	(*pnewstore)->is_persistent = store->is_persistent;
+	return OK;
+}
+
 void* storage_get_property_ref(storage_handle store, record_handle rec)
 {
 	return store->seg->prop_offset
-		? ((char*) rec + store->seg->prop_offset)
-		: NULL;
+		? ((char*) rec + store->seg->prop_offset) : NULL;
 }
 
 void* record_get_value_ref(record_handle rec)

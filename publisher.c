@@ -17,14 +17,20 @@
 
 static boolean embedded;
 
-static void syntax(const char* prog)
+static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
-			"[-t TTL] STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT "
-			"MULTICAST-ADDRESS:PORT HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n",
-			prog);
+	fprintf(stderr, "Syntax: %s [-v] [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
+			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
+			"HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n",
+			error_get_program_name());
 
 	exit(EXIT_FAILURE);
+}
+
+static void show_version(void)
+{
+	printf("publisher 1.0\n");
+	exit(EXIT_SUCCESS);
 }
 
 static void* stats_func(thread_handle thr)
@@ -124,13 +130,13 @@ int main(int argc, char* argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "a:ei:l")) != -1)
+	while ((opt = getopt(argc, argv, "a:ei:lv")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
 			colon = strchr(adv_addr, ':');
 			if (!colon)
-				syntax(argv[0]);
+				show_syntax();
 
 			*colon = '\0';
 			adv_port = atoi(colon + 1);
@@ -147,19 +153,21 @@ int main(int argc, char* argv[])
 		case 't':
 			ttl = atoi(optarg);
 			break;
+		case 'v':
+			show_version();
 		default:
-			syntax(argv[0]);
+			show_syntax();
 		}
 
 	if ((argc - optind) != 5)
-		syntax(argv[0]);
+		show_syntax();
 
 	mmap_file = argv[optind++];
 
 	tcp_addr = argv[optind++];
 	colon = strchr(tcp_addr, ':');
 	if (!colon)
-		syntax(argv[0]);
+		show_syntax();
 
 	*colon = '\0';
 	tcp_port = atoi(colon + 1);
@@ -167,7 +175,7 @@ int main(int argc, char* argv[])
 	mcast_addr = argv[optind++];
 	colon = strchr(mcast_addr, ':');
 	if (!colon)
-		syntax(argv[0]);
+		show_syntax();
 
 	*colon = '\0';
 	mcast_port = atoi(colon + 1);

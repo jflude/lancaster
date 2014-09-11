@@ -19,6 +19,8 @@ writer
 publisher
 subscriber
 reader
+attrib
+grow
 
 # Editor files
 *~
