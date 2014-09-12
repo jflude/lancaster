@@ -13,20 +13,20 @@
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 
-boolean embedded = FALSE;
+boolean as_json = FALSE;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-e] STORAGE-FILE CHANGE-QUEUE-SIZE "
+	fprintf(stderr, "Syntax: %s [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE "
 			"TCP-ADDRESS:PORT\n", error_get_program_name());
 
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void show_version(void)
 {
 	printf("subscriber 1.0\n");
-	exit(EXIT_SUCCESS);
+	exit(0);
 }
 
 static void* stats_func(thread_handle thr)
@@ -58,14 +58,10 @@ static void* stats_func(thread_handle thr)
 		size_t pkt2, tcp2, mcast2;
 		microsec now, elapsed;
 
-		if (signal_is_raised(SIGHUP) ||
-			signal_is_raised(SIGINT) ||
-			signal_is_raised(SIGTERM)) {
-			receiver_stop(recv);
-			break;
-		}
-
-		if (FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
+		if (FAILED(st = signal_is_raised(SIGHUP)) ||
+			FAILED(st = signal_is_raised(SIGINT)) ||
+			FAILED(st = signal_is_raised(SIGTERM)) ||
+			FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
 			FAILED(st = clock_time(&now)))
 			break;
 
@@ -75,7 +71,7 @@ static void* stats_func(thread_handle thr)
 		tcp2 = receiver_get_tcp_bytes_recv(recv);
 		mcast2 = receiver_get_mcast_bytes_recv(recv);
 
-		if (embedded) {
+		if (as_json) {
 			char ts[64];
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
@@ -130,6 +126,8 @@ static void* stats_func(thread_handle thr)
 		mcast1 = mcast2;
 	}
 
+	receiver_stop(recv);
+
 	putchar('\n');
 	return (void*) (long) st;
 }
@@ -143,14 +141,14 @@ int main(int argc, char* argv[])
 	int tcp_port;
 	size_t q_capacity;
 	int opt;
-	status st;
+	void* stats_result;
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "ev")) != -1)
+	while ((opt = getopt(argc, argv, "jv")) != -1)
 		switch (opt) {
-		case 'e':
-			embedded = TRUE;
+		case 'j':
+			as_json = TRUE;
 			break;
 		case 'v':
 			show_version();
@@ -177,22 +175,20 @@ int main(int argc, char* argv[])
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&recv, mmap_file, q_capacity,
 							   0, tcp_addr, tcp_port)) ||
-		FAILED(thread_create(&stats_thread, stats_func, recv)))
-		error_report_fatal();
-
-	st = receiver_run(recv);
-
-	thread_destroy(&stats_thread);
-	receiver_destroy(&recv);
-
-	if (!embedded)
-		putchar('\n');
-
-	if (FAILED(st) ||
+		FAILED(thread_create(&stats_thread, stats_func, recv)) ||
+		FAILED(receiver_run(recv)) ||
+		FAILED(thread_stop(stats_thread, &stats_result)) ||
+		FAILED(thread_destroy(&stats_thread)) ||
+		FAILED((status) (long) stats_result) ||
+		FAILED(receiver_destroy(&recv)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
-		FAILED(signal_remove_handler(SIGTERM)))
-		error_report_fatal();
+		FAILED(signal_remove_handler(SIGTERM))) {
+		if (!as_json)
+			putchar('\n');
 	
+		error_report_fatal();
+	}
+
 	return 0;
 }

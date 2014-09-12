@@ -42,7 +42,7 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer attrib grow
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
@@ -55,9 +55,9 @@ reader: reader.o libcachester.a
 
 writer: writer.o libcachester.a
 
-attrib: attrib.o libcachester.a
+inspector: inspector.o libcachester.a
 
-grow: grow.o libcachester.a
+grower: grower.o libcachester.a
 
 libcachester.a: $(OBJS)
 	ar -r libcachester.a $(OBJS)
@@ -70,17 +70,17 @@ DEPEND.mk:
 
 depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-	    writer.c publisher.c subscriber.c reader.c attrib.c grow.c \
+	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
 	    $(SRCS)
 
 clean:
 	rm -rf libcachester.a libcachester$(SO_EXT) \
 	    writer writer.o publisher publisher.o \
 	    subscriber subscriber.o reader reader.o \
-		attrib.o attrib grow.o grow \
+		inspector.o inspector grower.o grower \
 		reader.dSYM writer.dSYM \
 		publisher.dSYM subscriber.dSYM \
-		attrib.dSYM grow.dSYM \
+		inspector.dSYM grower.dSYM \
 	    $(OBJS)
 
 distclean: clean

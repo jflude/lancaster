@@ -43,7 +43,7 @@ void error_report_fatal(void)
 	if (fputs(last_msg, stderr) == EOF || fputc('\n', stderr) == EOF)
 		abort();
 
-	exit(EXIT_FAILURE);
+	exit(-last_code);
 }
 
 int error_msg(const char* msg, int code, ...)
@@ -78,7 +78,7 @@ int error_msg(const char* msg, int code, ...)
 
 static int format(const char* func, const char* desc, int code)
 {
-	return error_msg("%s: %s", code, func, (desc ? desc : strerror(code)));
+	return error_msg("%s: %s", code, func, desc);
 }
 
 int error_eof(const char* func)
@@ -88,7 +88,7 @@ int error_eof(const char* func)
 		error_report_fatal();
 	}
 
-	return format(func, "end of file", EOF);
+	return format(func, "end of file", EOF + CACHESTER_ERROR_BASE);
 }
 
 int error_errno(const char* func)
@@ -98,27 +98,19 @@ int error_errno(const char* func)
 		error_report_fatal();
 	}
 
-	return -format(func, NULL, errno);
+	return -format(func, strerror(errno), ERRNO_ERROR_BASE - errno);
 }
 
 int error_invalid_arg(const char* func)
 {
-	if (!func) {
-		error_invalid_arg("error_invalid_arg");
-		error_report_fatal();
-	}
-
-	return -format(func, NULL, EINVAL);
+	errno = EINVAL;
+	return error_errno(func);
 }
 
 int error_unimplemented(const char* func)
 {
-	if (!func) {
-		error_invalid_arg("error_unimplemented");
-		error_report_fatal();
-	}
-
-	return -format(func, NULL, ENOSYS);
+	errno = ENOSYS;
+	return error_errno(func);
 }
 
 void error_save_last(void)

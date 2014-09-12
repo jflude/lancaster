@@ -1,5 +1,6 @@
 #include "signals.h"
 #include "error.h"
+#include <string.h>
 #include <stddef.h>
 
 #ifndef NSIG
@@ -49,7 +50,8 @@ status signal_is_raised(int sig)
 	if (sig < 1 || sig >= NSIG)
 		return error_invalid_arg("signal_is_raised");
 
-	return is_raised[sig];
+	return is_raised[sig]
+		? error_msg("%s", SIG_ERROR_BASE - sig, sys_siglist[sig]) : OK;
 }
 
 status signal_clear(int sig)

@@ -1,48 +1,122 @@
-CACHESTER - a C library for high performance, reliable multicasting of ephemeral data
-=====================================================================================
+CACHESTER - fast, reliable multicasting of ephemeral data
+=========================================================
 
-Syntax of the four test programs:-
+The software consists of a C library, libcachester, provided in both static and
+dynamic forms, together with six utility programs for use in production and
+development environments.
 
-	writer STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE DELAY
+Any questions, bug reports, suggested improvements etc. - please contact
+Justin Flude <jflude@peak6.com>
 
-	publisher [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] STORAGE-FILE-OR-SEGMENT TCP-ADDRESS:PORT \
-			  MULTICAST-ADDRESS:PORT HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE
+	  		   ===============================================
 
-	subscriber [-e] STORAGE-FILE-OR-SEGMENT CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
+	writer [-v] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
 
-	reader STORAGE-FILE-OR-SEGMENT
+	reader [-v] STORAGE-FILE
 
-For example, you might run the WRITER and PUBLISHER commands on pslchi6dpricedev45 (10.2.2.152), port 23266:-
+These are test programs which write and read data to/from a "storage" and check
+whether what is read is what was written, in the correct order.
 
-	jflude@pslchi6dpricedev45:~$ writer /tmp/his_local_file 4096
-	jflude@pslchi6dpricedev45:~$ publisher /tmp/his_local_file 10.2.2.152:23266 227.1.1.34:56134 500000 10000
+Storages are arrays of records, each having an identifier, contained within a
+regular file on disk, such as "/tmp/my_file", or a POSIX shared memory segment,
+which is specified with a URI-like prefix of shm, eg. "shm:/my_segment".
+Storages can persist across runs (although the storages created by the test
+programs do not).
 
-...and run the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
+A "change queue" is an optional section of a storage used as a circular buffer
+containing the identifiers of records recently modified.  The size of a change
+queue must be either zero, or a non-zero power of two.
 
-	jflude@pslchi6dpricedev42:~$ subscriber /tmp/her_local_file 4096 10.2.2.152:23266
-	jflude@pslchi6dpricedev42:~$ reader /tmp/her_local_file
+WRITER will create a storage with a change queue of the given size, then update
+slots with ascending values at a speed determined by DELAY (the number of
+microseconds to pause after each write, which can be zero).
 
-"Delay" is the number of microseconds the WRITER should pause after updating a datum.  It can be zero, to
-write at maximum speed.  "Heartbeat interval" is the number of microseconds between multicast and TCP heartbeats
-sent by the PUBLISHER to SUBSCRIBERs.  "Change queue size" must be a power of 2.
+READER outputs a hexadecimal digit every fifth of a second to indicate the
+integrity of the read data - its value is the bitwise OR-ing of the following
+numbers, indicating which conditions occured in this last "tick":-
 
-The multicast address in the PUBLISHER command above is safe for testing.
+	0 - no data was read
+	1 - data was read
+	2 - data was read out-of-order to what was written
+	4 - change queue was overrun
 
-The PUBLISHER and SUBSCRIBER programs are generic - they will work for any kind of data within a storage file/segment.
-To advertize the presence of the PUBLISHER on the network, use the -a option.  The multicast interface to publish on
-can be specified by the -i option.  Multicast traffic will "loopback" (be delivered on the sending host) if the -l
-option is specified.
+	  		   ===============================================
 
-A POSIX shared memory segment can be used instead of a memory-mapped file - specify the name of the memory segment
-with a prefix of shm:, eg. "shm:/my_local_segment".
+	publisher [-v] [-j] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] \
+			  STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT \
+			  HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
 
-All of these commands except WRITER will output some diagnostic information, so they should be run in separate terminals.
-Alternatively, their standard output can be suppressed by redirecting to /dev/null.  Note also that it possible to run
-the WRITER and READER "offline", ie. on the same machine without a PUBLISHER-SUBSCRIBER networking intermediary.
+	subscriber [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
 
-The -e option causes the PUBLISHER and SUBSCRIBER to output "embedded" statistics information, in JSON format.
+These are production-ready, generic programs to establish a multicast transport
+between a process wanting to publish data and one or more processes on multiple
+hosts wanting to receive it.  PUBLISHER looks for a storage to read from (such
+as one created by WRITER).  It will listen on TCP-ADDRESS:PORT for connections
+from subscribers.  When one is made, PUBLISHER will send the subscriber the
+MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds it
+should expect to receive heartbeats in the absence of data (PUBLISHER will send
+separate heartbeats over both the TCP and multicast channels).  PUBLISHER will
+attempt to fill a UDP packet with data before sending it, but will send a
+partial packet if the data in it is more than MAX-PACKET-AGE microseconds old.
+PUBLISHER will send multicast data over the DEVICE interface rather than the
+system's default, if the -i option is specified.  Multicast data will be sent
+with a TTL other than 1 if the -t option is specified.  Multicast data will
+"loopback" (be delivered also on the sending host) if the -l option is
+specified, which enables testing on a single host.  PUBLISHER will "advertize"
+its existence by multicasting its connection and storage details every second,
+if the -a option is specified.
 
-	jflude@pslchi6dpricedev45:~$ writer /tmp/my_local_file 4096
-	jflude@pslchi6dpricedev45:~$ reader /tmp/my_local_file
+SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
+the attributes that PUBLISHER sends it, create a storage similar in structure
+to PUBLISHER's (except for the change queue size, which is specified for 
+SUBSCRIBER independently).  Data read by PUBLISHER is multicast to SUBSCRIBER
+and written to SUBSCRIBER's storage.
 
-Any questions, bug reports, suggested improvements etc. - please contact Justin Flude <jflude@peak6.com>
+Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
+output of networking statistics to be output in JSON format.
+
+A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
+and SUBSCRIBER and READER on another.  For example, if the former were to be
+run on pslchi6dpricedev45 (10.2.2.152):-
+
+	dev45$ writer /tmp/his_local_file 4096
+	dev45$ publisher /tmp/his_local_file 10.2.2.152:23266 227.1.1.34:56134 \
+		   			 500000 10000
+
+...and the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
+
+	dev42$ subscriber shm:/her_local_segment 4096 10.2.2.152:23266
+	dev42$ reader shm:/her_local_segment
+
+	  		   ===============================================
+
+	inspector [-v] STORAGE-FILE
+
+	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
+		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
+
+These are utility programs to show and modify the attributes (dimensions) of
+a storage.  INSPECTOR simply outputs the attribute values of a storage, such as
+the size of a record within it, the size of its change queue, the description
+associated with it, etc.  The GROWER program will create a new storage based
+upon an existing storage, and containing the same data copied to its records (as
+applicable).  Any attribute of the old storage can be carried over unchanged to
+the new storage, by specifying "=" for it.  For example, to create a new storage
+"new_store" that is identical to the existing "old_store", except for having a
+change queue capacity of 1024 records:-
+
+	dev45$ grower old_store new_store = = = = 1024
+
+Expanding or contracting a storage can be done by specifying different values
+for the base and maximumI IDs.
+
+	  		   ===============================================
+
+Exit statuses: the programs will return a unique value for each kind of error
+that causes them to quit.  The meaning of the various values is as follows:-
+
+0       - no error
+1       - syntax error
+128-192 - received a signal (subtract 128 to determine which signal)
+1000+   - C library error (cf. definitions in errno.h, after subtracting 1000)
+2000+   - Cachester library error (cf. definitions in status.h)

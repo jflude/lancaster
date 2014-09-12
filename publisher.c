@@ -15,22 +15,22 @@
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 #define DEFAULT_TTL 1
 
-static boolean embedded;
+static boolean as_json;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-e] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
+	fprintf(stderr, "Syntax: %s [-v] [-j] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
 			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
-			"HEARTBEAT-INTERVAL MAXIMUM-PACKET-AGE\n",
+			"HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void show_version(void)
 {
 	printf("publisher 1.0\n");
-	exit(EXIT_SUCCESS);
+	exit(0);
 }
 
 static void* stats_func(thread_handle thr)
@@ -53,14 +53,10 @@ static void* stats_func(thread_handle thr)
 		size_t pkt2, tcp2, mcast2;
 		microsec now, elapsed;
 
-		if (signal_is_raised(SIGHUP) ||
-			signal_is_raised(SIGINT) ||
-			signal_is_raised(SIGTERM)) {
-			sender_stop(sender);
-			break;
-		}
-
-		if (FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
+		if (FAILED(st = signal_is_raised(SIGHUP)) ||
+			FAILED(st = signal_is_raised(SIGINT)) ||
+			FAILED(st = signal_is_raised(SIGTERM)) ||
+			FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
 			FAILED(st = clock_time(&now)))
 			break;
 
@@ -70,7 +66,7 @@ static void* stats_func(thread_handle thr)
 		tcp2 = sender_get_tcp_bytes_sent(sender);
 		mcast2 = sender_get_mcast_bytes_sent(sender);
 
-		if (embedded) {
+		if (as_json) {
 			char ts[64];
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
@@ -110,6 +106,8 @@ static void* stats_func(thread_handle thr)
 		mcast1 = mcast2;
 	}
 
+	sender_stop(sender);
+
 	putchar('\n');
 	return (void*) (long) st;
 }
@@ -126,11 +124,11 @@ int main(int argc, char* argv[])
 	int mcast_port, tcp_port, adv_port = 0;
 	boolean loopback = FALSE;
 	microsec max_pkt_age;
-	status st;
+	void* stats_result;
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "a:ei:lv")) != -1)
+	while ((opt = getopt(argc, argv, "a:ji:lv")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
@@ -141,8 +139,8 @@ int main(int argc, char* argv[])
 			*colon = '\0';
 			adv_port = atoi(colon + 1);
 			break;
-		case 'e':
-			embedded = TRUE;
+		case 'j':
+			as_json = TRUE;
 			break;
 		case 'i':
 			mcast_iface = optarg;
@@ -194,28 +192,24 @@ int main(int argc, char* argv[])
 		  FAILED(advert_publish(adv, sender)))))
 		error_report_fatal();
 
-	if (!embedded && tcp_port == 0)
+	if (!as_json && tcp_port == 0)
 		printf("listening on port %d\n", (int) sender_get_listen_port(sender));
 
-	if (FAILED(thread_create(&stats_thread, stats_func, sender)))
-		error_report_fatal();
-
-	st = sender_run(sender);
-
-	if (adv_addr)
-		advert_destroy(&adv);
-
-	thread_destroy(&stats_thread);
-	sender_destroy(&sender);
-
-	if (!embedded)
-		putchar('\n');
-
-	if (FAILED(st) ||
+	if (FAILED(thread_create(&stats_thread, stats_func, sender)) ||
+		FAILED(sender_run(sender)) ||
+		FAILED(thread_stop(stats_thread, &stats_result)) ||
+		FAILED(thread_destroy(&stats_thread)) ||
+		FAILED((status) (long) stats_result) ||
+		(adv_addr && FAILED(advert_destroy(&adv))) ||
+		FAILED(sender_destroy(&sender)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
-		FAILED(signal_remove_handler(SIGTERM)))
+		FAILED(signal_remove_handler(SIGTERM))) {
+		if (!as_json)
+			putchar('\n');
+
 		error_report_fatal();
+	}
 
 	return 0;
 }

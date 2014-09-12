@@ -19,13 +19,13 @@ int event;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void show_version(void)
 {
 	printf("reader 1.0\n");
-	exit(EXIT_SUCCESS);
+	exit(0);
 }
 
 static status update(queue_index q)
@@ -37,14 +37,14 @@ static status update(queue_index q)
 	status st;
 	identifier id;
 
-	if (signal_is_raised(SIGHUP) ||
-		signal_is_raised(SIGINT) ||
-		signal_is_raised(SIGTERM))
-		return FALSE;
+	if (FAILED(st = signal_is_raised(SIGHUP)) ||
+		FAILED(st = signal_is_raised(SIGINT)) ||
+		FAILED(st = signal_is_raised(SIGTERM)))
+		return st;
 
 	id = storage_read_queue(store, q);
 	if (id == -1)
-		return TRUE;
+		return OK;
 
 	if (FAILED(st = storage_get_record(store, id, &rec)))
 		return st;
@@ -60,7 +60,7 @@ static status update(queue_index q)
 	if (q > xyz)
 		event |= 2;
 
-	return TRUE;
+	return OK;
 }
 
 int main(int argc, char* argv[])
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
 
-	while (!signal_is_raised(SIGINT) && !signal_is_raised(SIGTERM)) {
+	for (;;) {
 		queue_index q, new_head = storage_get_queue_head(store);
 		microsec now;
 		if (new_head == old_head) {
@@ -104,16 +104,21 @@ int main(int argc, char* argv[])
 			}
 
 			for (q = old_head; q < new_head; ++q)
-				if (FAILED(st = update(q)) || !st)
+				if (FAILED(st = update(q)))
 					goto finish;
 
 			old_head = new_head;
 		}
 
+		if (FAILED(st = signal_is_raised(SIGHUP)) ||
+			FAILED(st = signal_is_raised(SIGINT)) ||
+			FAILED(st = signal_is_raised(SIGTERM)))
+			break;
+
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
 			fprintf(stderr, "%s: main: storage is recreated\n", argv[0]);
-			exit(EXIT_FAILURE);
+			exit(-STORAGE_RECREATED);
 		}
 
 		if (FAILED(clock_time(&now)))
@@ -122,7 +127,7 @@ int main(int argc, char* argv[])
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
 			fprintf(stderr, "%s: main: storage is orphaned\n", argv[0]);
-			exit(EXIT_FAILURE);
+			exit(-STORAGE_ORPHANED);
 		}
 
 		if ((now - last_print) >= DISPLAY_DELAY_USEC) {
@@ -134,11 +139,10 @@ int main(int argc, char* argv[])
 	}
 
 finish:
-	storage_destroy(&store);
-
 	putchar('\n');
 
 	if (FAILED(st) ||
+		FAILED(storage_destroy(&store)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM)))

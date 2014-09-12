@@ -11,13 +11,13 @@
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void show_version(void)
 {
-	printf("attrib 1.0\n");
-	exit(EXIT_SUCCESS);
+	printf("inspector 1.0\n");
+	exit(0);
 }
 
 int main(int argc, char* argv[])
@@ -65,6 +65,8 @@ int main(int argc, char* argv[])
 		   created_time,
 		   touched_time);
 
-	storage_destroy(&store);
+	if (FAILED(storage_destroy(&store)))
+		error_report_fatal();
+
 	return 0;
 }

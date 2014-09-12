@@ -16,13 +16,13 @@ static void show_syntax(void)
 			"NEW-MAX-ID NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY\n",
 			error_get_program_name());
 
-	exit(EXIT_FAILURE);
+	exit(1);
 }
 
 static void show_version(void)
 {
-	printf("grow 1.0\n");
-	exit(EXIT_SUCCESS);
+	printf("grower 1.0\n");
+	exit(0);
 }
 
 int main(int argc, char* argv[])
@@ -53,10 +53,10 @@ int main(int argc, char* argv[])
 
 	if (FAILED(storage_grow(old_store, &new_store, argv[2], new_base_id,
 							new_max_id, new_val_size, new_prop_size,
-							new_q_capacity)))
+							new_q_capacity)) ||
+		FAILED(storage_destroy(&old_store)) ||
+		FAILED(storage_destroy(&new_store)))
 		error_report_fatal();
 
-	storage_destroy(&old_store);
-	storage_destroy(&new_store);
 	return 0;
 }

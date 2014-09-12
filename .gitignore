@@ -19,8 +19,8 @@ writer
 publisher
 subscriber
 reader
-attrib
-grow
+inspector
+grower
 
 # Editor files
 *~
