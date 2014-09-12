@@ -139,9 +139,10 @@ status sock_create(sock_handle* psock, int type, int protocol)
 status sock_destroy(sock_handle* psock)
 {
 	status st = OK;
-	if (!psock || !*psock ||
-		FAILED(st = sock_close(*psock)))
+	if (!psock || !*psock)
 		return st;
+
+	st = sock_close(*psock);
 
 	XFREE(*psock);
 	return st;

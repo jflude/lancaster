@@ -310,8 +310,18 @@ static status close_sock_func(poller_handle poller, sock_handle sock,
 	if (FAILED(st = poller_remove(poller, sock)))
 		return st;
 
-	st = sock_close(sock);
-	sock_destroy(&sock);
+	return sock_destroy(&sock);
+}
+
+static status tcp_on_hup(sender_handle sndr, sock_handle sock)
+{
+	status st;
+	if (FAILED(st = close_sock_func(sndr->poller, sock, NULL, NULL)))
+		return st;
+
+	if (--sndr->client_count == 0)
+		st = poller_remove(sndr->poller, sndr->mcast_sock);
+
 	return st;
 }
 
@@ -340,18 +350,6 @@ static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
 	return st;
 }
 
-static status tcp_on_hup(sender_handle sndr, sock_handle sock)
-{
-	status st;
-	if (FAILED(st = close_sock_func(sndr->poller, sock, NULL, NULL)))
-		return st;
-
-	if (--sndr->client_count == 0)
-		st = poller_remove(sndr->poller, sndr->mcast_sock);
-
-	return st;
-}
-
 static status tcp_on_write(sender_handle sndr, sock_handle sock)
 {
 	struct tcp_client* clnt = sock_get_property_ref(sock);
@@ -360,8 +358,6 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 	status st = tcp_write_buf(clnt);
 	if (st == BLOCKED)
 		st = OK;
-	else if (st == EOF || st == ETIMEDOUT)
-		return tcp_on_hup(sndr, sock);
 	else if (FAILED(st))
 		return st;
 
@@ -437,8 +433,6 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	status st = tcp_read_buf(clnt);
 	if (st == BLOCKED)
 		st = OK;
-	else if (st == EOF || st == ETIMEDOUT)
-		return tcp_on_hup(sndr, sock);
 	else if (FAILED(st))
 		return st;
 
@@ -490,7 +484,7 @@ static status event_func(poller_handle poller, sock_handle sock,
 	if (!FAILED(st) && *revents & POLLOUT)
 		st = tcp_on_write(sndr, sock);
 
-	return st == EOF ? tcp_on_hup(sndr, sock) : st;
+	return FAILED(st) ? tcp_on_hup(sndr, sock) : st;
 }
 
 static status init(sender_handle* psndr, const char* mmap_file,
