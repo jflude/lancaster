@@ -34,3 +34,5 @@ grower
 # etc
 core
 DEPEND.mk
+attrib
+grow

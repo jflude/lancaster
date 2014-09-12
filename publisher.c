@@ -71,18 +71,16 @@ static void* stats_func(thread_handle thr)
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
 
-			printf("{ \"@timestamp\" : \"%s\", "
-				   "\"app\" : \"publisher\", "
-				   "\"cat\" : \"data_feed\", "
-				   "\"host\" : \"%s\", "
-				   "\"storage\" : \"%s\", "
-				   "\"recv\" : %ld, "
-				   "\"pkt/s\" : %.2f, "
-				   "\"gap\" : %lu, "
-				   "\"tcp/s\" : %.2f, "
-				   "\"mcast/s\" : %.2f }\n",
+			printf("{\"@timestamp\":\"%s\", "
+				   "\"app\":\"publisher\", "
+				   "\"cat\":\"data_feed\", "
+				   "\"storage\":\"%s\", "
+				   "\"recv\":%ld, "
+				   "\"pkt/s\":%.2f, "
+				   "\"gap\":%lu, "
+				   "\"tcp/s\":%.2f, "
+				   "\"mcast/s\":%.2f}\n",
 				   ts,
-				   hostname,
 				   storage_get_file(sender_get_storage(sender)),
 				   sender_get_receiver_count(sender),
 				   (pkt2 - pkt1) / secs,
