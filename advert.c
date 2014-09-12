@@ -49,13 +49,13 @@ static status make_json_map(advert_handle advert)
 	char* new_msg;
 	status st;
 
-	strcpy(buf, "{ \"hostname\" : \"");
+	strcpy(buf, "{\"hostname\":\"");
 
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))))
 		return st;
 
 	strcat(buf, escape_quotes(hostname));
-	strcat(buf, "\", \"data\" : [ ");
+	strcat(buf, "\", \"data\":[");
 
 	for (it = advert->notices; it; it = it->next) {
 		strcat(buf, it->json_desc);
@@ -63,7 +63,7 @@ static status make_json_map(advert_handle advert)
 			strcat(buf, ", ");
 	}
 
-	strcat(buf, " ] }");
+	strcat(buf, "]}");
 
 	new_msg = xstrdup(buf);
 	if (!new_msg)
@@ -82,7 +82,7 @@ static status make_json_map(advert_handle advert)
 static status make_json_notice(sender_handle sender, char** pjson)
 {
 	char buf[512];
-	int n = sprintf(buf, "{ \"port\" : %d, \"description\" : \"%s\" }",
+	int n = sprintf(buf, "{\"port\":%d, \"description\":\"%s\"}",
 					sender_get_listen_port(sender),
 					escape_quotes(
 						storage_get_description(sender_get_storage(sender))));
