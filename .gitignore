@@ -30,9 +30,8 @@ grower
 
 # Build files
 .gradle
+DEPEND.mk
 
 # etc
 core
-DEPEND.mk
-attrib
-grow
+core.*

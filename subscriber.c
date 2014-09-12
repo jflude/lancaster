@@ -76,20 +76,20 @@ static void* stats_func(thread_handle thr)
 			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
 				break;
 
-			printf("{ \"@timestamp\" : \"%s\", "
-				   "\"app\" : \"subscriber\", "
-				   "\"cat\" : \"data_feed\", "
-				   "\"host\" : \"%s\", "
-				   "\"alias\" : \"%s\", "
-				   "\"storage\" : \"%.20s\", "
-				   "\"pkt/s\" : %.2f, "
-				   "\"gap\" : %lu, "
-				   "\"tcp_kb/s\" : %.2f, "
-				   "\"mcast_kb/s\" : %.2f, "
-				   "\"min/us\" : %.2f, "
-				   "\"avg/us\" : %.2f, "
-				   "\"max/us\" : %.2f, "
-				   "\"std/us\" : %.2f }\n",
+			printf("{ \"@timestamp\":\"%s\", "
+				   "\"app\":\"subscriber\", "
+				   "\"cat\":\"data_feed\", "
+				   "\"host\":\"%s\", "
+				   "\"alias\":\"%s\", "
+				   "\"storage\":\"%.20s\", "
+				   "\"pkt/s\":%.2f, "
+				   "\"gap\":%lu, "
+				   "\"tcp_kb/s\":%.2f, "
+				   "\"mcast_kb/s\":%.2f, "
+				   "\"min/us\":%.2f, "
+				   "\"avg/us\":%.2f, "
+				   "\"max/us\":%.2f, "
+				   "\"std/us\":%.2f }\n",
 				   ts,
 				   hostname,
 				   alias,
