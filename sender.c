@@ -108,7 +108,7 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 {
 	status st;
 	version ver;
-	record_handle rec;
+	record_handle rec = NULL;
 	size_t avail_sz = sndr->mcast_mtu - (sndr->pkt_next - sndr->pkt_buf);
 
 	if (avail_sz < (sizeof(identifier) + sndr->val_size) &&
@@ -372,7 +372,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					clnt->min_seq_found = seq;
 
 				if (IS_WITHIN_RANGE(clnt->reply_range, seq)) {
-					record_handle rec;
+					record_handle rec = NULL;
 					version ver;
 					void* val_at;
 					if (FAILED(st = storage_get_record(sndr->store,

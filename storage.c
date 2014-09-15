@@ -9,51 +9,12 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-struct record
-{
-	volatile version ver;
-	char val[1];
-};
-
-struct segment
-{
-	unsigned magic;
-	unsigned short lib_version;
-	unsigned short app_version;
-	char description[256];
-	size_t seg_size;
-	size_t hdr_size;
-	size_t rec_size;
-	size_t val_size;
-	size_t val_offset;
-	size_t prop_size;
-	size_t prop_offset;
-	identifier base_id;
-	identifier max_id;
-	microsec last_created;
-	microsec last_touched;
-	volatile version last_touched_ver;
-	size_t q_mask;
-	queue_index q_head;
-	union { char reserved[1024]; } new_fields;
-	identifier change_q[1];
-};
-
-struct storage
-{
-	struct segment* seg;
-	record_handle first;
-	record_handle limit;
-	char* mmap_file;
-	size_t mmap_size;
-	boolean is_read_only;
-	boolean is_persistent;
-	int fd;
-};
+#ifndef NDEBUG
+#define INLINE
+#include "storage.inl"
+#endif
 
 #define MAGIC_NUMBER 0x0C0FFEE0
-#define RECORD_ADDR(stg, base, idx) \
-	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 
 static status init_create(storage_handle* pstore, const char* mmap_file,
 						  boolean persist, int open_flags, identifier base_id,
@@ -61,6 +22,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 						  size_t property_size, size_t q_capacity)
 {
 	size_t rec_sz, hdr_sz, seg_sz, page_sz, val_aln_sz, prop_offset;
+	status st;
 
 	BZERO(*pstore);
 	(*pstore)->is_persistent = persist;
@@ -139,7 +101,6 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return NO_MEMORY;
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
-		(*pstore)->seg->magic = MAGIC_NUMBER;
 		(*pstore)->seg->lib_version =
 			(STORAGE_MAJOR_VERSION << 8) | STORAGE_MINOR_VERSION;
 		(*pstore)->seg->seg_size = seg_sz;
@@ -174,20 +135,27 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 			   ((*pstore)->seg->q_mask + 1) * sizeof(identifier));
 
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
-	(*pstore)->limit = RECORD_ADDR(*pstore, (*pstore)->first, max_id - base_id);
+	(*pstore)->limit =
+		RECORD_ADDRESS(*pstore, (*pstore)->first, max_id - base_id);
 
 	if ((open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
 		record_handle r;
 		for (r = (*pstore)->first;
 			 r < (*pstore)->limit;
-			 r = RECORD_ADDR(*pstore, r, 1))
+			 r = RECORD_ADDRESS(*pstore, r, 1))
 			if (r->ver < 0)
 				r->ver &= ~SPIN_MASK(r->ver);
 
 		SYNC_SYNCHRONIZE();
 	}
 
-	return clock_time(&(*pstore)->seg->last_created);
+	if (FAILED(st = clock_time(&(*pstore)->seg->last_created)))
+		return st;
+
+	if (open_flags & (O_CREAT | O_TRUNC))
+		(*pstore)->seg->magic = MAGIC_NUMBER;
+
+	return st;
 }
 
 static status init_open(storage_handle* pstore, const char* mmap_file,
@@ -273,8 +241,8 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		(void*) (((char*) (*pstore)->seg) + (*pstore)->seg->hdr_size);
 
 	(*pstore)->limit = 
-		RECORD_ADDR(*pstore, (*pstore)->first,
-					(*pstore)->seg->max_id - (*pstore)->seg->base_id);
+		RECORD_ADDRESS(*pstore, (*pstore)->first,
+					   (*pstore)->seg->max_id - (*pstore)->seg->base_id);
 	return OK;
 }
 
@@ -515,11 +483,6 @@ queue_index storage_get_queue_head(storage_handle store)
 	return store->seg->q_head;
 }
 
-identifier storage_read_queue(storage_handle store, queue_index index)
-{
-	return store->seg->change_q[index & store->seg->q_mask];
-}
-
 status storage_write_queue(storage_handle store, identifier id)
 {
 	if (store->is_read_only)
@@ -548,20 +511,6 @@ status storage_get_id(storage_handle store, record_handle rec,
 	return OK;
 }
 
-status storage_get_record(storage_handle store, identifier id,
-						  record_handle* prec)
-{
-	if (!prec)
-		return error_invalid_arg("storage_get_record");
-
-	if (id < store->seg->base_id || id >= store->seg->max_id)
-		return error_msg("storage_get_record: invalid identifier",
-						 STORAGE_INVALID_SLOT);
-
-	*prec = RECORD_ADDR(store, store->first, id - store->seg->base_id);
-	return OK;
-}
-
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 					   record_handle prev, void* param)
 {
@@ -569,9 +518,9 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 	if (!iter_fn)
 		return error_invalid_arg("storage_iterate");
 
-	for (prev = (prev ? RECORD_ADDR(store, prev, 1) : store->first);
+	for (prev = (prev ? RECORD_ADDRESS(store, prev, 1) : store->first);
 		 prev < store->limit; 
-		 prev = RECORD_ADDR(store, prev, 1))
+		 prev = RECORD_ADDRESS(store, prev, 1))
 		if (FAILED(st = iter_fn(prev, param)) || !st)
 			break;
 
@@ -633,8 +582,8 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 
 	for (old_r = store->first, new_r = (*pnewstore)->first;
 		 old_r < store->limit && new_r < (*pnewstore)->limit;
-		 old_r = RECORD_ADDR(store, old_r, 1),
-			 new_r = RECORD_ADDR(*pnewstore, new_r, 1))
+		 old_r = RECORD_ADDRESS(store, old_r, 1),
+			 new_r = RECORD_ADDRESS(*pnewstore, new_r, 1))
 		memcpy(new_r, old_r, copy_sz);
 
 	SYNC_SYNCHRONIZE();
@@ -645,8 +594,8 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 
 		for (old_r = store->first, new_r = (*pnewstore)->first;
 			 old_r < store->limit && new_r < (*pnewstore)->limit;
-			 old_r = RECORD_ADDR(store, old_r, 1),
-				 new_r = RECORD_ADDR(*pnewstore, new_r, 1))
+			 old_r = RECORD_ADDRESS(store, old_r, 1),
+				 new_r = RECORD_ADDRESS(*pnewstore, new_r, 1))
 			memcpy((char*) new_r + (*pnewstore)->seg->prop_offset,
 				   (char*) old_r + store->seg->prop_offset, copy_sz);
 	}
@@ -681,21 +630,9 @@ version record_get_version(record_handle rec)
 	return rec->ver;
 }
 
-void record_set_version(record_handle rec, version ver)
-{
-	SPIN_UNLOCK(&rec->ver, ver);
-}
-
 version record_read_lock(record_handle rec)
 {
 	version old_ver;
 	SPIN_READ_LOCK(&rec->ver, old_ver);
-	return old_ver;
-}
-
-version record_write_lock(record_handle rec)
-{
-	version old_ver;
-	SPIN_WRITE_LOCK(&rec->ver, old_ver);
 	return old_ver;
 }

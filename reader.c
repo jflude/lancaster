@@ -30,7 +30,7 @@ static void show_version(void)
 
 static status update(queue_index q)
 {
-	record_handle rec;
+	record_handle rec = NULL;
 	struct datum* d;
 	version ver;
 	long xyz;

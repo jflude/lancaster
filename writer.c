@@ -37,7 +37,7 @@ static void show_version(void)
 
 static status update(identifier id, long n)
 {
-	record_handle rec;
+	record_handle rec = NULL;
 	struct datum* d;
 	version ver;
 	microsec now;

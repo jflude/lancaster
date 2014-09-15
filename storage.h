@@ -93,6 +93,11 @@ void record_set_version(record_handle rec, version ver);
 version record_read_lock(record_handle rec);
 version record_write_lock(record_handle rec);
 
+#ifdef NDEBUG
+#define INLINE extern __inline__
+#include "storage.inl"
+#endif
+
 #ifdef __cplusplus
 }
 #endif

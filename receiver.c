@@ -105,7 +105,7 @@ static status update_record(receiver_handle recv, sequence seq,
 {
 	status st;
 	version ver;
-	record_handle rec;
+	record_handle rec = NULL;
 
 	if (FAILED(st = storage_get_record(recv->store, id, &rec)))
 		return st;
