@@ -51,7 +51,7 @@ int error_msg(const char* msg, int code, ...)
 	char buf[256];
 	va_list ap;
 
-	if (!msg) {
+	if (!msg || code >= 0) {
 		error_invalid_arg("error_msg");
 		error_report_fatal();
 	}
@@ -98,7 +98,7 @@ int error_errno(const char* func)
 		error_report_fatal();
 	}
 
-	return -format(func, strerror(errno), ERRNO_ERROR_BASE - errno);
+	return format(func, strerror(errno), ERRNO_ERROR_BASE - errno);
 }
 
 int error_invalid_arg(const char* func)

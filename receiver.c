@@ -473,12 +473,13 @@ status receiver_run(receiver_handle recv)
 			 ? INITIAL_MC_HB_USEC : recv->timeout_usec);
 
 		if ((now - recv->mcast_recv_time) >= mc_hb_usec) {
-			error_msg("receiver_run: no multicast heartbeat", st = NO_HEARTBEAT);
+			st = error_msg("receiver_run: no multicast heartbeat",
+						   NO_HEARTBEAT);
 			break;
 		}
 
 		if ((now - recv->tcp_recv_time) >= recv->timeout_usec) {
-			error_msg("receiver_run: no TCP heartbeat", st = NO_HEARTBEAT);
+			st = error_msg("receiver_run: no TCP heartbeat", NO_HEARTBEAT);
 			break;
 		}
 

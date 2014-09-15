@@ -11,8 +11,8 @@ typedef int boolean;
 typedef int status;
 
 #define SIG_ERROR_BASE -128
-#define ERRNO_ERROR_BASE -1000
-#define CACHESTER_ERROR_BASE -2000
+#define ERRNO_ERROR_BASE 10
+#define CACHESTER_ERROR_BASE 0
 
 #define OK 0
 /* #define EOF (CACHESTER_ERROR_BASE - 1) */
