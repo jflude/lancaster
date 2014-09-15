@@ -21,6 +21,8 @@ subscriber
 reader
 inspector
 grower
+grow
+attrib
 
 # Editor files
 *~
