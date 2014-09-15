@@ -19,7 +19,7 @@ int event;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
-	exit(1);
+	exit(SYNTAX_ERROR);
 }
 
 static void show_version(void)

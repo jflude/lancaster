@@ -116,7 +116,7 @@ Exit statuses: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
 
 0       - no error
-1       - syntax error
-2-19  	- Cachester library error (cf. definitions in status.h, after negating)
-25-127	- C library error (cf. definitions in errno.h, after adding 10)
-128+	- received a signal (subtract 128 to determine which signal)
+1-127  	- C library error (if errno < 128; cf. errno.h)
+128-192 - received a signal (cf. kill -l after subtracting 128)
+200-205	- C library error (if errno >= 128; cf. errno.h after subtracting 70)
+220-255	- Cachester library error (cf. status.h, after negating)

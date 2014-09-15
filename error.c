@@ -98,7 +98,9 @@ int error_errno(const char* func)
 		error_report_fatal();
 	}
 
-	return format(func, strerror(errno), ERRNO_ERROR_BASE - errno);
+	return format(func, strerror(errno),
+				  ERRNO_ERROR_BASE_1 - (errno < 128
+										? errno : errno + ERRNO_ERROR_BASE_2));
 }
 
 int error_invalid_arg(const char* func)
