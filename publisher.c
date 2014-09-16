@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
 	boolean loopback = FALSE;
 	microsec max_pkt_age;
 	void* stats_result;
-	char* env;
+	char* env = "";
 
 	error_set_program_name(argv[0]);
 
@@ -150,12 +150,11 @@ int main(int argc, char* argv[])
 		case 't':
 			ttl = atoi(optarg);
 			break;
-		case 'v':
-			show_version();
-			break;
 		case 'e':
 			env = optarg;
 			break;
+		case 'v':
+			show_version();
 		default:
 			show_syntax();
 		}
