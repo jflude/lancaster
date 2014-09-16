@@ -21,6 +21,7 @@ struct advert
 	sock_addr_handle mcast_addr;
 	thread_handle mcast_thr;
 	char* json_msg;
+	const char* env;
 	size_t json_sz;
 	struct notice* notices;
 	volatile int lock;
@@ -55,6 +56,8 @@ static status make_json_map(advert_handle advert)
 		return st;
 
 	strcat(buf, escape_quotes(hostname));
+	strcat(buf, "\",\"env\":\"");
+	strcat(buf, advert->env);
 	strcat(buf, "\", \"data\":[");
 
 	for (it = advert->notices; it; it = it->next) {
@@ -118,7 +121,7 @@ static void* mcast_func(thread_handle thr)
 
 status advert_create(advert_handle* padvert, const char* mcast_address,
 					 unsigned short mcast_port, short mcast_ttl,
-					 boolean mcast_loopback)
+					 boolean mcast_loopback, const char* env)
 {
 	status st;
 	if (!mcast_address)
@@ -130,6 +133,7 @@ status advert_create(advert_handle* padvert, const char* mcast_address,
 
 	BZERO(*padvert);
 	SPIN_CREATE(&(*padvert)->lock);
+	(*padvert)->env=env;
 
 	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
 								SOCK_DGRAM, IPPROTO_UDP)) ||

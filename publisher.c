@@ -20,7 +20,7 @@ static boolean as_json;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-j] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
-			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
+			"[-t TTL] [-e ENV] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
 			"HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
@@ -123,10 +123,11 @@ int main(int argc, char* argv[])
 	boolean loopback = FALSE;
 	microsec max_pkt_age;
 	void* stats_result;
+	char* env;
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "a:ji:lv")) != -1)
+	while ((opt = getopt(argc, argv, "a:ji:lve:")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
@@ -151,6 +152,10 @@ int main(int argc, char* argv[])
 			break;
 		case 'v':
 			show_version();
+			break;
+		case 'e':
+			env = optarg;
+			break;
 		default:
 			show_syntax();
 		}
@@ -186,7 +191,7 @@ int main(int argc, char* argv[])
 							 mcast_addr, mcast_port, mcast_iface,
 							 ttl, loopback, hb, max_pkt_age)) ||
 		(adv_addr &&
-		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl, loopback)) ||
+		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl, loopback, env)) ||
 		  FAILED(advert_publish(adv, sender)))))
 		error_report_fatal();
 
