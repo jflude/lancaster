@@ -14,8 +14,8 @@
 #define PROTOCOL_VERSION 1
 
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
-#define IDLE_TIMEOUT_USEC 10
-#define IDLE_SLEEP_USEC 1
+#define IDLE_TIMEOUT_USEC 100
+#define IDLE_SLEEP_USEC 10
 
 struct sender_stats
 {

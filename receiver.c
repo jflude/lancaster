@@ -18,11 +18,9 @@
 
 #define PROTOCOL_VERSION 1
 
-#define RECV_BUFSIZ (64 * 1024)
+#define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)
 #define INITIAL_MC_HB_USEC (2 * 1000000)
-#define IDLE_TIMEOUT_USEC 10
-#define IDLE_SLEEP_USEC 1
 
 struct receiver_stats
 {
@@ -57,7 +55,6 @@ struct receiver
 	microsec mcast_recv_time;
 	microsec tcp_recv_time;
 	microsec touched_time;
-	microsec last_active_time;
 	microsec timeout_usec;
 	sock_addr_handle orig_src_addr;
 	sock_addr_handle last_src_addr;
@@ -118,18 +115,25 @@ static status update_record(receiver_handle recv, sequence seq,
 	return storage_write_queue(recv->store, id);
 }
 
-static void request_gap(receiver_handle recv, sequence low, sequence high)
+static status request_gap(receiver_handle recv, sequence low, sequence high)
 {
 	struct sequence_range* r = (struct sequence_range*) recv->out_buf;
+	status st;
+
 	r->low = htonll(low);
 	r->high = htonll(high);
 
 	recv->out_next = recv->out_buf;
 	recv->out_remain = sizeof(struct sequence_range);
 
+	if (FAILED(st = poller_set_event(recv->poller, recv->tcp_sock,
+									 POLLIN | POLLOUT)))
+		return st;
+
 	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
 	++recv->stats.tcp_gap_count;
 	SPIN_UNLOCK(&recv->stats.lock, no_ver);
+	return st;
 }
 
 static status mcast_on_read(receiver_handle recv)
@@ -158,7 +162,7 @@ static status mcast_on_read(receiver_handle recv)
 						 UNEXPECTED_SOURCE, address);
 	}
 
-	recv->last_active_time = recv->mcast_recv_time = now;
+	recv->mcast_recv_time = now;
 
 	if (FAILED(st = update_stats(recv, st2, now, in_stamp_ref)))
 		return st;
@@ -183,7 +187,9 @@ static status mcast_on_read(receiver_handle recv)
 	}
 
 	if (*in_seq_ref > recv->next_seq) {
-		request_gap(recv, recv->next_seq, *in_seq_ref);
+		if (FAILED(st = request_gap(recv, recv->next_seq, *in_seq_ref)))
+			return st;
+
 		recv->next_seq = *in_seq_ref;
 	}
 
@@ -210,8 +216,6 @@ static status tcp_read_buf(receiver_handle recv)
 		status st2 = clock_time(&recv->tcp_recv_time);
 		if (!FAILED(st))
 			st = st2;
-
-		recv->last_active_time = recv->tcp_recv_time;
 
 		SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
 		recv->stats.tcp_bytes_recv += recv_sz;
@@ -241,6 +245,9 @@ static status tcp_on_write(receiver_handle recv)
 	status st = tcp_write_buf(recv);
 	if (st == BLOCKED)
 		st = OK;
+
+	if (recv->out_remain == 0)
+		st = poller_set_event(recv->poller, recv->tcp_sock, POLLIN);
 
 	return st;
 }
@@ -397,10 +404,9 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		!FAILED(st = poller_add((*precv)->poller,
 								(*precv)->mcast_sock, POLLIN)) &&
 		!FAILED(st = poller_add((*precv)->poller,
-								(*precv)->tcp_sock, POLLIN | POLLOUT)) &&
-		!FAILED(st = clock_time(&(*precv)->last_active_time)))
-		(*precv)->tcp_recv_time = 
-			(*precv)->mcast_recv_time = (*precv)->last_active_time;
+								(*precv)->tcp_sock, POLLIN)) &&
+		!FAILED(st = clock_time(&(*precv)->mcast_recv_time)))
+		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
 
 	sock_addr_destroy(&bind_addr);
 	sock_addr_destroy(&mcast_addr);
@@ -460,7 +466,7 @@ status receiver_run(receiver_handle recv)
 
 	while (!recv->is_stopping) {
 		microsec now, mc_hb_usec;
-		if (FAILED(st = poller_events(recv->poller, 0)) ||
+		if (FAILED(st = poller_events(recv->poller, 10)) ||
 			(st > 0 && FAILED(st = poller_process_events(recv->poller,
 														 event_func, recv))) ||
 			FAILED(st = clock_time(&now)) ||
@@ -482,10 +488,6 @@ status receiver_run(receiver_handle recv)
 			st = error_msg("receiver_run: no TCP heartbeat", NO_HEARTBEAT);
 			break;
 		}
-
-		if ((now - recv->last_active_time) >= IDLE_TIMEOUT_USEC &&
-			FAILED(st = clock_sleep(IDLE_SLEEP_USEC)))
-			break;
 	}
 
 	return st;
