@@ -71,7 +71,7 @@ static void* stats_func(thread_handle thr)
 				   "\"app\":\"subscriber\", "
 				   "\"cat\":\"data_feed\", "
 				   "\"alias\":\"%s\", "
-				   "\"storage\":\"%.20s\", "
+				   "\"storage\":\"%s\", "
 				   "\"pkt/s\":%.2f, "
 				   "\"gap\":%lu, "
 				   "\"tcp_kb/s\":%.2f, "
