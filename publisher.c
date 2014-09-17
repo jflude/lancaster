@@ -84,14 +84,13 @@ static void* stats_func(thread_handle thr)
 					   "\"storage\":\"%s\", "
 					   "\"recv\":%ld, "
 					   "\"pkt/s\":%.2f, "
-					   "\"gap\":%lu, "
-					   "\"tcp/s\":%.2f, "
-					   "\"mcast/s\":%.2f, "
-					   "\"qMin/us\":%.2f, "
-					   "\"qMean/us\":%.2f, "
-					   "\"qMax/us\":%.2f, "
-					   "\"qStdDev/us\":%.2f"
-					   "}\n",
+					   "\"gap/s\":%lu, "
+					   "\"tcp_kb/s\":%.2f, "
+					   "\"mcast_kb/s\":%.2f, "
+					   "\"q.min/us\":%.2f, "
+					   "\"q.avg/us\":%.2f, "
+					   "\"q.max/us\":%.2f, "
+					   "\"q.std/us\":%.2f}\n",
 					   ts,
 					   storage_get_file(store),
 					   sender_get_receiver_count(sender),

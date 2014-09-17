@@ -73,7 +73,7 @@ static void* stats_func(thread_handle thr)
 				   "\"alias\":\"%s\", "
 				   "\"storage\":\"%s\", "
 				   "\"pkt/s\":%.2f, "
-				   "\"gap\":%lu, "
+				   "\"gap/s\":%lu, "
 				   "\"tcp_kb/s\":%.2f, "
 				   "\"mcast_kb/s\":%.2f, "
 				   "\"min/us\":%.2f, "
