@@ -1,5 +1,8 @@
 #include "receiver.h"
 #include "clock.h"
+
+#include "dump.h"
+
 #include "error.h"
 #include "h2n2h.h"
 #include "poller.h"
@@ -21,6 +24,12 @@
 #define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)
 #define INITIAL_MC_HB_USEC (2 * 1000000)
+
+#ifdef DEBUG_PROTOCOL
+#include "dump.h"
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 struct receiver_stats
 {
@@ -61,6 +70,9 @@ struct receiver
 	struct receiver_stats* next_stats;
 	volatile int stats_lock;
 	volatile boolean is_stopping;
+#ifdef DEBUG_PROTOCOL
+	FILE* debug_file;
+#endif
 };
 
 static status update_stats(receiver_handle recv, size_t pkt_sz,
@@ -106,6 +118,14 @@ static status update_record(receiver_handle recv, sequence seq,
 	memcpy(record_get_value_ref(rec), new_val, recv->val_size);
 	record_set_version(rec, NEXT_VER(ver));
 
+#ifdef DEBUG_PROTOCOL
+	fprintf(recv->debug_file,
+			"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
+			seq, id, NEXT_VER(ver));
+
+	fdump(record_get_value_ref(rec), 16, recv->debug_file);
+#endif
+
 	recv->record_seqs[id - recv->base_id] = seq;
 	return storage_write_queue(recv->store, id);
 }
@@ -114,6 +134,10 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 {
 	struct sequence_range* r = (struct sequence_range*) recv->out_buf;
 	status st;
+
+#ifdef DEBUG_PROTOCOL
+	fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n", low, high);
+#endif
 
 	r->low = htonll(low);
 	r->high = htonll(high);
@@ -168,6 +192,11 @@ static status mcast_on_read(receiver_handle recv)
 		return st;
 
 	*in_seq_ref = ntohll(*in_seq_ref);
+
+#ifdef DEBUG_PROTOCOL
+	fprintf(recv->debug_file, "mcast recv seq %07ld\n", *in_seq_ref);
+#endif
+
 	if (*in_seq_ref < 0)
 		*in_seq_ref = -*in_seq_ref;
 	else {
@@ -268,11 +297,17 @@ static status tcp_on_read(receiver_handle recv)
 			*in_seq_ref = ntohll(*in_seq_ref);
 
 			if (*in_seq_ref == WILL_QUIT_SEQ) {
+#ifdef DEBUG_PROTOCOL
+				fprintf(recv->debug_file, "WILL QUIT\n");
+#endif
 				recv->is_stopping = TRUE;
 				return st;
 			}
 
 			if (*in_seq_ref == HEARTBEAT_SEQ) {
+#ifdef DEBUG_PROTOCOL
+				fprintf(recv->debug_file, "TCP heartbeat\n");
+#endif
 				recv->in_next = recv->in_buf;
 				recv->in_remain = sizeof(sequence);
 				return st;
@@ -284,6 +319,10 @@ static status tcp_on_read(receiver_handle recv)
 
 		*id = ntohll(*id);
 
+#ifdef DEBUG_PROTOCOL
+		fprintf(recv->debug_file, "\t\tgap response seq %07ld, id #%07ld\n",
+				*in_seq_ref, *id);
+#endif
 		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id] &&
 			FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1)))
 			return st;
@@ -324,10 +363,16 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
 	status st;
+#ifdef DEBUG_PROTOCOL
+	char debug_name[256];
+#endif
 
 	BZERO(*precv);
 
-	SPIN_CREATE(&(*precv)->stats_lock);
+#ifdef DEBUG_PROTOCOL
+	sprintf(debug_name, "RECEIVER-%d-%lX.DEBUG", (int) getpid(), (unsigned long) *precv);
+	(*precv)->debug_file = fopen(debug_name, "w");
+#endif
 
 	(*precv)->curr_stats = XMALLOC(struct receiver_stats);
 	if (!(*precv)->curr_stats)
@@ -339,6 +384,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	BZERO((*precv)->curr_stats);
 	BZERO((*precv)->next_stats);
+	SPIN_CREATE(&(*precv)->stats_lock);
 
 	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
 								SOCK_STREAM, IPPROTO_TCP)) ||
@@ -457,6 +503,11 @@ status receiver_destroy(receiver_handle* precv)
 	XFREE((*precv)->record_seqs);
 	XFREE((*precv)->next_stats);
 	XFREE((*precv)->curr_stats);
+
+#ifdef DEBUG_PROTOCOL
+	fclose((*precv)->debug_file);
+#endif
+
 	XFREE(*precv);
 	return st;
 }

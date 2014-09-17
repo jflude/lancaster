@@ -5,7 +5,7 @@
 
 #include "clock.h"
 
-#define MAX_ID 1000000
+#define MAX_ID 1000
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +17,7 @@ struct datum
 	microsec ts;
 };
 
-typedef struct datum datum;
+typedef struct datum datum_t;
 
 #ifdef __cplusplus
 }

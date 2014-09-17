@@ -17,6 +17,12 @@
 #define IDLE_TIMEOUT_USEC 100
 #define IDLE_SLEEP_USEC 10
 
+#ifdef DEBUG_PROTOCOL
+#include "dump.h"
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
 struct sender_stats
 {
 	size_t tcp_gap_count;
@@ -55,6 +61,9 @@ struct sender
 	volatile int stats_lock;
 	volatile boolean is_stopping;
 	char hello_str[128];
+#ifdef DEBUG_PROTOCOL
+	FILE* debug_file;
+#endif
 };
 
 struct tcp_client
@@ -95,6 +104,11 @@ static status mcast_send_pkt(sender_handle sndr)
 	++sndr->next_stats->mcast_packets_sent;
 	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 
+#ifdef DEBUG_PROTOCOL
+	fprintf(sndr->debug_file, "mcast send seq %07ld\n",
+			ntohll(*((sequence*) sndr->pkt_buf)));
+#endif
+
 	sndr->pkt_next = sndr->pkt_buf;
 	sndr->mcast_insert_time = 0;
 
@@ -131,6 +145,14 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 		ver = record_read_lock(rec);
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
 	} while (ver != record_get_version(rec));
+
+#ifdef DEBUG_PROTOCOL
+	fprintf(sndr->debug_file,
+			"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
+			sndr->next_seq, id, ver);
+
+	fdump(record_get_value_ref(rec), 16, sndr->debug_file);
+#endif
 
 	sndr->pkt_next += sndr->val_size;
 	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
@@ -387,6 +409,11 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 						memcpy(out_id_ref + 1, val_at, sndr->val_size);
 					} while (ver != record_get_version(rec));
 
+#ifdef DEBUG_PROTOCOL
+					fprintf(sndr->debug_file,
+							"\t\tgap response seq %07ld, id #%07ld\n",
+							seq, clnt->reply_id);
+#endif
 					*out_seq_ref = htonll(seq);
 					*out_id_ref = htonll(clnt->reply_id);
 
@@ -422,7 +449,13 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 			clnt->reply_range = clnt->union_range;
 			INVALIDATE_RANGE(clnt->union_range);
 			clnt->min_seq_found = SEQUENCE_MAX;
+
+#ifdef DEBUG_PROTOCOL
+			fprintf(sndr->debug_file, "\tgap request seq %07ld --> %07ld\n",
+					clnt->reply_range.low, clnt->reply_range.high);
+#endif
 		}
+
 	}
 
 	return OK;
@@ -497,12 +530,20 @@ static status init(sender_handle* psndr, const char* mmap_file,
 				   microsec max_pkt_age_usec)
 {
 	status st;
+#ifdef DEBUG_PROTOCOL
+	char debug_name[256];
+#endif
+
 	BZERO(*psndr);
+
+#ifdef DEBUG_PROTOCOL
+	sprintf(debug_name, "SENDER-%d-%lX.DEBUG", (int) getpid(), (unsigned long) *psndr);
+	(*psndr)->debug_file = fopen(debug_name, "w");
+#endif
 
 	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
 		return st;
 
-	SPIN_CREATE(&(*psndr)->stats_lock);
 
 	(*psndr)->curr_stats = XMALLOC(struct sender_stats);
 	if (!(*psndr)->curr_stats)
@@ -514,6 +555,7 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	BZERO((*psndr)->curr_stats);
 	BZERO((*psndr)->next_stats);
+	SPIN_CREATE(&(*psndr)->stats_lock);
 
 	(*psndr)->base_id = storage_get_base_id((*psndr)->store);
 	(*psndr)->max_id = storage_get_max_id((*psndr)->store);
@@ -646,6 +688,11 @@ status sender_destroy(sender_handle* psndr)
 	XFREE((*psndr)->record_seqs);
 	XFREE((*psndr)->next_stats);
 	XFREE((*psndr)->curr_stats);
+
+#ifdef DEBUG_PROTOCOL
+	fclose((*psndr)->debug_file);
+#endif
+
 	XFREE(*psndr);
 	return st;
 }

@@ -102,6 +102,13 @@ int main(int argc, char* argv[])
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
+	if (strcmp(storage_get_description(store), "TEST") != 0) {
+		fprintf(stderr, "%s: main: unrecognized storage description: \"%s\"\n",
+				error_get_program_name(), storage_get_description(store));
+
+		exit(-STORAGE_CORRUPTED);
+	}
+
 	if (!queue_stats)
 		printf("\"%.20s\", ", storage_get_description(store));
 

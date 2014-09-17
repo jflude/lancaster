@@ -57,7 +57,7 @@ static status update(identifier id, long n)
 	d->xyz = n;
 	d->ts = now;
 
-	record_set_version(rec, ver);
+	record_set_version(rec, NEXT_VER(ver));
 
 	if (FAILED(st = storage_write_queue(store, id)) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))

@@ -47,6 +47,9 @@ all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
 release: CFLAGS += -DNDEBUG -O3
 release: all
 
+debug: CFLAGS += -DDEBUG_PROTOCOL
+debug: all
+
 publisher: publisher.o libcachester.a
 
 subscriber: subscriber.o libcachester.a
@@ -86,6 +89,6 @@ clean:
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
 
-.PHONY: all release depend clean distclean
+.PHONY: all release debug depend clean distclean
 
 include DEPEND.mk
