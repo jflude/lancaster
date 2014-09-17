@@ -369,11 +369,6 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	BZERO(*precv);
 
-#ifdef DEBUG_PROTOCOL
-	sprintf(debug_name, "RECEIVER-%d-%lX.DEBUG", (int) getpid(), (unsigned long) *precv);
-	(*precv)->debug_file = fopen(debug_name, "w");
-#endif
-
 	(*precv)->curr_stats = XMALLOC(struct receiver_stats);
 	if (!(*precv)->curr_stats)
 		return NO_MEMORY;
@@ -455,8 +450,16 @@ static status init(receiver_handle* precv, const char* mmap_file,
 								(*precv)->mcast_sock, POLLIN)) &&
 		!FAILED(st = poller_add((*precv)->poller,
 								(*precv)->tcp_sock, POLLIN)) &&
-		!FAILED(st = clock_time(&(*precv)->mcast_recv_time)))
+		!FAILED(st = clock_time(&(*precv)->mcast_recv_time))) {
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
+
+#ifdef DEBUG_PROTOCOL
+		sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
+				tcp_address, (int) tcp_port, (int) getpid());
+
+		(*precv)->debug_file = fopen(debug_name, "w");
+#endif
+	}
 
 	sock_addr_destroy(&bind_addr);
 	sock_addr_destroy(&mcast_addr);
@@ -505,7 +508,8 @@ status receiver_destroy(receiver_handle* precv)
 	XFREE((*precv)->curr_stats);
 
 #ifdef DEBUG_PROTOCOL
-	fclose((*precv)->debug_file);
+	if ((*precv)->debug_file)
+		fclose((*precv)->debug_file);
 #endif
 
 	XFREE(*precv);

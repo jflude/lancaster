@@ -536,11 +536,6 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	BZERO(*psndr);
 
-#ifdef DEBUG_PROTOCOL
-	sprintf(debug_name, "SENDER-%d-%lX.DEBUG", (int) getpid(), (unsigned long) *psndr);
-	(*psndr)->debug_file = fopen(debug_name, "w");
-#endif
-
 	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
 		return st;
 
@@ -638,7 +633,14 @@ static status init(sender_handle* psndr, const char* mmap_file,
 		FAILED(st = poller_add((*psndr)->poller,
 							   (*psndr)->listen_sock, POLLIN)) ||
 		FAILED(st = clock_time(&(*psndr)->last_active_time)))
-		(void) 0;
+		return st;
+
+#ifdef DEBUG_PROTOCOL
+	sprintf(debug_name, "SEND-%s-%d-%d.DEBUG", tcp_address,
+			(int) sock_addr_get_port((*psndr)->listen_addr), (int) getpid());
+
+	(*psndr)->debug_file = fopen(debug_name, "w");
+#endif
 
 	return st;
 }
@@ -690,7 +692,8 @@ status sender_destroy(sender_handle* psndr)
 	XFREE((*psndr)->curr_stats);
 
 #ifdef DEBUG_PROTOCOL
-	fclose((*psndr)->debug_file);
+	if ((*psndr)->debug_file)
+		fclose((*psndr)->debug_file);
 #endif
 
 	XFREE(*psndr);
