@@ -16,12 +16,13 @@
 #define DEFAULT_TTL 1
 
 static boolean as_json;
+static boolean queue_stats;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j] [-a ADDRESS:PORT] [-i DEVICE] [-l] "
-			"[-t TTL] [-e ENV] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
-			"HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-j|-Q] [-a ADDRESS:PORT] [-i DEVICE] [-l]"
+			" [-t TTL] [-e ENV] [-p ERROR PREFIX] STORAGE-FILE TCP-ADDRESS:PORT"
+			" MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
 	exit(SYNTAX_ERROR);
@@ -36,23 +37,21 @@ static void show_version(void)
 static void* stats_func(thread_handle thr)
 {
 	sender_handle sender = thread_get_param(thr);
+	storage_handle store = sender_get_storage(sender);
 	char hostname[256];
 	microsec last_print;
+	const char* eol_seq;
 	status st;
-
-	size_t pkt1 = sender_get_mcast_packets_sent(sender);
-	size_t tcp1 = sender_get_tcp_bytes_sent(sender);
-	size_t mcast1 = sender_get_mcast_bytes_sent(sender);
 
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
 		FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
 
-	while (!thread_is_stopping(thr)) {
-		double secs;
-		size_t pkt2, tcp2, mcast2;
-		microsec now, elapsed;
+	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
+	while (!thread_is_stopping(thr)) {
+		microsec now;
+		double secs;
 		if (FAILED(st = signal_is_raised(SIGHUP)) ||
 			FAILED(st = signal_is_raised(SIGINT)) ||
 			FAILED(st = signal_is_raised(SIGTERM)) ||
@@ -60,48 +59,57 @@ static void* stats_func(thread_handle thr)
 			FAILED(st = clock_time(&now)))
 			break;
 
-		elapsed = now - last_print;
-		secs = elapsed / 1000000.0;
-		pkt2 = sender_get_mcast_packets_sent(sender);
-		tcp2 = sender_get_tcp_bytes_sent(sender);
-		mcast2 = sender_get_mcast_bytes_sent(sender);
+		secs = (now - last_print) / 1000000.0;
 
-		if (as_json) {
-			char ts[64];
-			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
-				break;
+		if (queue_stats) {
+			printf("\"%.20s\", Q.MIN/us: %.2f, Q.AVG/us: %.2f, "
+				   "Q.MAX/us: %.2f, Q.STD/us: %.2f%s",
+				   storage_get_description(store),
+				   storage_get_queue_min_latency(store),
+				   storage_get_queue_mean_latency(store),
+				   storage_get_queue_max_latency(store),
+				   storage_get_queue_stddev_latency(store),
+				   eol_seq);
 
-			printf("{\"@timestamp\":\"%s\", "
-				   "\"app\":\"publisher\", "
-				   "\"cat\":\"data_feed\", "
-				   "\"storage\":\"%s\", "
-				   "\"recv\":%ld, "
-				   "\"pkt/s\":%.2f, "
-				   "\"gap\":%lu, "
-				   "\"tcp/s\":%.2f, "
-				   "\"mcast/s\":%.2f}\n",
-				   ts,
-				   storage_get_file(sender_get_storage(sender)),
-				   sender_get_receiver_count(sender),
-				   (pkt2 - pkt1) / secs,
-				   sender_get_tcp_gap_count(sender),
-				   (tcp2 - tcp1) / secs / 1024,
-				   (mcast2 - mcast1) / secs / 1024);
-		} else
-			printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
-				   "TCP KB/s: %.2f, MCAST KB/s: %.2f         \r",
-				   storage_get_description(sender_get_storage(sender)),
-				   sender_get_receiver_count(sender),
-				   (pkt2 - pkt1) / secs,
-				   sender_get_tcp_gap_count(sender),
-				   (tcp2 - tcp1) / secs / 1024,
-				   (mcast2 - mcast1) / secs / 1024);
+			storage_next_stats(store);
+		} else {
+			if (as_json) {
+				char ts[64];
+				if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
+					break;
 
-		fflush(stdout);
+				printf("{\"@timestamp\":\"%s\", "
+					   "\"app\":\"publisher\", "
+					   "\"cat\":\"data_feed\", "
+					   "\"storage\":\"%s\", "
+					   "\"recv\":%ld, "
+					   "\"pkt/s\":%.2f, "
+					   "\"gap\":%lu, "
+					   "\"tcp/s\":%.2f, "
+					   "\"mcast/s\":%.2f}\n",
+					   ts,
+					   storage_get_file(store),
+					   sender_get_receiver_count(sender),
+					   sender_get_mcast_packets_sent(sender) / secs,
+					   sender_get_tcp_gap_count(sender),
+					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
+					   sender_get_mcast_bytes_sent(sender) / secs / 1024);
+			} else
+				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
+					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
+					   storage_get_description(store),
+					   sender_get_receiver_count(sender),
+					   sender_get_mcast_packets_sent(sender) / secs,
+					   sender_get_tcp_gap_count(sender),
+					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
+					   sender_get_mcast_bytes_sent(sender) / secs / 1024,
+					   eol_seq);
+
+			sender_next_stats(sender);
+		}
+
 		last_print = now;
-		pkt1 = pkt2;
-		tcp1 = tcp2;
-		mcast1 = mcast2;
+		fflush(stdout);
 	}
 
 	sender_stop(sender);
@@ -125,9 +133,11 @@ int main(int argc, char* argv[])
 	void* stats_result;
 	char* env = "";
 
-	error_set_program_name(argv[0]);
+	char prog_name[256];
+	strcpy(prog_name, argv[0]);
+	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:ji:lve:")) != -1)
+	while ((opt = getopt(argc, argv, "a:e:i:jlp:Qt:v")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
@@ -138,20 +148,34 @@ int main(int argc, char* argv[])
 			*colon = '\0';
 			adv_port = atoi(colon + 1);
 			break;
-		case 'j':
-			as_json = TRUE;
+		case 'e':
+			env = optarg;
 			break;
 		case 'i':
 			mcast_iface = optarg;
 			break;
+		case 'j':
+			if (queue_stats)
+				show_syntax();
+
+			as_json = TRUE;
+			break;
 		case 'l':
 			loopback = TRUE;
 			break;
+		case 'p':
+			strcat(prog_name, ": ");
+			strcat(prog_name, optarg);
+			error_set_program_name(prog_name);
+			break;
+		case 'Q':
+			if (as_json)
+				show_syntax();
+
+			queue_stats = TRUE;
+			break;
 		case 't':
 			ttl = atoi(optarg);
-			break;
-		case 'e':
-			env = optarg;
 			break;
 		case 'v':
 			show_version();

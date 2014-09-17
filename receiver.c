@@ -24,7 +24,6 @@
 
 struct receiver_stats
 {
-	volatile int lock;
 	size_t tcp_gap_count;
 	size_t tcp_bytes_recv;
 	size_t mcast_bytes_recv;
@@ -41,6 +40,7 @@ struct receiver
 	poller_handle poller;
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
+	sock_addr_handle tcp_addr;
 	sequence* record_seqs;
 	sequence next_seq;
 	size_t mcast_mtu;
@@ -56,44 +56,39 @@ struct receiver
 	microsec tcp_recv_time;
 	microsec touched_time;
 	microsec timeout_usec;
-	sock_addr_handle orig_src_addr;
-	sock_addr_handle last_src_addr;
+	sock_addr_handle mcast_src_addr;
+	struct receiver_stats* curr_stats;
+	struct receiver_stats* next_stats;
+	volatile int stats_lock;
 	volatile boolean is_stopping;
-	struct receiver_stats stats;
 };
 
 static status update_stats(receiver_handle recv, size_t pkt_sz,
 						   microsec now, microsec* pkt_time)
 {
-	microsec latency;
-	double delta;
+	double latency, delta;
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
 
-	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-
-	recv->stats.mcast_bytes_recv += pkt_sz;
-	++recv->stats.mcast_packets_recv;
-
-	if (pkt_sz < (sizeof(sequence) + sizeof(microsec))) {
-		SPIN_UNLOCK(&recv->stats.lock, no_ver);
-		return error_msg("update_stats: packet truncated", PROTOCOL_ERROR);
-	}
+	recv->next_stats->mcast_bytes_recv += pkt_sz;
 
 	latency = now - ntohll(*pkt_time);
-	delta = latency - recv->stats.mcast_mean_latency;
+	delta = latency - recv->next_stats->mcast_mean_latency;
 
-	recv->stats.mcast_mean_latency += delta / recv->stats.mcast_packets_recv;
-	recv->stats.mcast_M2_latency +=
-		delta * (latency - recv->stats.mcast_mean_latency);
+	recv->next_stats->mcast_mean_latency +=
+		delta / ++recv->next_stats->mcast_packets_recv;
 
-	if (recv->stats.mcast_min_latency == 0 ||
-		latency < recv->stats.mcast_min_latency)
-		recv->stats.mcast_min_latency = latency;
+	recv->next_stats->mcast_M2_latency +=
+		delta * (latency - recv->next_stats->mcast_mean_latency);
 
-	if (recv->stats.mcast_max_latency == 0 ||
-		latency > recv->stats.mcast_max_latency)
-		recv->stats.mcast_max_latency = latency;
+	if (recv->next_stats->mcast_min_latency == 0 ||
+		latency < recv->next_stats->mcast_min_latency)
+		recv->next_stats->mcast_min_latency = latency;
 
-	SPIN_UNLOCK(&recv->stats.lock, no_ver);
+	if (recv->next_stats->mcast_max_latency == 0 ||
+		latency > recv->next_stats->mcast_max_latency)
+		recv->next_stats->mcast_max_latency = latency;
+
+	SPIN_UNLOCK(&recv->stats_lock, no_ver);
 	return OK;
 }
 
@@ -130,9 +125,9 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 									 POLLIN | POLLOUT)))
 		return st;
 
-	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-	++recv->stats.tcp_gap_count;
-	SPIN_UNLOCK(&recv->stats.lock, no_ver);
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+	++recv->next_stats->tcp_gap_count;
+	SPIN_UNLOCK(&recv->stats_lock, no_ver);
 	return st;
 }
 
@@ -140,26 +135,31 @@ static status mcast_on_read(receiver_handle recv)
 {
 	status st, st2;
 	microsec now;
+	unsigned long mcast_ip, tcp_ip;
 
 	char* buf = alloca(recv->mcast_mtu);
 	sequence* in_seq_ref = (sequence*) buf;
 	microsec* in_stamp_ref = (microsec*) (in_seq_ref + 1);
 
-	if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->last_src_addr,
+	if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->mcast_src_addr,
 										buf, recv->mcast_mtu)) ||
 		FAILED(st = clock_time(&now)))
 		return st;
 
-	if (recv->next_seq == 1)
-		sock_addr_copy(recv->orig_src_addr, recv->last_src_addr);
-	else if (!sock_addr_is_equal(recv->orig_src_addr, recv->last_src_addr)) {
-		char address[256];
-		if (FAILED(st = sock_addr_get_text(recv->last_src_addr,
-										   address, sizeof(address))))
-			sprintf(address, "sock_addr_get_text failed: error #%d", (int) st);
+	if ((size_t) st2 < (sizeof(sequence) + sizeof(microsec)))
+		return error_msg("mcast_on_read: packet truncated", PROTOCOL_ERROR);
 
-		return error_msg("mcast_on_read: unexpected multicast source: %s",
-						 UNEXPECTED_SOURCE, address);
+	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
+	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
+
+	if (mcast_ip != tcp_ip) {
+		char src_text[256];
+		if (FAILED(st = sock_addr_get_text(recv->mcast_src_addr,
+										   src_text, sizeof(src_text))))
+			sprintf(src_text, "sock_addr_get_text failed: error #%d", (int) st);
+
+		return error_msg("mcast_on_read: unexpected source: %s",
+						 UNEXPECTED_SOURCE, src_text);
 	}
 
 	recv->mcast_recv_time = now;
@@ -217,9 +217,9 @@ static status tcp_read_buf(receiver_handle recv)
 		if (!FAILED(st))
 			st = st2;
 
-		SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-		recv->stats.tcp_bytes_recv += recv_sz;
-		SPIN_UNLOCK(&recv->stats.lock, no_ver);
+		SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+		recv->next_stats->tcp_bytes_recv += recv_sz;
+		SPIN_UNLOCK(&recv->stats_lock, no_ver);
 	}
 
 	return st;
@@ -327,14 +327,24 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	BZERO(*precv);
 
+	SPIN_CREATE(&(*precv)->stats_lock);
+
+	(*precv)->curr_stats = XMALLOC(struct receiver_stats);
+	if (!(*precv)->curr_stats)
+		return NO_MEMORY;
+
+	(*precv)->next_stats = XMALLOC(struct receiver_stats);
+	if (!(*precv)->next_stats)
+		return NO_MEMORY;
+
+	BZERO((*precv)->curr_stats);
+	BZERO((*precv)->next_stats);
+
 	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
 								SOCK_STREAM, IPPROTO_TCP)) ||
-		FAILED(st = sock_addr_create(&bind_addr, tcp_address, tcp_port)) ||
-		FAILED(st = sock_connect((*precv)->tcp_sock, bind_addr)) ||
+		FAILED(st = sock_addr_create(&(*precv)->tcp_addr, tcp_address, tcp_port)) ||
+		FAILED(st = sock_connect((*precv)->tcp_sock, (*precv)->tcp_addr)) ||
 		FAILED(st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1)))
-
-	sock_addr_destroy(&bind_addr);
-	if (FAILED(st))
 		return st;
 
 	buf[st] = '\0';
@@ -354,15 +364,10 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
 
-	SPIN_CREATE(&(*precv)->stats.lock);
-
 	(*precv)->base_id = base_id;
 	(*precv)->val_size = val_size;
 	(*precv)->next_seq = 1;
 	(*precv)->timeout_usec = 5 * hb_usec / 2;
-
-	(*precv)->stats.mcast_min_latency = 0;
-	(*precv)->stats.mcast_max_latency = 0;
 
 	(*precv)->in_buf = xmalloc(
 		sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
@@ -381,7 +386,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	if (!(*precv)->record_seqs)
 		return NO_MEMORY;
 
-	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file, FALSE,
+	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file, TRUE,
 									O_CREAT | O_TRUNC, base_id, max_id,
 									val_size, property_size, q_capacity)) &&
 		!FAILED(st = storage_set_description((*precv)->store,
@@ -398,8 +403,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 									mcast_addr, iface_addr)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) &&
-		!FAILED(st = sock_addr_create(&(*precv)->orig_src_addr, NULL, 0)) &&
-		!FAILED(st = sock_addr_create(&(*precv)->last_src_addr, NULL, 0)) &&
+		!FAILED(st = sock_addr_create(&(*precv)->mcast_src_addr, NULL, 0)) &&
 		!FAILED(st = poller_create(&(*precv)->poller, 2)) &&
 		!FAILED(st = poller_add((*precv)->poller,
 								(*precv)->mcast_sock, POLLIN)) &&
@@ -443,14 +447,16 @@ status receiver_destroy(receiver_handle* precv)
 		FAILED(st = poller_destroy(&(*precv)->poller)) ||
 		FAILED(st = sock_destroy(&(*precv)->mcast_sock)) ||
 		FAILED(st = sock_destroy(&(*precv)->tcp_sock)) ||
-		FAILED(st = sock_addr_destroy(&(*precv)->orig_src_addr)) ||
-		FAILED(st = sock_addr_destroy(&(*precv)->last_src_addr)) ||
+		FAILED(st = sock_addr_destroy(&(*precv)->tcp_addr)) ||
+		FAILED(st = sock_addr_destroy(&(*precv)->mcast_src_addr)) ||
 		FAILED(st = storage_destroy(&(*precv)->store)))
 		return st;
 
 	XFREE((*precv)->in_buf);
 	XFREE((*precv)->out_buf);
 	XFREE((*precv)->record_seqs);
+	XFREE((*precv)->next_stats);
+	XFREE((*precv)->curr_stats);
 	XFREE(*precv);
 	return st;
 }
@@ -498,69 +504,59 @@ void receiver_stop(receiver_handle recv)
 	recv->is_stopping = TRUE;
 }
 
-static size_t get_long_stat(receiver_handle recv, const size_t* pval)
-{
-	size_t n;
-	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-	n = *pval;
-	SPIN_UNLOCK(&recv->stats.lock, no_ver);
-	return n;
-}
-
-static double get_double_stat(receiver_handle recv, const double* pval)
-{
-	double n;
-	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
-	n = *pval;
-	SPIN_UNLOCK(&recv->stats.lock, no_ver);
-	return n;
-}
-
 size_t receiver_get_tcp_gap_count(receiver_handle recv)
 {
-	return get_long_stat(recv, &recv->stats.tcp_gap_count);
+	return recv->curr_stats->tcp_gap_count;
 }
 
 size_t receiver_get_tcp_bytes_recv(receiver_handle recv)
 {
-	return get_long_stat(recv, &recv->stats.tcp_bytes_recv);
+	return recv->curr_stats->tcp_bytes_recv;
 }
 
 size_t receiver_get_mcast_bytes_recv(receiver_handle recv)
 {
-	return get_long_stat(recv, &recv->stats.mcast_bytes_recv);
+	return recv->curr_stats->mcast_bytes_recv;
 }
 
 size_t receiver_get_mcast_packets_recv(receiver_handle recv)
 {
-	return get_long_stat(recv, &recv->stats.mcast_packets_recv);
+	return recv->curr_stats->mcast_packets_recv;
 }
 
 double receiver_get_mcast_min_latency(receiver_handle recv)
 {
-	return get_double_stat(recv, &recv->stats.mcast_min_latency);
+	return recv->curr_stats->mcast_min_latency;
 }
 
 double receiver_get_mcast_max_latency(receiver_handle recv)
 {
-	return get_double_stat(recv, &recv->stats.mcast_max_latency);
+	return recv->curr_stats->mcast_max_latency;
 }
 
 double receiver_get_mcast_mean_latency(receiver_handle recv)
 {
-	return get_double_stat(recv, &recv->stats.mcast_mean_latency);
+	return recv->curr_stats->mcast_mean_latency;
 }
 
 double receiver_get_mcast_stddev_latency(receiver_handle recv)
 {
-	double n;
-	SPIN_WRITE_LOCK(&recv->stats.lock, no_ver);
+	return (recv->curr_stats->mcast_packets_recv > 1
+			? sqrt(recv->curr_stats->mcast_M2_latency /
+				   (recv->curr_stats->mcast_packets_recv - 1))
+			: 0);
+}
 
-	n = (recv->stats.mcast_packets_recv > 1
-		 ? sqrt(recv->stats.mcast_M2_latency /
-				(recv->stats.mcast_packets_recv - 1))
-		 : 0);
+void receiver_next_stats(receiver_handle recv)
+{
+	struct receiver_stats* tmp;
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
 
-	SPIN_UNLOCK(&recv->stats.lock, no_ver);
-	return n;
+	tmp = recv->next_stats;
+	recv->next_stats = recv->curr_stats;
+	recv->curr_stats = tmp;
+
+	BZERO(recv->next_stats);
+
+	SPIN_UNLOCK(&recv->stats_lock, no_ver);
 }

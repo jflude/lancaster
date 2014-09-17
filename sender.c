@@ -19,7 +19,6 @@
 
 struct sender_stats
 {
-	volatile int lock;
 	size_t tcp_gap_count;
 	size_t tcp_bytes_sent;
 	size_t mcast_bytes_sent;
@@ -50,8 +49,10 @@ struct sender
 	size_t mcast_mtu;
 	char* pkt_buf;
 	char* pkt_next;
-	queue_index last_q_idx;
-	struct sender_stats stats;
+	q_index last_q_idx;
+	struct sender_stats* curr_stats;
+	struct sender_stats* next_stats;
+	volatile int stats_lock;
 	volatile boolean is_stopping;
 	char hello_str[128];
 };
@@ -89,10 +90,10 @@ static status mcast_send_pkt(sender_handle sndr)
 
 	sndr->last_active_time = sndr->mcast_send_time = now;
 
-	SPIN_WRITE_LOCK(&sndr->stats.lock, no_ver);
-	sndr->stats.mcast_bytes_sent += st;
-	++sndr->stats.mcast_packets_sent;
-	SPIN_UNLOCK(&sndr->stats.lock, no_ver);
+	SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+	sndr->next_stats->mcast_bytes_sent += st;
+	++sndr->next_stats->mcast_packets_sent;
+	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 
 	sndr->pkt_next = sndr->pkt_buf;
 	sndr->mcast_insert_time = 0;
@@ -140,8 +141,8 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 static status mcast_on_write(sender_handle sndr)
 {
 	status st = OK;
-	queue_index new_q_idx = storage_get_queue_head(sndr->store);
-	queue_index qi = new_q_idx - sndr->last_q_idx;
+	q_index new_q_idx = storage_get_queue_head(sndr->store);
+	q_index qi = new_q_idx - sndr->last_q_idx;
 
 	if (qi < 0) {
 		sndr->last_q_idx = new_q_idx;
@@ -154,8 +155,9 @@ static status mcast_on_write(sender_handle sndr)
 							 CHANGE_QUEUE_OVERRUN);
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
-			identifier id = storage_read_queue(sndr->store, qi);
-			if (FAILED(st = mcast_accum_record(sndr, id)))
+			identifier id;
+			if (FAILED(st = storage_read_queue(sndr->store, qi, &id)) ||
+				FAILED(st = mcast_accum_record(sndr, id)))
 				break;
 		}
 
@@ -220,9 +222,9 @@ static status tcp_write_buf(struct tcp_client* clnt)
 
 		clnt->sndr->last_active_time = clnt->tcp_send_time;
 
-		SPIN_WRITE_LOCK(&clnt->sndr->stats.lock, no_ver);
-		clnt->sndr->stats.tcp_bytes_sent += sent_sz;
-		SPIN_UNLOCK(&clnt->sndr->stats.lock, no_ver);
+		SPIN_WRITE_LOCK(&clnt->sndr->stats_lock, no_ver);
+		clnt->sndr->next_stats->tcp_bytes_sent += sent_sz;
+		SPIN_UNLOCK(&clnt->sndr->stats_lock, no_ver);
 	}
 
 	return st;
@@ -454,9 +456,9 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		clnt->in_next = clnt->in_buf;
 		clnt->in_remain = sizeof(struct sequence_range);
 
-		SPIN_WRITE_LOCK(&sndr->stats.lock, no_ver);
-		++sndr->stats.tcp_gap_count;
-		SPIN_UNLOCK(&sndr->stats.lock, no_ver);
+		SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+		++sndr->next_stats->tcp_gap_count;
+		SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 	}
 
 	return st;
@@ -500,7 +502,18 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
 		return st;
 
-	SPIN_CREATE(&(*psndr)->stats.lock);
+	SPIN_CREATE(&(*psndr)->stats_lock);
+
+	(*psndr)->curr_stats = XMALLOC(struct sender_stats);
+	if (!(*psndr)->curr_stats)
+		return NO_MEMORY;
+
+	(*psndr)->next_stats = XMALLOC(struct sender_stats);
+	if (!(*psndr)->next_stats)
+		return NO_MEMORY;
+
+	BZERO((*psndr)->curr_stats);
+	BZERO((*psndr)->next_stats);
 
 	(*psndr)->base_id = storage_get_base_id((*psndr)->store);
 	(*psndr)->max_id = storage_get_max_id((*psndr)->store);
@@ -631,6 +644,8 @@ status sender_destroy(sender_handle* psndr)
 
 	XFREE((*psndr)->pkt_buf);
 	XFREE((*psndr)->record_seqs);
+	XFREE((*psndr)->next_stats);
+	XFREE((*psndr)->curr_stats);
 	XFREE(*psndr);
 	return st;
 }
@@ -696,36 +711,41 @@ void sender_stop(sender_handle sndr)
 	sndr->is_stopping = TRUE;
 }
 
-static size_t get_stat(sender_handle sndr, const size_t* pval)
-{
-	size_t n;
-	SPIN_WRITE_LOCK(&sndr->stats.lock, no_ver);
-	n = *pval;
-	SPIN_UNLOCK(&sndr->stats.lock, no_ver);
-	return n;
-}
-
 size_t sender_get_tcp_gap_count(sender_handle sndr)
 {
-	return get_stat(sndr, &sndr->stats.tcp_gap_count);
+	return sndr->curr_stats->tcp_gap_count;
 }
 
 size_t sender_get_tcp_bytes_sent(sender_handle sndr)
 {
-	return get_stat(sndr, &sndr->stats.tcp_bytes_sent);
+	return sndr->curr_stats->tcp_bytes_sent;
 }
 
 size_t sender_get_mcast_bytes_sent(sender_handle sndr)
 {
-	return get_stat(sndr, &sndr->stats.mcast_bytes_sent);
+	return sndr->curr_stats->mcast_bytes_sent;
 }
 
 size_t sender_get_mcast_packets_sent(sender_handle sndr)
 {
-	return get_stat(sndr, &sndr->stats.mcast_packets_sent);
+	return sndr->curr_stats->mcast_packets_sent;
 }
 
 size_t sender_get_receiver_count(sender_handle sndr)
 {
 	return sndr->client_count;
+}
+
+void sender_next_stats(sender_handle sndr)
+{
+	struct sender_stats* tmp;
+	SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+
+	tmp = sndr->next_stats;
+	sndr->next_stats = sndr->curr_stats;
+	sndr->curr_stats = tmp;
+
+	BZERO(sndr->next_stats);
+
+	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 }

@@ -3,6 +3,7 @@
 
 #include "error.h"
 #include "spin.h"
+#include <time.h>
 
 struct record
 {
@@ -29,9 +30,18 @@ struct segment
 	microsec last_touched;
 	volatile version last_touched_ver;
 	size_t q_mask;
-	queue_index q_head;
+	q_index q_head;
 	union { char reserved[1024]; } new_fields;
-	identifier change_q[1];
+	struct q_element change_q[1];
+};
+
+struct storage_stats
+{
+	size_t q_elem_read;
+	double q_min_latency;
+	double q_max_latency;
+	double q_mean_latency;
+	double q_M2_latency;
 };
 
 struct storage
@@ -41,12 +51,15 @@ struct storage
 	record_handle limit;
 	char* mmap_file;
 	size_t mmap_size;
+	int seg_fd;
 	boolean is_read_only;
 	boolean is_persistent;
-	int fd;
+	volatile int stats_lock;
+	struct storage_stats* curr_stats;
+	struct storage_stats* next_stats;
 };
 
-#define RECORD_ADDRESS(stg, base, idx) \
+#define STORAGE_RECORD(stg, base, idx) \
 	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 
 INLINE status storage_get_record(storage_handle store, identifier id,
@@ -59,13 +72,8 @@ INLINE status storage_get_record(storage_handle store, identifier id,
 		return error_msg("storage_get_record: invalid identifier",
 						 STORAGE_INVALID_SLOT);
 
-	*prec = RECORD_ADDRESS(store, store->first, id - store->seg->base_id);
+	*prec = STORAGE_RECORD(store, store->first, id - store->seg->base_id);
 	return OK;
-}
-
-INLINE identifier storage_read_queue(storage_handle store, queue_index index)
-{
-	return store->seg->change_q[index & store->seg->q_mask];
 }
 
 INLINE void record_set_version(record_handle rec, version ver)

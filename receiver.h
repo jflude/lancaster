@@ -31,6 +31,8 @@ double receiver_get_mcast_max_latency(receiver_handle recv);
 double receiver_get_mcast_mean_latency(receiver_handle recv);
 double receiver_get_mcast_stddev_latency(receiver_handle recv);
 
+void receiver_next_stats(receiver_handle recv);
+
 #ifdef __cplusplus
 }
 #endif

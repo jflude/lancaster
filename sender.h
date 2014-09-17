@@ -34,6 +34,8 @@ size_t sender_get_mcast_bytes_sent(sender_handle sndr);
 size_t sender_get_mcast_packets_sent(sender_handle sndr);
 size_t sender_get_receiver_count(sender_handle sndr);
 
+void sender_next_stats(sender_handle sndr);
+
 #ifdef __cplusplus
 }
 #endif

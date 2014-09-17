@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* #define SCATTER_UPDATES */
 
@@ -23,7 +24,7 @@ static microsec delay;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE "
+	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] STORAGE-FILE "
 			"CHANGE-QUEUE-SIZE DELAY\n", error_get_program_name());
 
 	exit(SYNTAX_ERROR);
@@ -83,30 +84,44 @@ int main(int argc, char* argv[])
 {
 	status st = OK;
 	thread_handle touch_thread;
+	const char* mmap_file;
+	size_t q_capacity;
 	long xyz = 0;
+	int opt;
 
 #ifdef SCATTER_UPDATES
 	twist_handle twister;
 #endif
 
-	error_set_program_name(argv[0]);
+	char prog_name[256];
+	strcpy(prog_name, argv[0]);
+	error_set_program_name(prog_name);
 
-	if (argc < 2)
+	while ((opt = getopt(argc, argv, "p:v")) != -1)
+		switch (opt) {
+		case 'p':
+			strcat(prog_name, ": ");
+			strcat(prog_name, optarg);
+			error_set_program_name(prog_name);
+			break;
+		case 'v':
+			show_version();
+		default:
+			show_syntax();
+		}
+
+	if ((argc - optind) != 3)
 		show_syntax();
 
-	if (strcmp(argv[1], "-v") == 0)
-		show_version();
-
-	if (argc != 4)
-		show_syntax();
-
-	delay = atoi(argv[3]);
+	mmap_file = argv[optind++];
+	q_capacity = atoi(argv[optind++]);
+	delay = atoi(argv[optind++]);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, argv[1], FALSE, O_CREAT, 0, MAX_ID,
-							  sizeof(struct datum), 0, atoi(argv[2]))) ||
+		FAILED(storage_create(&store, mmap_file, FALSE, O_CREAT, 0, MAX_ID,
+							  sizeof(struct datum), 0, q_capacity)) ||
 		FAILED(storage_set_persistence(store, FALSE)) ||
 		FAILED(storage_set_description(store, "TEST")) ||
 		FAILED(storage_reset(store)) ||

@@ -56,7 +56,7 @@ static status make_json_map(advert_handle advert)
 		return st;
 
 	strcat(buf, escape_quotes(hostname));
-	strcat(buf, "\",\"env\":\"");
+	strcat(buf, "\", \"env\":\"");
 	strcat(buf, advert->env);
 	strcat(buf, "\", \"data\":[");
 

@@ -10,9 +10,9 @@ Justin Flude <jflude@peak6.com>
 
 	  		   ===============================================
 
-	writer [-v] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
+	writer [-v] [-p ERROR PREFIX] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
 
-	reader [-v] STORAGE-FILE
+	reader [-v] [-p ERROR PREFIX] [-Q] STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -40,9 +40,15 @@ numbers, indicating which conditions occured in this last "tick":-
 	2 - data was read out-of-order to what was written
 	4 - change queue was overrun
 
+If the -Q option is supplied to READER then it will output change queue
+statistics instead of its usual output.
+
+The -p option causes the programs to include the specified prefix in error
+messages, to allow easier identification when running multiple instances.
+
 	  		   ===============================================
 
-	publisher [-v] [-j] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] \
+	publisher [-v] [-j|-Q] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] \
 			  STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT \
 			  HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
 
@@ -73,7 +79,9 @@ SUBSCRIBER independently).  Data read by PUBLISHER is multicast to SUBSCRIBER
 and written to SUBSCRIBER's storage.
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
-output of networking statistics to be output in JSON format.
+output of statistics to be output in JSON format.  PUBLISHER also has a -Q
+option which causes it to output change queue statistics instead of its
+usual output (the -j option also includes the change queue statistics).
 
 A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
 and SUBSCRIBER and READER on another.  For example, if the former were to be

@@ -17,8 +17,8 @@ boolean as_json = FALSE;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE "
-			"TCP-ADDRESS:PORT\n", error_get_program_name());
+	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] STORAGE-FILE "
+			"CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT\n", error_get_program_name());
 
 	exit(SYNTAX_ERROR);
 }
@@ -32,16 +32,11 @@ static void show_version(void)
 static void* stats_func(thread_handle thr)
 {
 	receiver_handle recv = thread_get_param(thr);
-	char hostname[256];
+	char hostname[256], alias[32];
+	const char *storage_desc, *delim_pos, *eol_seq;
 	microsec last_print;
 	status st;
-	char alias[32];
-	const char *storage_desc, *delim_pos;
-	
-	size_t pkt1 = receiver_get_mcast_packets_recv(recv);
-	size_t tcp1 = receiver_get_tcp_bytes_recv(recv);
-	size_t mcast1 = receiver_get_mcast_bytes_recv(recv);
-	
+		
 	storage_desc = storage_get_description(receiver_get_storage(recv));
 
 	if ((delim_pos = strchr(storage_desc, '.')) == NULL)
@@ -53,11 +48,11 @@ static void* stats_func(thread_handle thr)
 		FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
 
-	while (!thread_is_stopping(thr)) {
-		double secs;
-		size_t pkt2, tcp2, mcast2;
-		microsec now, elapsed;
+	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
+	while (!thread_is_stopping(thr)) {
+		microsec now;
+		double secs;
 		if (FAILED(st = signal_is_raised(SIGHUP)) ||
 			FAILED(st = signal_is_raised(SIGINT)) ||
 			FAILED(st = signal_is_raised(SIGTERM)) ||
@@ -65,11 +60,7 @@ static void* stats_func(thread_handle thr)
 			FAILED(st = clock_time(&now)))
 			break;
 
-		elapsed = now - last_print;
-		secs = elapsed / 1000000.0;
-		pkt2 = receiver_get_mcast_packets_recv(recv);
-		tcp2 = receiver_get_tcp_bytes_recv(recv);
-		mcast2 = receiver_get_mcast_bytes_recv(recv);
+		secs = (now - last_print) / 1000000.0;
 
 		if (as_json) {
 			char ts[64];
@@ -92,36 +83,33 @@ static void* stats_func(thread_handle thr)
 				   ts,
 				   alias,
 				   storage_get_file(receiver_get_storage(recv)),
-				   (pkt2 - pkt1) / secs,
+				   receiver_get_mcast_packets_recv(recv) / secs,
 				   receiver_get_tcp_gap_count(recv),
-				   (tcp2 - tcp1) / secs / 1024,
-				   (mcast2 - mcast1) / secs / 1024,
+				   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
+				   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
 				   receiver_get_mcast_min_latency(recv),
 				   receiver_get_mcast_mean_latency(recv),
 				   receiver_get_mcast_max_latency(recv),
 				   receiver_get_mcast_stddev_latency(recv));
-		} else {
+		} else
 			printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
-				   "STD/us: %.2f         \r",
+				   "STD/us: %.2f%s",
 				   storage_desc,
-				   (pkt2 - pkt1) / secs,
+				   receiver_get_mcast_packets_recv(recv) / secs,
 				   receiver_get_tcp_gap_count(recv),
-				   (tcp2 - tcp1) / secs / 1024,
-				   (mcast2 - mcast1) / secs / 1024,
+				   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
+				   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
 				   receiver_get_mcast_min_latency(recv),
 				   receiver_get_mcast_mean_latency(recv),
 				   receiver_get_mcast_max_latency(recv),
-				   receiver_get_mcast_stddev_latency(recv));
-		}
+				   receiver_get_mcast_stddev_latency(recv),
+				   eol_seq);
 
-		fflush(stdout);
-
+		receiver_next_stats(recv);
 		last_print = now;
-		pkt1 = pkt2;
-		tcp1 = tcp2;
-		mcast1 = mcast2;
+		fflush(stdout);
 	}
 
 	receiver_stop(recv);
@@ -141,12 +129,19 @@ int main(int argc, char* argv[])
 	int opt;
 	void* stats_result;
 
-	error_set_program_name(argv[0]);
+	char prog_name[256];
+	strcpy(prog_name, argv[0]);
+	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jv")) != -1)
+	while ((opt = getopt(argc, argv, "jp:v")) != -1)
 		switch (opt) {
 		case 'j':
 			as_json = TRUE;
+			break;
+		case 'p':
+			strcat(prog_name, ": ");
+			strcat(prog_name, optarg);
+			error_set_program_name(prog_name);
 			break;
 		case 'v':
 			show_version();

@@ -9,16 +9,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define DISPLAY_DELAY_USEC (0.2 * 1000000)
+#define QUEUE_DELAY_USEC (1 * 1000000)
 
 static storage_handle store;
-int event;
+static boolean queue_stats;
+static int event;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
+	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] [-Q] STORAGE-FILE\n",
+			error_get_program_name());
+
 	exit(SYNTAX_ERROR);
 }
 
@@ -28,25 +33,20 @@ static void show_version(void)
 	exit(0);
 }
 
-static status update(queue_index q)
+static status update(q_index q)
 {
 	record_handle rec = NULL;
 	struct datum* d;
 	version ver;
 	long xyz;
-	status st;
 	identifier id;
+	status st;
 
 	if (FAILED(st = signal_is_raised(SIGHUP)) ||
 		FAILED(st = signal_is_raised(SIGINT)) ||
-		FAILED(st = signal_is_raised(SIGTERM)))
-		return st;
-
-	id = storage_read_queue(store, q);
-	if (id == -1)
-		return OK;
-
-	if (FAILED(st = storage_get_record(store, id, &rec)))
+		FAILED(st = signal_is_raised(SIGTERM)) ||
+		FAILED(st = storage_read_queue(store, q, &id)) ||
+		FAILED(st = storage_get_record(store, id, &rec)))
 		return st;
 
 	d = record_get_value_ref(rec);
@@ -68,31 +68,52 @@ int main(int argc, char* argv[])
 	status st = OK;
 	size_t q_capacity;
 	long old_head;
-	microsec last_print, created_time;
+	int opt;
+	microsec last_print, created_time, delay;
+	const char* eol_seq;
 
-	error_set_program_name(argv[0]);
+	char prog_name[256];
+	strcpy(prog_name, argv[0]);
+	error_set_program_name(prog_name);
 
-	if (argc != 2)
+	while ((opt = getopt(argc, argv, "p:Qv")) != -1)
+		switch (opt) {
+		case 'p':
+			strcat(prog_name, ": ");
+			strcat(prog_name, optarg);
+			error_set_program_name(prog_name);
+			break;
+		case 'Q':
+			queue_stats = TRUE;
+			break;
+		case 'v':
+			show_version();
+		default:
+			show_syntax();
+		}
+
+	if ((argc - optind) != 1)
 		show_syntax();
-
-	if (strcmp(argv[1], "-v") == 0)
-		show_version();
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_open(&store, argv[1], O_RDONLY)) ||
+		FAILED(storage_open(&store, argv[optind], O_RDONLY)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
-	printf("\"%.20s\", ", storage_get_description(store));
+	if (!queue_stats)
+		printf("\"%.20s\", ", storage_get_description(store));
+
+	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
 	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
+	delay = (queue_stats ? QUEUE_DELAY_USEC : DISPLAY_DELAY_USEC);
 
 	for (;;) {
-		queue_index q, new_head = storage_get_queue_head(store);
+		q_index q, new_head = storage_get_queue_head(store);
 		microsec now;
 		if (new_head == old_head) {
 			if (FAILED(st = clock_sleep(1)))
@@ -117,7 +138,9 @@ int main(int argc, char* argv[])
 
 		if (storage_get_created_time(store) != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: main: storage is recreated\n", argv[0]);
+			fprintf(stderr, "%s: main: storage is recreated\n",
+					error_get_program_name());
+
 			exit(-STORAGE_RECREATED);
 		}
 
@@ -126,15 +149,31 @@ int main(int argc, char* argv[])
 
 		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: main: storage is orphaned\n", argv[0]);
+			fprintf(stderr, "%s: main: storage is orphaned\n",
+					error_get_program_name());
+
 			exit(-STORAGE_ORPHANED);
 		}
 
-		if ((now - last_print) >= DISPLAY_DELAY_USEC) {
-			putchar(event + (event > 9 ? 'A' - 10 : '0'));
-			fflush(stdout);
-			last_print = now;
+		if ((now - last_print) >= delay) {
+			if (queue_stats) {
+				printf("\"%.20s\", Q.MIN/us: %.2f, Q.AVG/us: %.2f, "
+					   "Q.MAX/us: %.2f, Q.STD/us: %.2f [%c]%s",
+					   storage_get_description(store),
+					   storage_get_queue_min_latency(store),
+					   storage_get_queue_mean_latency(store),
+					   storage_get_queue_max_latency(store),
+					   storage_get_queue_stddev_latency(store),
+					   event + (event > 9 ? 'A' - 10 : '0'),
+					   eol_seq);
+
+				storage_next_stats(store);
+			} else
+				putchar(event + (event > 9 ? 'A' - 10 : '0'));
+
 			event = 0;
+			last_print = now;
+			fflush(stdout);
 		}
 	}
 

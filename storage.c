@@ -5,6 +5,7 @@
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -27,6 +28,14 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 	BZERO(*pstore);
 	(*pstore)->is_persistent = persist;
 
+	(*pstore)->curr_stats = XMALLOC(struct storage_stats);
+	if (!(*pstore)->curr_stats)
+		return NO_MEMORY;
+
+	(*pstore)->next_stats = XMALLOC(struct storage_stats);
+	if (!(*pstore)->next_stats)
+		return NO_MEMORY;
+
 	val_aln_sz = ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
 	rec_sz = offsetof(struct record, val) + val_aln_sz;
 
@@ -37,8 +46,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		prop_offset = 0;
 
 	hdr_sz = offsetof(struct segment, change_q) +
-		ALIGNED_SIZE(sizeof(identifier) * (q_capacity > 0 ? q_capacity : 1),
-					 DEFAULT_ALIGNMENT);
+		ALIGNED_SIZE(sizeof(struct q_element) *
+					 (q_capacity > 0 ? q_capacity : 1), DEFAULT_ALIGNMENT);
 
 	page_sz = sysconf(_SC_PAGESIZE);
 	seg_sz =
@@ -47,10 +56,10 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
 		open_flags &= ~O_TRUNC;
 	shm_loop:
-		(*pstore)->fd =
+		(*pstore)->seg_fd =
 			shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 
-		if ((*pstore)->fd == -1) {
+		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto shm_loop;
 
@@ -58,10 +67,10 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		}
 	} else {
 	open_loop:
-		(*pstore)->fd =
+		(*pstore)->seg_fd =
 			open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
 
-		if ((*pstore)->fd == -1) {
+		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto open_loop;
 
@@ -71,7 +80,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
 	trunc_loop:
-		if (ftruncate((*pstore)->fd, seg_sz) == -1) {
+		if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
 			if (errno == EINTR)
 				goto trunc_loop;
 
@@ -79,7 +88,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		}
 	} else {
 		struct stat file_stat;
-		if (fstat((*pstore)->fd, &file_stat) == -1)
+		if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 			return error_errno("fstat");
 
 		if ((size_t) file_stat.st_size != seg_sz)
@@ -88,7 +97,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 	}
 
 	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE,
-						  MAP_SHARED, (*pstore)->fd, 0);
+						  MAP_SHARED, (*pstore)->seg_fd, 0);
 
 	if ((*pstore)->seg == MAP_FAILED) {
 		(*pstore)->seg = NULL;
@@ -129,20 +138,15 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return error_msg("storage_create: storage is unequal structure",
 						 STORAGE_CORRUPTED);
 
-	(*pstore)->seg->q_head = 0;
-	if ((*pstore)->seg->q_mask != -1u)
-		memset((*pstore)->seg->change_q, -1,
-			   ((*pstore)->seg->q_mask + 1) * sizeof(identifier));
-
 	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
 	(*pstore)->limit =
-		RECORD_ADDRESS(*pstore, (*pstore)->first, max_id - base_id);
+		STORAGE_RECORD(*pstore, (*pstore)->first, max_id - base_id);
 
 	if ((open_flags & (O_CREAT | O_EXCL)) != (O_CREAT | O_EXCL)) {
 		record_handle r;
 		for (r = (*pstore)->first;
 			 r < (*pstore)->limit;
-			 r = RECORD_ADDRESS(*pstore, r, 1))
+			 r = STORAGE_RECORD(*pstore, r, 1))
 			if (r->ver < 0)
 				r->ver &= ~SPIN_MASK(r->ver);
 
@@ -167,6 +171,14 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	BZERO(*pstore);
 	(*pstore)->is_persistent = TRUE;
 
+	(*pstore)->curr_stats = XMALLOC(struct storage_stats);
+	if (!(*pstore)->curr_stats)
+		return NO_MEMORY;
+
+	(*pstore)->next_stats = XMALLOC(struct storage_stats);
+	if (!(*pstore)->next_stats)
+		return NO_MEMORY;
+
 	if (open_flags == O_RDONLY)
 		(*pstore)->is_read_only = TRUE;
 	else
@@ -174,9 +186,9 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
 	shm_loop:
-		(*pstore)->fd = shm_open(mmap_file + 4, open_flags, 0);
+		(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, 0);
 
-		if ((*pstore)->fd == -1) {
+		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto shm_loop;
 
@@ -185,16 +197,16 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	} else {
 		struct stat file_stat;
 	open_loop:
-		(*pstore)->fd = open(mmap_file, open_flags);
+		(*pstore)->seg_fd = open(mmap_file, open_flags);
 
-		if ((*pstore)->fd == -1) {
+		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto open_loop;
 
 			return error_errno("open");
 		}
 
-		if (fstat((*pstore)->fd, &file_stat) == -1)
+		if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 			return error_errno("fstat");
 
 		if ((size_t) file_stat.st_size < sizeof(struct segment))
@@ -203,7 +215,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	}
 
 	(*pstore)->seg = mmap(NULL, sizeof(struct segment), PROT_READ,
-						  MAP_SHARED, (*pstore)->fd, 0);
+						  MAP_SHARED, (*pstore)->seg_fd, 0);
 
 	if ((*pstore)->seg == MAP_FAILED) {
 		(*pstore)->seg = NULL;
@@ -225,7 +237,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		return error_errno("munmap");
 
 	(*pstore)->seg =
-		mmap(NULL, seg_sz, mmap_flags, MAP_SHARED, (*pstore)->fd, 0);
+		mmap(NULL, seg_sz, mmap_flags, MAP_SHARED, (*pstore)->seg_fd, 0);
 
 	if ((*pstore)->seg == MAP_FAILED) {
 		(*pstore)->seg = NULL;
@@ -241,7 +253,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		(void*) (((char*) (*pstore)->seg) + (*pstore)->seg->hdr_size);
 
 	(*pstore)->limit = 
-		RECORD_ADDRESS(*pstore, (*pstore)->first,
+		STORAGE_RECORD(*pstore, (*pstore)->first,
 					   (*pstore)->seg->max_id - (*pstore)->seg->base_id);
 	return OK;
 }
@@ -302,7 +314,7 @@ status storage_destroy(storage_handle* pstore)
 		return st;
 
 loop:
-	if ((*pstore)->fd != -1 && close((*pstore)->fd) == -1) {
+	if ((*pstore)->seg_fd != -1 && close((*pstore)->seg_fd) == -1) {
 		if (errno == EINTR)
 			goto loop;
 
@@ -463,12 +475,12 @@ status storage_touch(storage_handle store, microsec when)
 	return OK;
 }
 
-const identifier* storage_get_queue_base_ref(storage_handle store)
+const struct q_element* storage_get_queue_base_ref(storage_handle store)
 {
 	return store->seg->change_q;
 }
 
-const queue_index* storage_get_queue_head_ref(storage_handle store)
+const q_index* storage_get_queue_head_ref(storage_handle store)
 {
 	return &store->seg->q_head;
 }
@@ -478,13 +490,14 @@ size_t storage_get_queue_capacity(storage_handle store)
 	return store->seg->q_mask + 1;
 }
 
-queue_index storage_get_queue_head(storage_handle store)
+q_index storage_get_queue_head(storage_handle store)
 {
 	return store->seg->q_head;
 }
 
 status storage_write_queue(storage_handle store, identifier id)
 {
+	struct q_element* q;
 	if (store->is_read_only)
 		return error_msg("storage_write_queue: storage is read-only",
 						 STORAGE_READ_ONLY);
@@ -493,7 +506,51 @@ status storage_write_queue(storage_handle store, identifier id)
 		return error_msg("storage_write_queue: no change queue",
 						 STORAGE_NO_CHANGE_QUEUE);
 
-	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
+	q = &store->seg->change_q[store->seg->q_head++ & store->seg->q_mask];
+	q->id = id;
+	return clock_time(&q->ts);
+}
+
+status storage_read_queue(storage_handle store, q_index idx,
+						  identifier* pident)
+{
+	struct q_element* q;
+	double latency, delta;
+	microsec now;
+	status st;
+
+	if (!pident)
+		return error_invalid_arg("storage_read_queue");
+
+	if (store->seg->q_mask == -1u)
+		return error_msg("storage_read_queue: no change queue",
+						 STORAGE_NO_CHANGE_QUEUE);
+
+	if (FAILED(st = clock_time(&now)))
+		return st;
+
+	q = &store->seg->change_q[idx & store->seg->q_mask];
+	*pident = q->id;
+	latency = now - q->ts;
+
+	SPIN_WRITE_LOCK(&store->stats_lock, no_ver);
+	delta = latency - store->next_stats->q_mean_latency;
+
+	store->next_stats->q_mean_latency +=
+		delta / ++store->next_stats->q_elem_read;
+
+	store->next_stats->q_M2_latency +=
+		delta * (latency - store->next_stats->q_mean_latency);
+
+	if (store->next_stats->q_min_latency == 0 ||
+		latency < store->next_stats->q_min_latency)
+		store->next_stats->q_min_latency = latency;
+
+	if (store->next_stats->q_max_latency == 0 ||
+		latency > store->next_stats->q_max_latency)
+		store->next_stats->q_max_latency = latency;
+
+	SPIN_UNLOCK(&store->stats_lock, no_ver);
 	return OK;
 }
 
@@ -518,9 +575,9 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 	if (!iter_fn)
 		return error_invalid_arg("storage_iterate");
 
-	for (prev = (prev ? RECORD_ADDRESS(store, prev, 1) : store->first);
+	for (prev = (prev ? STORAGE_RECORD(store, prev, 1) : store->first);
 		 prev < store->limit; 
-		 prev = RECORD_ADDRESS(store, prev, 1))
+		 prev = STORAGE_RECORD(store, prev, 1))
 		if (FAILED(st = iter_fn(prev, param)) || !st)
 			break;
 
@@ -550,8 +607,11 @@ status storage_reset(storage_handle store)
 
 	store->seg->q_head = 0;
 	if (store->seg->q_mask != -1u)
-		memset(store->seg->change_q, -1,
-			   (store->seg->q_mask + 1) * sizeof(identifier));
+		memset(store->seg->change_q, 0,
+			   (store->seg->q_mask + 1) * sizeof(struct q_element));
+
+	BZERO(&store->curr_stats);
+	BZERO(&store->next_stats);
 
 	SYNC_SYNCHRONIZE();
 	return OK;
@@ -582,8 +642,8 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 
 	for (old_r = store->first, new_r = (*pnewstore)->first;
 		 old_r < store->limit && new_r < (*pnewstore)->limit;
-		 old_r = RECORD_ADDRESS(store, old_r, 1),
-			 new_r = RECORD_ADDRESS(*pnewstore, new_r, 1))
+		 old_r = STORAGE_RECORD(store, old_r, 1),
+			 new_r = STORAGE_RECORD(*pnewstore, new_r, 1))
 		memcpy(new_r, old_r, copy_sz);
 
 	SYNC_SYNCHRONIZE();
@@ -594,8 +654,8 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 
 		for (old_r = store->first, new_r = (*pnewstore)->first;
 			 old_r < store->limit && new_r < (*pnewstore)->limit;
-			 old_r = RECORD_ADDRESS(store, old_r, 1),
-				 new_r = RECORD_ADDRESS(*pnewstore, new_r, 1))
+			 old_r = STORAGE_RECORD(store, old_r, 1),
+				 new_r = STORAGE_RECORD(*pnewstore, new_r, 1))
 			memcpy((char*) new_r + (*pnewstore)->seg->prop_offset,
 				   (char*) old_r + store->seg->prop_offset, copy_sz);
 	}
@@ -635,4 +695,41 @@ version record_read_lock(record_handle rec)
 	version old_ver;
 	SPIN_READ_LOCK(&rec->ver, old_ver);
 	return old_ver;
+}
+
+double storage_get_queue_min_latency(storage_handle store)
+{
+	return store->curr_stats->q_min_latency;
+}
+
+double storage_get_queue_max_latency(storage_handle store)
+{
+	return store->curr_stats->q_max_latency;
+}
+
+double storage_get_queue_mean_latency(storage_handle store)
+{
+	return store->curr_stats->q_mean_latency;
+}
+
+double storage_get_queue_stddev_latency(storage_handle store)
+{
+	return (store->curr_stats->q_elem_read > 1
+			? sqrt(store->curr_stats->q_M2_latency /
+				   (store->curr_stats->q_elem_read - 1))
+			: 0);
+}
+
+void storage_next_stats(storage_handle store)
+{
+	struct storage_stats* tmp;
+	SPIN_WRITE_LOCK(&store->stats_lock, no_ver);
+
+	tmp = store->next_stats;
+	store->next_stats = store->curr_stats;
+	store->curr_stats = tmp;
+
+	BZERO(store->next_stats);
+
+	SPIN_UNLOCK(&store->stats_lock, no_ver);
 }

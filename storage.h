@@ -24,8 +24,10 @@ typedef struct record* record_handle;
 typedef status (*storage_iterate_func)(record_handle, void*);
 
 typedef long identifier;
-typedef long queue_index;
 typedef long version;
+typedef long q_index;
+
+struct q_element { identifier id; microsec ts; };
 
 #define VERSION_MIN LONG_MIN
 #define VERSION_MAX LONG_MAX
@@ -63,12 +65,13 @@ microsec storage_get_created_time(storage_handle store);
 microsec storage_get_touched_time(storage_handle store);
 status storage_touch(storage_handle store, microsec when);
 
-const identifier* storage_get_queue_base_ref(storage_handle store);
-const queue_index* storage_get_queue_head_ref(storage_handle store);
+const struct q_element* storage_get_queue_base_ref(storage_handle store);
+const q_index* storage_get_queue_head_ref(storage_handle store);
 size_t storage_get_queue_capacity(storage_handle store);
-queue_index storage_get_queue_head(storage_handle store);
-identifier storage_read_queue(storage_handle store, queue_index index);
+q_index storage_get_queue_head(storage_handle store);
 status storage_write_queue(storage_handle store, identifier id);
+status storage_read_queue(storage_handle store, q_index idx,
+						  identifier* pident);
 
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier* pident);
@@ -92,6 +95,13 @@ version record_get_version(record_handle rec);
 void record_set_version(record_handle rec, version ver);
 version record_read_lock(record_handle rec);
 version record_write_lock(record_handle rec);
+
+double storage_get_queue_min_latency(storage_handle store);
+double storage_get_queue_max_latency(storage_handle store);
+double storage_get_queue_mean_latency(storage_handle store);
+double storage_get_queue_stddev_latency(storage_handle store);
+
+void storage_next_stats(storage_handle store);
 
 #ifdef NDEBUG
 #define INLINE extern __inline__
