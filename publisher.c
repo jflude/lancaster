@@ -86,14 +86,24 @@ static void* stats_func(thread_handle thr)
 					   "\"pkt/s\":%.2f, "
 					   "\"gap\":%lu, "
 					   "\"tcp/s\":%.2f, "
-					   "\"mcast/s\":%.2f}\n",
+					   "\"mcast/s\":%.2f, "
+					   "\"qMin/us\":%.2f, "
+					   "\"qMean/us\":%.2f, "
+					   "\"qMax/us\":%.2f, "
+					   "\"qStdDev/us\":%.2f"
+					   "}\n",
 					   ts,
 					   storage_get_file(store),
 					   sender_get_receiver_count(sender),
 					   sender_get_mcast_packets_sent(sender) / secs,
 					   sender_get_tcp_gap_count(sender),
 					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
-					   sender_get_mcast_bytes_sent(sender) / secs / 1024);
+					   sender_get_mcast_bytes_sent(sender) / secs / 1024,
+					   storage_get_queue_min_latency(store),
+					   storage_get_queue_mean_latency(store),
+					   storage_get_queue_max_latency(store),
+					   storage_get_queue_stddev_latency(store)
+					   );
 			} else
 				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
