@@ -113,7 +113,7 @@ static status mcast_send_pkt(sender_handle sndr)
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(sndr->debug_file, "mcast send seq %07ld\n",
 				ntohll(*((sequence*) sndr->pkt_buf))) < 0)
-		st = error_errno("fprintf");
+		st = (feof(sndr->debug_file) ? error_eof : error_errno)("fprintf");
 #endif
 
 	return st;
@@ -156,9 +156,9 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	if (fprintf(sndr->debug_file,
 				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
 				sndr->next_seq, id, ver) < 0)
-		return error_errno("fprintf");
+		return (feof(sndr->debug_file) ? error_eof : error_errno)("fprintf");
 
-	st = fdump(record_get_value_ref(rec), 16, sndr->debug_file);
+	st = fdump(record_get_value_ref(rec), 16, FALSE, sndr->debug_file);
 #endif
 	return st;
 }
@@ -180,9 +180,9 @@ static status mcast_on_write(sender_handle sndr)
 							 CHANGE_QUEUE_OVERRUN);
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
-			identifier id;
-			if (FAILED(st = storage_read_queue(sndr->store, qi, &id)) ||
-				FAILED(st = mcast_accum_record(sndr, id)))
+			struct q_element elem;
+			if (FAILED(st = storage_read_queue(sndr->store, qi, &elem, TRUE)) ||
+				FAILED(st = mcast_accum_record(sndr, elem.id)))
 				break;
 		}
 
@@ -422,7 +422,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					if (fprintf(sndr->debug_file,
 								"\t\tgap response seq %07ld, id #%07ld\n",
 								seq, clnt->reply_id - 1) < 0)
-						return error_errno("fprintf");
+						return (feof(sndr->debug_file)
+								? error_eof : error_errno)("fprintf");
 #endif
 					return OK;
 				}
@@ -458,7 +459,8 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 #ifdef DEBUG_PROTOCOL
 			if (fprintf(sndr->debug_file, "\tgap request seq %07ld --> %07ld\n",
 						clnt->reply_range.low, clnt->reply_range.high) < 0)
-				return error_errno("fprintf");
+				return (feof(sndr->debug_file)
+						? error_eof : error_errno)("fprintf");
 #endif
 		}
 	}
@@ -802,6 +804,5 @@ void sender_next_stats(sender_handle sndr)
 	sndr->curr_stats = tmp;
 
 	BZERO(sndr->next_stats);
-
 	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 }

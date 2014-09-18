@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-status dump(const void* p, size_t sz);
-status fdump(const void* p, size_t sz, FILE* f);
+status dump(const void* p, size_t sz, boolean relative);
+status fdump(const void* p, size_t sz, boolean relative, FILE* f);
 
 #ifdef __cplusplus
 }

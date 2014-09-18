@@ -98,20 +98,25 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
 	  		   ===============================================
 
-	inspector [-v] STORAGE-FILE
+	inspector [-v] [-q] [-r] STORAGE-FILE
 
 	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
 		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
 These are utility programs to show and modify the attributes (dimensions) of
-a storage.  INSPECTOR simply outputs the attribute values of a storage, such as
-the size of a record within it, the size of its change queue, the description
-associated with it, etc.  The GROWER program will create a new storage based
-upon an existing storage, and containing the same data copied to its records (as
-applicable).  Any attribute of the old storage can be carried over unchanged to
-the new storage, by specifying "=" for it.  For example, to create a new storage
-"new_store" that is identical to the existing "old_store", except for having a
-change queue capacity of 1024 records:-
+a storage.
+
+INSPECTOR simply outputs the attribute values of a storage, such as the size of
+a record within it, the size of its change queue, the description associated
+with it, etc.  The -q option will cause the change queue, if any, to be output,
+while the -r option will cause all the records to be output as well.
+
+The GROWER program will create a new storage based upon an existing storage, and
+containing the same data copied to its records (as applicable).  Any attribute
+of the old storage can be carried over unchanged to the new storage, by
+specifying "=" for it.  For example, to create a new storage "new_store" that is
+identical to the existing "old_store", except for having a change queue capacity
+of 1024 records:-
 
 	dev45$ grower old_store new_store = = = = 1024
 

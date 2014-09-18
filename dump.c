@@ -2,7 +2,7 @@
 #include "error.h"
 #include <ctype.h>
 
-status fdump(const void* p, size_t sz, FILE* f)
+status fdump(const void* p, size_t sz, boolean relative, FILE* f)
 {
 	const char* q = p;
 	size_t n = 0;
@@ -12,30 +12,33 @@ status fdump(const void* p, size_t sz, FILE* f)
 
 	while (n < sz) {
 		int i;
-		fprintf(f, "%08lX | ", (unsigned long) (q + n));
+
+		if (fprintf(f, "%012lX | ",
+					(q - (const char*) (relative ? p : NULL)) + n) < 0)
+			return (feof(f) ? error_eof : error_errno)("fprintf");
 
 		for (i = 0; i < 16; ++i) {
 			if ((n + i) < sz) {
 				unsigned val = (unsigned char) q[n + i];
 				if (fprintf(f, "%02X ", val) < 0)
-					return feof(f) ? EOF : error_errno("fprintf");
+					return (feof(f) ? error_eof : error_errno)("fprintf");
 			} else {
 				if (fprintf(f, "   ") < 0)
-					return feof(f) ? EOF : error_errno("fprintf");
+					return (feof(f) ? error_eof : error_errno)("fprintf");
 			}
 		}
 
 		if (fprintf(f, "| ") < 0)
-			return feof(f) ? EOF : error_errno("fprintf");
+			return (feof(f) ? error_eof : error_errno)("fprintf");
 
 		for (i = 0; i < 16 && (n + i) < sz; ++i) {
 			char c = isprint((int) q[n + i]) ? q[n + i] : '.';
 			if (putc(c, f) == EOF)
-				return feof(f) ? EOF : error_errno("putc");
+				return (feof(f) ? error_eof : error_errno)("putc");
 		}
 
 		if (putc('\n', f) == EOF)
-			return feof(f) ? EOF : error_errno("putc");
+			return (feof(f) ? error_eof : error_errno)("putc");
 
 		n += 16;
 	}
@@ -43,7 +46,7 @@ status fdump(const void* p, size_t sz, FILE* f)
 	return OK;
 }
 
-status dump(const void* p, size_t sz)
+status dump(const void* p, size_t sz, boolean relative)
 {
-	return fdump(p, sz, stdout);
+	return fdump(p, sz, relative, stdout);
 }

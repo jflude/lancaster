@@ -512,26 +512,27 @@ status storage_write_queue(storage_handle store, identifier id)
 }
 
 status storage_read_queue(storage_handle store, q_index idx,
-						  identifier* pident)
+						  struct q_element* pelem, boolean update_stats)
 {
-	struct q_element* q;
 	double latency, delta;
 	microsec now;
 	status st;
 
-	if (!pident)
+	if (!pelem)
 		return error_invalid_arg("storage_read_queue");
 
 	if (store->seg->q_mask == -1u)
 		return error_msg("storage_read_queue: no change queue",
 						 STORAGE_NO_CHANGE_QUEUE);
 
+	*pelem = store->seg->change_q[idx & store->seg->q_mask];
+	if (!update_stats)
+		return OK;
+
 	if (FAILED(st = clock_time(&now)))
 		return st;
 
-	q = &store->seg->change_q[idx & store->seg->q_mask];
-	*pident = q->id;
-	latency = now - q->ts;
+	latency = now - pelem->ts;
 
 	SPIN_WRITE_LOCK(&store->stats_lock, no_ver);
 	delta = latency - store->next_stats->q_mean_latency;
@@ -578,7 +579,7 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 	for (prev = (prev ? STORAGE_RECORD(store, prev, 1) : store->first);
 		 prev < store->limit; 
 		 prev = STORAGE_RECORD(store, prev, 1))
-		if (FAILED(st = iter_fn(prev, param)) || !st)
+		if (FAILED(st = iter_fn(store, prev, param)) || !st)
 			break;
 
 	return st;

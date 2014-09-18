@@ -126,9 +126,9 @@ static status update_record(receiver_handle recv, sequence seq,
 	if (fprintf(recv->debug_file,
 				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
 				seq, id, NEXT_VER(ver)) < 0)
-		return error_errno("fprintf");
+		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
 
-	st = fdump(record_get_value_ref(rec), 16, recv->debug_file);
+	st = fdump(record_get_value_ref(rec), 16, FALSE, recv->debug_file);
 #endif
 	return st;
 }
@@ -155,7 +155,7 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n",
 				low, high) < 0)
-		st = error_errno("fprintf");
+		st = (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
 #endif
 	return st;
 }
@@ -200,7 +200,7 @@ static status mcast_on_read(receiver_handle recv)
 
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(recv->debug_file, "mcast recv seq %07ld\n", *in_seq_ref) < 0)
-		return error_errno("fprintf");
+		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
 #endif
 
 	if (*in_seq_ref < 0)
@@ -305,7 +305,8 @@ static status tcp_on_read(receiver_handle recv)
 			if (*in_seq_ref == WILL_QUIT_SEQ) {
 #ifdef DEBUG_PROTOCOL
 				if (fprintf(recv->debug_file, "WILL QUIT\n") < 0)
-					st = error_errno("fprintf");
+					st = (feof(recv->debug_file)
+						  ? error_eof : error_errno)("fprintf");
 #endif
 				recv->is_stopping = TRUE;
 				return st;
@@ -314,7 +315,8 @@ static status tcp_on_read(receiver_handle recv)
 			if (*in_seq_ref == HEARTBEAT_SEQ) {
 #ifdef DEBUG_PROTOCOL
 				if (fprintf(recv->debug_file, "TCP heartbeat\n") < 0)
-					st = error_errno("fprintf");
+					st = (feof(recv->debug_file)
+						  ? error_eof : error_errno)("fprintf");
 #endif
 				recv->in_next = recv->in_buf;
 				recv->in_remain = sizeof(sequence);
@@ -330,7 +332,8 @@ static status tcp_on_read(receiver_handle recv)
 #ifdef DEBUG_PROTOCOL
 		if (fprintf(recv->debug_file, "\t\tgap response seq %07ld, id #%07ld\n",
 					*in_seq_ref, *id) < 0)
-			return error_errno("fprintf");
+			return (feof(recv->debug_file)
+					? error_eof : error_errno)("fprintf");
 #endif
 		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id] &&
 			FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1)))
@@ -625,6 +628,5 @@ void receiver_next_stats(receiver_handle recv)
 	recv->curr_stats = tmp;
 
 	BZERO(recv->next_stats);
-
 	SPIN_UNLOCK(&recv->stats_lock, no_ver);
 }

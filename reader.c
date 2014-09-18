@@ -36,17 +36,17 @@ static void show_version(void)
 static status update(q_index q)
 {
 	record_handle rec = NULL;
+	struct q_element elem;
 	struct datum* d;
 	version ver;
 	long xyz;
-	identifier id;
 	status st;
 
 	if (FAILED(st = signal_is_raised(SIGHUP)) ||
 		FAILED(st = signal_is_raised(SIGINT)) ||
 		FAILED(st = signal_is_raised(SIGTERM)) ||
-		FAILED(st = storage_read_queue(store, q, &id)) ||
-		FAILED(st = storage_get_record(store, id, &rec)))
+		FAILED(st = storage_read_queue(store, q, &elem, TRUE)) ||
+		FAILED(st = storage_get_record(store, elem.id, &rec)))
 		return st;
 
 	d = record_get_value_ref(rec);

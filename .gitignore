@@ -27,6 +27,8 @@ grower
 *.bak
 *.swo
 *.swp
+\#*#
+.#*
 
 # Build files
 .gradle

@@ -64,7 +64,7 @@ static void* stats_func(thread_handle thr)
 
 		if (as_json) {
 			char ts[64];
-			if (FAILED(st = clock_get_text(now, ts, sizeof(ts))))
+			if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
 				break;
 
 			printf("{\"@timestamp\":\"%s\", "

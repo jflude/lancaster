@@ -21,7 +21,7 @@ typedef struct storage* storage_handle;
 struct record;
 typedef struct record* record_handle;
 
-typedef status (*storage_iterate_func)(record_handle, void*);
+typedef status (*storage_iterate_func)(storage_handle, record_handle, void*);
 
 typedef long identifier;
 typedef long version;
@@ -71,7 +71,7 @@ size_t storage_get_queue_capacity(storage_handle store);
 q_index storage_get_queue_head(storage_handle store);
 status storage_write_queue(storage_handle store, identifier id);
 status storage_read_queue(storage_handle store, q_index idx,
-						  identifier* pident);
+						  struct q_element* pelem, boolean update_stats);
 
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier* pident);
