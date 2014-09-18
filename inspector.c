@@ -1,6 +1,7 @@
-/* show the attributes of a storage */
+/* show the attributes and records of a storage */
 
 #include "clock.h"
+#include "dump.h"
 #include "error.h"
 #include "storage.h"
 #include <fcntl.h>
@@ -18,6 +19,12 @@ static void show_version(void)
 {
 	printf("inspector 1.0\n");
 	exit(0);
+}
+
+static status iter_func(record_handle rec, void* param)
+{
+	(void) rec; (void) param;
+	return TRUE;
 }
 
 int main(int argc, char* argv[])
@@ -65,7 +72,8 @@ int main(int argc, char* argv[])
 		   created_time,
 		   touched_time);
 
-	if (FAILED(storage_destroy(&store)))
+	if (FAILED(storage_iterate(store, iter_func, NULL, NULL)) ||
+		FAILED(storage_destroy(&store)))
 		error_report_fatal();
 
 	return 0;

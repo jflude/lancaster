@@ -104,17 +104,17 @@ static status mcast_send_pkt(sender_handle sndr)
 	++sndr->next_stats->mcast_packets_sent;
 	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
 
-#ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file, "mcast send seq %07ld\n",
-			ntohll(*((sequence*) sndr->pkt_buf)));
-#endif
-
 	sndr->pkt_next = sndr->pkt_buf;
 	sndr->mcast_insert_time = 0;
 
 	if (++sndr->next_seq < 0)
 		return error_msg("mcast_send_pkt: sequence sign overflow",
 						 SIGN_OVERFLOW);
+#ifdef DEBUG_PROTOCOL
+	if (fprintf(sndr->debug_file, "mcast send seq %07ld\n",
+				ntohll(*((sequence*) sndr->pkt_buf))) < 0)
+		st = error_errno("fprintf");
+#endif
 
 	return st;
 }
@@ -146,18 +146,21 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
 	} while (ver != record_get_version(rec));
 
-#ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file,
-			"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
-			sndr->next_seq, id, ver);
-
-	fdump(record_get_value_ref(rec), 16, sndr->debug_file);
-#endif
-
 	sndr->pkt_next += sndr->val_size;
 	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
 
-	return clock_time(&sndr->mcast_insert_time);
+	if (FAILED(st = clock_time(&sndr->mcast_insert_time)))
+		return st;
+
+#ifdef DEBUG_PROTOCOL
+	if (fprintf(sndr->debug_file,
+				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
+				sndr->next_seq, id, ver) < 0)
+		return error_errno("fprintf");
+
+	st = fdump(record_get_value_ref(rec), 16, sndr->debug_file);
+#endif
+	return st;
 }
 
 static status mcast_on_write(sender_handle sndr)
@@ -409,17 +412,18 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 						memcpy(out_id_ref + 1, val_at, sndr->val_size);
 					} while (ver != record_get_version(rec));
 
-#ifdef DEBUG_PROTOCOL
-					fprintf(sndr->debug_file,
-							"\t\tgap response seq %07ld, id #%07ld\n",
-							seq, clnt->reply_id);
-#endif
 					*out_seq_ref = htonll(seq);
 					*out_id_ref = htonll(clnt->reply_id);
 
 					clnt->out_next = clnt->out_buf;
 					clnt->out_remain = clnt->pkt_size;
 					++clnt->reply_id;
+#ifdef DEBUG_PROTOCOL
+					if (fprintf(sndr->debug_file,
+								"\t\tgap response seq %07ld, id #%07ld\n",
+								seq, clnt->reply_id - 1) < 0)
+						return error_errno("fprintf");
+#endif
 					return OK;
 				}
 			}
@@ -445,17 +449,18 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 		if (clnt->union_range.high <= sndr->min_seq)
 			INVALIDATE_RANGE(clnt->union_range);
 		else if (!IS_VALID_RANGE(clnt->reply_range)) {
-			clnt->reply_id = sndr->base_id;
 			clnt->reply_range = clnt->union_range;
 			INVALIDATE_RANGE(clnt->union_range);
+
+			clnt->reply_id = sndr->base_id;
 			clnt->min_seq_found = SEQUENCE_MAX;
 
 #ifdef DEBUG_PROTOCOL
-			fprintf(sndr->debug_file, "\tgap request seq %07ld --> %07ld\n",
-					clnt->reply_range.low, clnt->reply_range.high);
+			if (fprintf(sndr->debug_file, "\tgap request seq %07ld --> %07ld\n",
+						clnt->reply_range.low, clnt->reply_range.high) < 0)
+				return error_errno("fprintf");
 #endif
 		}
-
 	}
 
 	return OK;
@@ -538,7 +543,6 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
 		return st;
-
 
 	(*psndr)->curr_stats = XMALLOC(struct sender_stats);
 	if (!(*psndr)->curr_stats)
@@ -640,6 +644,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 			(int) sock_addr_get_port((*psndr)->listen_addr), (int) getpid());
 
 	(*psndr)->debug_file = fopen(debug_name, "w");
+	if (!(*psndr)->debug_file)
+		st = error_errno("fopen");
 #endif
 
 	return st;
@@ -692,8 +698,8 @@ status sender_destroy(sender_handle* psndr)
 	XFREE((*psndr)->curr_stats);
 
 #ifdef DEBUG_PROTOCOL
-	if ((*psndr)->debug_file)
-		fclose((*psndr)->debug_file);
+	if ((*psndr)->debug_file && fclose((*psndr)->debug_file) == EOF)
+		st = error_errno("fclose");
 #endif
 
 	XFREE(*psndr);

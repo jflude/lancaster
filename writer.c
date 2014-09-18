@@ -12,7 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* #define SCATTER_UPDATES */
+#define SCATTER_UPDATES
 
 #ifdef SCATTER_UPDATES
 #include "twist.h"

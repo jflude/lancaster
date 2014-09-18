@@ -118,26 +118,25 @@ static status update_record(receiver_handle recv, sequence seq,
 	memcpy(record_get_value_ref(rec), new_val, recv->val_size);
 	record_set_version(rec, NEXT_VER(ver));
 
-#ifdef DEBUG_PROTOCOL
-	fprintf(recv->debug_file,
-			"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
-			seq, id, NEXT_VER(ver));
-
-	fdump(record_get_value_ref(rec), 16, recv->debug_file);
-#endif
-
 	recv->record_seqs[id - recv->base_id] = seq;
-	return storage_write_queue(recv->store, id);
+	if (FAILED(st = storage_write_queue(recv->store, id)))
+		return st;
+
+#ifdef DEBUG_PROTOCOL
+	if (fprintf(recv->debug_file,
+				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
+				seq, id, NEXT_VER(ver)) < 0)
+		return error_errno("fprintf");
+
+	st = fdump(record_get_value_ref(rec), 16, recv->debug_file);
+#endif
+	return st;
 }
 
 static status request_gap(receiver_handle recv, sequence low, sequence high)
 {
 	struct sequence_range* r = (struct sequence_range*) recv->out_buf;
 	status st;
-
-#ifdef DEBUG_PROTOCOL
-	fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n", low, high);
-#endif
 
 	r->low = htonll(low);
 	r->high = htonll(high);
@@ -152,6 +151,12 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
 	++recv->next_stats->tcp_gap_count;
 	SPIN_UNLOCK(&recv->stats_lock, no_ver);
+
+#ifdef DEBUG_PROTOCOL
+	if (fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n",
+				low, high) < 0)
+		st = error_errno("fprintf");
+#endif
 	return st;
 }
 
@@ -194,7 +199,8 @@ static status mcast_on_read(receiver_handle recv)
 	*in_seq_ref = ntohll(*in_seq_ref);
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(recv->debug_file, "mcast recv seq %07ld\n", *in_seq_ref);
+	if (fprintf(recv->debug_file, "mcast recv seq %07ld\n", *in_seq_ref) < 0)
+		return error_errno("fprintf");
 #endif
 
 	if (*in_seq_ref < 0)
@@ -298,7 +304,8 @@ static status tcp_on_read(receiver_handle recv)
 
 			if (*in_seq_ref == WILL_QUIT_SEQ) {
 #ifdef DEBUG_PROTOCOL
-				fprintf(recv->debug_file, "WILL QUIT\n");
+				if (fprintf(recv->debug_file, "WILL QUIT\n") < 0)
+					st = error_errno("fprintf");
 #endif
 				recv->is_stopping = TRUE;
 				return st;
@@ -306,7 +313,8 @@ static status tcp_on_read(receiver_handle recv)
 
 			if (*in_seq_ref == HEARTBEAT_SEQ) {
 #ifdef DEBUG_PROTOCOL
-				fprintf(recv->debug_file, "TCP heartbeat\n");
+				if (fprintf(recv->debug_file, "TCP heartbeat\n") < 0)
+					st = error_errno("fprintf");
 #endif
 				recv->in_next = recv->in_buf;
 				recv->in_remain = sizeof(sequence);
@@ -320,8 +328,9 @@ static status tcp_on_read(receiver_handle recv)
 		*id = ntohll(*id);
 
 #ifdef DEBUG_PROTOCOL
-		fprintf(recv->debug_file, "\t\tgap response seq %07ld, id #%07ld\n",
-				*in_seq_ref, *id);
+		if (fprintf(recv->debug_file, "\t\tgap response seq %07ld, id #%07ld\n",
+					*in_seq_ref, *id) < 0)
+			return error_errno("fprintf");
 #endif
 		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id] &&
 			FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1)))
@@ -407,7 +416,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	(*precv)->base_id = base_id;
 	(*precv)->val_size = val_size;
-	(*precv)->next_seq = 1;
+	(*precv)->next_seq = 0;
 	(*precv)->timeout_usec = 5 * hb_usec / 2;
 
 	(*precv)->in_buf = xmalloc(
@@ -423,9 +432,11 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	(*precv)->in_next = (*precv)->in_buf;
 	(*precv)->in_remain = sizeof(sequence);
 
-	(*precv)->record_seqs = xcalloc(max_id - base_id, sizeof(sequence));
+	(*precv)->record_seqs = xmalloc((max_id - base_id) * sizeof(sequence));
 	if (!(*precv)->record_seqs)
 		return NO_MEMORY;
+
+	memset((*precv)->record_seqs, -1, (max_id - base_id) * sizeof(sequence));
 
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file, TRUE,
 									O_CREAT | O_TRUNC, base_id, max_id,
@@ -458,6 +469,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 				tcp_address, (int) tcp_port, (int) getpid());
 
 		(*precv)->debug_file = fopen(debug_name, "w");
+		if (!(*precv)->debug_file)
+			st = error_errno("fopen");
 #endif
 	}
 
@@ -508,8 +521,8 @@ status receiver_destroy(receiver_handle* precv)
 	XFREE((*precv)->curr_stats);
 
 #ifdef DEBUG_PROTOCOL
-	if ((*precv)->debug_file)
-		fclose((*precv)->debug_file);
+	if ((*precv)->debug_file && fclose((*precv)->debug_file) == EOF)
+		st = error_errno("fclose");
 #endif
 
 	XFREE(*precv);
