@@ -87,10 +87,10 @@ static void* stats_func(thread_handle thr)
 					   "\"gap/s\":%lu, "
 					   "\"tcp_kb/s\":%.2f, "
 					   "\"mcast_kb/s\":%.2f, "
-					   "\"q.min/us\":%.2f, "
-					   "\"q.avg/us\":%.2f, "
-					   "\"q.max/us\":%.2f, "
-					   "\"q.std/us\":%.2f}\n",
+					   "\"qMin/us\":%.2f, "
+					   "\"qAvg/us\":%.2f, "
+					   "\"qMax/us\":%.2f, "
+					   "\"qStd/us\":%.2f}\n",
 					   ts,
 					   storage_get_file(store),
 					   sender_get_receiver_count(sender),
@@ -103,6 +103,7 @@ static void* stats_func(thread_handle thr)
 					   storage_get_queue_max_latency(store),
 					   storage_get_queue_stddev_latency(store)
 					   );
+				storage_next_stats(store);
 			} else
 				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
