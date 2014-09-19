@@ -16,8 +16,10 @@ twist.c \
 xalloc.c \
 yield.c
 
+BUILD_VERSION=$(shell git log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1)
+
 CFLAGS = -ansi -pedantic -Wall -Wextra -Werror -g \
-	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE
+	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DBUILD_VERSION='"$(BUILD_VERSION)"'
 LDLIBS = -lm
 OBJS = $(SRCS:.c=.o)
 
@@ -42,7 +44,7 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
