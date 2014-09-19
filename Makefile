@@ -82,7 +82,7 @@ libcachester$(SO_EXT): $(OBJS)
 components: $(COMPONENTS)
 
 $(COMPONENTS):
-  $(MAKE) -C $@ $(COMPONENT_TARGET)
+	$(MAKE) -C $@ $(COMPONENT_TARGET)
 
 clean:
 	rm -rf libcachester.a libcachester$(SO_EXT) \
