@@ -16,7 +16,7 @@ twist.c \
 xalloc.c \
 yield.c
 
-BUILD_VERSION=$(shell git log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1)
+BUILD_VERSION = $(shell git log --pretty=format:'%ad %h%d' --abbrev-commit --date=short -1)
 
 CFLAGS = -ansi -pedantic -Wall -Wextra -Werror -g \
 	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DBUILD_VERSION='"$(BUILD_VERSION)"'

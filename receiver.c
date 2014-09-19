@@ -79,7 +79,7 @@ static status update_stats(receiver_handle recv, size_t pkt_sz,
 						   microsec now, microsec* pkt_time)
 {
 	double latency, delta;
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 
 	recv->next_stats->mcast_bytes_recv += pkt_sz;
 
@@ -100,7 +100,7 @@ static status update_stats(receiver_handle recv, size_t pkt_sz,
 		latency > recv->next_stats->mcast_max_latency)
 		recv->next_stats->mcast_max_latency = latency;
 
-	SPIN_UNLOCK(&recv->stats_lock, no_ver);
+	SPIN_UNLOCK(&recv->stats_lock, no_rev);
 	return OK;
 }
 
@@ -108,15 +108,15 @@ static status update_record(receiver_handle recv, sequence seq,
 							identifier id, void* new_val)
 {
 	status st;
-	version ver;
+	revision rev;
 	record_handle rec = NULL;
 
 	if (FAILED(st = storage_get_record(recv->store, id, &rec)))
 		return st;
 
-	ver = record_write_lock(rec);
+	rev = record_write_lock(rec);
 	memcpy(record_get_value_ref(rec), new_val, recv->val_size);
-	record_set_version(rec, NEXT_VER(ver));
+	record_set_revision(rec, NEXT_REV(rev));
 
 	recv->record_seqs[id - recv->base_id] = seq;
 	if (FAILED(st = storage_write_queue(recv->store, id)))
@@ -124,8 +124,8 @@ static status update_record(receiver_handle recv, sequence seq,
 
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(recv->debug_file,
-				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
-				seq, id, NEXT_VER(ver)) < 0)
+				"\t\t\tupdating seq %07ld, id #%07ld, rev %07ld, ",
+				seq, id, NEXT_REV(rev)) < 0)
 		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
 
 	st = fdump(record_get_value_ref(rec), 16, FALSE, recv->debug_file);
@@ -148,9 +148,9 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 									 POLLIN | POLLOUT)))
 		return st;
 
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 	++recv->next_stats->tcp_gap_count;
-	SPIN_UNLOCK(&recv->stats_lock, no_ver);
+	SPIN_UNLOCK(&recv->stats_lock, no_rev);
 
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n",
@@ -252,9 +252,9 @@ static status tcp_read_buf(receiver_handle recv)
 		if (!FAILED(st))
 			st = st2;
 
-		SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+		SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 		recv->next_stats->tcp_bytes_recv += recv_sz;
-		SPIN_UNLOCK(&recv->stats_lock, no_ver);
+		SPIN_UNLOCK(&recv->stats_lock, no_rev);
 	}
 
 	return st;
@@ -621,12 +621,12 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 void receiver_next_stats(receiver_handle recv)
 {
 	struct receiver_stats* tmp;
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 
 	tmp = recv->next_stats;
 	recv->next_stats = recv->curr_stats;
 	recv->curr_stats = tmp;
 
 	BZERO(recv->next_stats);
-	SPIN_UNLOCK(&recv->stats_lock, no_ver);
+	SPIN_UNLOCK(&recv->stats_lock, no_rev);
 }

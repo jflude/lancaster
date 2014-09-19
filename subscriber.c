@@ -25,7 +25,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("subscriber: %s\n", BUILD_VERSION);
+	puts("subscriber " BUILD_VERSION);
 	exit(0);
 }
 

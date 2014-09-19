@@ -21,7 +21,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("grower 1.0\n");
+	puts("grower " BUILD_VERSION);
 	exit(0);
 }
 

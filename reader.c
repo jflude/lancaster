@@ -29,7 +29,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("reader 1.0\n");
+	puts("reader " BUILD_VERSION);
 	exit(0);
 }
 
@@ -38,7 +38,7 @@ static status update(q_index q)
 	record_handle rec = NULL;
 	struct q_element elem;
 	struct datum* d;
-	version ver;
+	revision rev;
 	long xyz;
 	status st;
 
@@ -51,9 +51,9 @@ static status update(q_index q)
 
 	d = record_get_value_ref(rec);
 	do {
-		ver = record_read_lock(rec);
+		rev = record_read_lock(rec);
 		xyz = d->xyz;
-	} while (ver != record_get_version(rec));
+	} while (rev != record_get_revision(rec));
 
 	event |= 1;
 

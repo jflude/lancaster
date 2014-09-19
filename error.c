@@ -60,7 +60,7 @@ int error_msg(const char* msg, int code, ...)
 	vsprintf(buf, msg, ap);
 	va_end(ap);
 
-	SPIN_WRITE_LOCK(&msg_lock, no_ver);
+	SPIN_WRITE_LOCK(&msg_lock, no_rev);
 
 	last_code = code;
 	last_msg[0] = '\0';
@@ -72,7 +72,7 @@ int error_msg(const char* msg, int code, ...)
 
 	strncat(last_msg, buf, sizeof(last_msg) - strlen(last_msg) - 1);
 
-	SPIN_UNLOCK(&msg_lock, no_ver);
+	SPIN_UNLOCK(&msg_lock, no_rev);
 	return code;
 }
 
@@ -117,7 +117,7 @@ int error_unimplemented(const char* func)
 
 void error_save_last(void)
 {
-	SPIN_WRITE_LOCK(&msg_lock, no_ver);
+	SPIN_WRITE_LOCK(&msg_lock, no_rev);
 
 	if (last_code != 0) {
 		saved_errno = errno;
@@ -127,12 +127,12 @@ void error_save_last(void)
 		error_reset();
 	}
 
-	SPIN_UNLOCK(&msg_lock, no_ver);
+	SPIN_UNLOCK(&msg_lock, no_rev);
 }
 
 void error_restore_last(void)
 {
-	SPIN_WRITE_LOCK(&msg_lock, no_ver);
+	SPIN_WRITE_LOCK(&msg_lock, no_rev);
 
 	if (saved_code != 0) {
 		errno = saved_errno;
@@ -143,5 +143,5 @@ void error_restore_last(void)
 		saved_msg[0] = '\0';
 	}
 
-	SPIN_UNLOCK(&msg_lock, no_ver);
+	SPIN_UNLOCK(&msg_lock, no_rev);
 }

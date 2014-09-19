@@ -99,10 +99,10 @@ static status mcast_send_pkt(sender_handle sndr)
 
 	sndr->last_active_time = sndr->mcast_send_time = now;
 
-	SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
 	sndr->next_stats->mcast_bytes_sent += st;
 	++sndr->next_stats->mcast_packets_sent;
-	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
+	SPIN_UNLOCK(&sndr->stats_lock, no_rev);
 
 	sndr->pkt_next = sndr->pkt_buf;
 	sndr->mcast_insert_time = 0;
@@ -122,7 +122,7 @@ static status mcast_send_pkt(sender_handle sndr)
 static status mcast_accum_record(sender_handle sndr, identifier id)
 {
 	status st;
-	version ver;
+	revision rev;
 	record_handle rec = NULL;
 	size_t avail_sz = sndr->mcast_mtu - (sndr->pkt_next - sndr->pkt_buf);
 
@@ -142,9 +142,9 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	sndr->pkt_next += sizeof(identifier);
 
 	do {
-		ver = record_read_lock(rec);
+		rev = record_read_lock(rec);
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
-	} while (ver != record_get_version(rec));
+	} while (rev != record_get_revision(rec));
 
 	sndr->pkt_next += sndr->val_size;
 	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
@@ -154,8 +154,8 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(sndr->debug_file,
-				"\t\t\tupdating seq %07ld, id #%07ld, ver %07ld, ",
-				sndr->next_seq, id, ver) < 0)
+				"\t\t\tupdating seq %07ld, id #%07ld, rev %07ld, ",
+				sndr->next_seq, id, rev) < 0)
 		return (feof(sndr->debug_file) ? error_eof : error_errno)("fprintf");
 
 	st = fdump(record_get_value_ref(rec), 16, FALSE, sndr->debug_file);
@@ -247,9 +247,9 @@ static status tcp_write_buf(struct tcp_client* clnt)
 
 		clnt->sndr->last_active_time = clnt->tcp_send_time;
 
-		SPIN_WRITE_LOCK(&clnt->sndr->stats_lock, no_ver);
+		SPIN_WRITE_LOCK(&clnt->sndr->stats_lock, no_rev);
 		clnt->sndr->next_stats->tcp_bytes_sent += sent_sz;
-		SPIN_UNLOCK(&clnt->sndr->stats_lock, no_ver);
+		SPIN_UNLOCK(&clnt->sndr->stats_lock, no_rev);
 	}
 
 	return st;
@@ -400,7 +400,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 				if (IS_WITHIN_RANGE(clnt->reply_range, seq)) {
 					record_handle rec = NULL;
-					version ver;
+					revision rev;
 					void* val_at;
 					if (FAILED(st = storage_get_record(sndr->store,
 													   clnt->reply_id, &rec)))
@@ -408,9 +408,9 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 					val_at = record_get_value_ref(rec);
 					do {
-						ver = record_read_lock(rec);
+						rev = record_read_lock(rec);
 						memcpy(out_id_ref + 1, val_at, sndr->val_size);
-					} while (ver != record_get_version(rec));
+					} while (rev != record_get_revision(rec));
 
 					*out_seq_ref = htonll(seq);
 					*out_id_ref = htonll(clnt->reply_id);
@@ -496,9 +496,9 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		clnt->in_next = clnt->in_buf;
 		clnt->in_remain = sizeof(struct sequence_range);
 
-		SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+		SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
 		++sndr->next_stats->tcp_gap_count;
-		SPIN_UNLOCK(&sndr->stats_lock, no_ver);
+		SPIN_UNLOCK(&sndr->stats_lock, no_rev);
 	}
 
 	return st;
@@ -797,12 +797,12 @@ size_t sender_get_receiver_count(sender_handle sndr)
 void sender_next_stats(sender_handle sndr)
 {
 	struct sender_stats* tmp;
-	SPIN_WRITE_LOCK(&sndr->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
 
 	tmp = sndr->next_stats;
 	sndr->next_stats = sndr->curr_stats;
 	sndr->curr_stats = tmp;
 
 	BZERO(sndr->next_stats);
-	SPIN_UNLOCK(&sndr->stats_lock, no_ver);
+	SPIN_UNLOCK(&sndr->stats_lock, no_rev);
 }

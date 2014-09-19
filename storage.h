@@ -1,4 +1,4 @@
-/* record storage, locking, change notification and versioning */
+/* persistent, memory-mapped record storage and locking */
 
 #ifndef STORAGE_H
 #define STORAGE_H
@@ -24,15 +24,15 @@ typedef struct record* record_handle;
 typedef status (*storage_iterate_func)(storage_handle, record_handle, void*);
 
 typedef long identifier;
-typedef long version;
+typedef long revision;
 typedef long q_index;
 
 struct q_element { identifier id; microsec ts; };
 
-#define VERSION_MIN LONG_MIN
-#define VERSION_MAX LONG_MAX
+#define REVISION_MIN LONG_MIN
+#define REVISION_MAX LONG_MAX
 
-#define NEXT_VER(v) (((v) + 1) & VERSION_MAX)
+#define NEXT_REV(v) (((v) + 1) & REVISION_MAX)
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
 					  boolean persist, int open_flags, identifier base_id,
@@ -91,10 +91,10 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 void* storage_get_property_ref(storage_handle store, record_handle rec);
 void* record_get_value_ref(record_handle rec);
 
-version record_get_version(record_handle rec);
-void record_set_version(record_handle rec, version ver);
-version record_read_lock(record_handle rec);
-version record_write_lock(record_handle rec);
+revision record_get_revision(record_handle rec);
+void record_set_revision(record_handle rec, revision rev);
+revision record_read_lock(record_handle rec);
+revision record_write_lock(record_handle rec);
 
 double storage_get_queue_min_latency(storage_handle store);
 double storage_get_queue_max_latency(storage_handle store);

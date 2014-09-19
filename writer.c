@@ -32,7 +32,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("writer 1.0\n");
+	puts("writer " BUILD_VERSION);
 	exit(0);
 }
 
@@ -40,7 +40,7 @@ static status update(identifier id, long n)
 {
 	record_handle rec = NULL;
 	struct datum* d;
-	version ver;
+	revision rev;
 	microsec now;
 	status st = OK;
 
@@ -52,12 +52,12 @@ static status update(identifier id, long n)
 		return st;
 
 	d = record_get_value_ref(rec);
-	ver = record_write_lock(rec);
+	rev = record_write_lock(rec);
 
 	d->xyz = n;
 	d->ts = now;
 
-	record_set_version(rec, NEXT_VER(ver));
+	record_set_revision(rec, NEXT_REV(rev));
 
 	if (FAILED(st = storage_write_queue(store, id)) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))

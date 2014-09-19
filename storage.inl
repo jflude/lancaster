@@ -7,7 +7,7 @@
 
 struct record
 {
-	volatile version ver;
+	volatile revision rev;
 	char val[1];
 };
 
@@ -28,7 +28,7 @@ struct segment
 	identifier max_id;
 	microsec last_created;
 	microsec last_touched;
-	volatile version last_touched_ver;
+	volatile revision last_touched_rev;
 	size_t q_mask;
 	q_index q_head;
 	union { char reserved[1024]; } new_fields;
@@ -76,16 +76,16 @@ INLINE status storage_get_record(storage_handle store, identifier id,
 	return OK;
 }
 
-INLINE void record_set_version(record_handle rec, version ver)
+INLINE void record_set_revision(record_handle rec, revision rev)
 {
-	SPIN_UNLOCK(&rec->ver, ver);
+	SPIN_UNLOCK(&rec->rev, rev);
 }
 
-INLINE version record_write_lock(record_handle rec)
+INLINE revision record_write_lock(record_handle rec)
 {
-	version old_ver;
-	SPIN_WRITE_LOCK(&rec->ver, old_ver);
-	return old_ver;
+	revision old_rev;
+	SPIN_WRITE_LOCK(&rec->rev, old_rev);
+	return old_rev;
 }
 
 #endif

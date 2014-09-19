@@ -147,8 +147,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		for (r = (*pstore)->first;
 			 r < (*pstore)->limit;
 			 r = STORAGE_RECORD(*pstore, r, 1))
-			if (r->ver < 0)
-				r->ver &= ~SPIN_MASK(r->ver);
+			if (r->rev < 0)
+				r->rev &= ~SPIN_MASK(r->rev);
 
 		SYNC_SYNCHRONIZE();
 	}
@@ -453,25 +453,25 @@ microsec storage_get_created_time(storage_handle store)
 microsec storage_get_touched_time(storage_handle store)
 {
 	microsec t;
-	version ver;
+	revision rev;
 	do {
-		SPIN_READ_LOCK(&store->seg->last_touched_ver, ver);
+		SPIN_READ_LOCK(&store->seg->last_touched_rev, rev);
 		t = store->seg->last_touched;
-	} while (ver != store->seg->last_touched_ver);
+	} while (rev != store->seg->last_touched_rev);
 
 	return t;
 }
 
 status storage_touch(storage_handle store, microsec when)
 {
-	version ver;
+	revision rev;
 	if (store->is_read_only)
 		return error_msg("storage_touch: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	SPIN_WRITE_LOCK(&store->seg->last_touched_ver, ver);
+	SPIN_WRITE_LOCK(&store->seg->last_touched_rev, rev);
 	store->seg->last_touched = when;
-	SPIN_UNLOCK(&store->seg->last_touched_ver, NEXT_VER(ver));
+	SPIN_UNLOCK(&store->seg->last_touched_rev, NEXT_REV(rev));
 	return OK;
 }
 
@@ -534,7 +534,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 
 	latency = now - pelem->ts;
 
-	SPIN_WRITE_LOCK(&store->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&store->stats_lock, no_rev);
 	delta = latency - store->next_stats->q_mean_latency;
 
 	store->next_stats->q_mean_latency +=
@@ -551,7 +551,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 		latency > store->next_stats->q_max_latency)
 		store->next_stats->q_max_latency = latency;
 
-	SPIN_UNLOCK(&store->stats_lock, no_ver);
+	SPIN_UNLOCK(&store->stats_lock, no_rev);
 	return OK;
 }
 
@@ -637,7 +637,7 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 								   new_q_capacity)))
 		return st;
 
-	copy_sz = sizeof(version) +
+	copy_sz = sizeof(revision) +
 		(store->seg->val_size < (*pnewstore)->seg->val_size
 		 ? store->seg->val_size : (*pnewstore)->seg->val_size);
 
@@ -686,16 +686,16 @@ void* record_get_value_ref(record_handle rec)
 	return rec->val;
 }
 
-version record_get_version(record_handle rec)
+revision record_get_revision(record_handle rec)
 {
-	return rec->ver;
+	return rec->rev;
 }
 
-version record_read_lock(record_handle rec)
+revision record_read_lock(record_handle rec)
 {
-	version old_ver;
-	SPIN_READ_LOCK(&rec->ver, old_ver);
-	return old_ver;
+	revision old_rev;
+	SPIN_READ_LOCK(&rec->rev, old_rev);
+	return old_rev;
 }
 
 double storage_get_queue_min_latency(storage_handle store)
@@ -724,7 +724,7 @@ double storage_get_queue_stddev_latency(storage_handle store)
 void storage_next_stats(storage_handle store)
 {
 	struct storage_stats* tmp;
-	SPIN_WRITE_LOCK(&store->stats_lock, no_ver);
+	SPIN_WRITE_LOCK(&store->stats_lock, no_rev);
 
 	tmp = store->next_stats;
 	store->next_stats = store->curr_stats;
@@ -732,5 +732,5 @@ void storage_next_stats(storage_handle store)
 
 	BZERO(store->next_stats);
 
-	SPIN_UNLOCK(&store->stats_lock, no_ver);
+	SPIN_UNLOCK(&store->stats_lock, no_rev);
 }

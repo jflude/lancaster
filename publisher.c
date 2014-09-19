@@ -30,7 +30,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("publisher 1.0\n");
+	puts("publisher " BUILD_VERSION);
 	exit(0);
 }
 
