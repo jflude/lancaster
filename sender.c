@@ -409,6 +409,9 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					val_at = record_get_value_ref(rec);
 					do {
 						rev = record_read_lock(rec);
+						if (rev == 0)
+							goto next_id;
+
 						memcpy(out_id_ref + 1, val_at, sndr->val_size);
 					} while (rev != record_get_revision(rec));
 
@@ -427,6 +430,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 #endif
 					return OK;
 				}
+			next_id:;
 			}
 
 			sndr->min_seq = clnt->min_seq_found;
