@@ -16,5 +16,5 @@ deps:
 	../scripts/go-update-deps.sh
 
 clean:
-	rm submgr
+	rm -f submgr
 
