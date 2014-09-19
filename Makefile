@@ -44,7 +44,18 @@ CFLAGS += -fPIC
 SO_EXT = .so
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower components
+
+#
+# These are the component libraries that need to be built
+#
+COMPONENTS = submgr
+.PHONY  : components $(COMPONENTS)
+
+components: $(COMPONENTS)
+
+$(COMPONENTS):
+	$(MAKE) -C $@
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
@@ -87,6 +98,7 @@ clean:
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
 	    $(OBJS)
+	@ cd submgr; $(MAKE) clean
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
