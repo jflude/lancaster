@@ -409,6 +409,9 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					val_at = record_get_value_ref(rec);
 					do {
 						ver = record_read_lock(rec);
+						if (ver == 0) {
+							goto next_id;
+						}
 						memcpy(out_id_ref + 1, val_at, sndr->val_size);
 					} while (ver != record_get_version(rec));
 
@@ -426,6 +429,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 								? error_eof : error_errno)("fprintf");
 #endif
 					return OK;
+					next_id:;
 				}
 			}
 
