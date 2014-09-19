@@ -40,14 +40,15 @@ endif
 
 ifneq (,$(findstring CYGWIN,$(shell uname -s)))
 SO_EXT := .dll
+DEPFLAGS += \
+-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 else
 SO_EXT := .so
 CFLAGS += -fPIC
 DEPFLAGS += \
 -I/usr/include/linux \
 -I/usr/include/x86_64-linux-gnu \
--I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
--I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
+-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
 all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower components
