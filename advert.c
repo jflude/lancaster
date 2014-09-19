@@ -57,9 +57,9 @@ static status make_json_map(advert_handle advert)
 
 	strcat(buf, escape_quotes(hostname));
 	strcat(buf, "\", \"env\":\"");
-	strcat(buf, "\", \"version\":\"...\"");
 	strcat(buf, advert->env);
-	strcat(buf, "\", \"data\":[");
+	strcat(buf, "\", \"version\":\"1.0\"");
+	strcat(buf, ", \"data\":[");
 
 	for (it = advert->notices; it; it = it->next) {
 		strcat(buf, it->json_desc);
