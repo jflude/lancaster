@@ -29,6 +29,7 @@ CFLAGS := \
 
 LDLIBS := -lm
 OBJS := $(SRCS:.c=.o)
+COMPONENT_TARGET = "build"
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -D_DARWIN_C_SOURCE
@@ -54,6 +55,7 @@ endif
 all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower components
 
 release: CFLAGS += -DNDEBUG -O3
+release: COMPONENT_TARGET = "release"
 release: all
 
 debug: CFLAGS += -DDEBUG_PROTOCOL
@@ -80,7 +82,7 @@ libcachester$(SO_EXT): $(OBJS)
 components: $(COMPONENTS)
 
 $(COMPONENTS):
-	$(MAKE) -C $@
+  $(MAKE) -C $@ $(COMPONENT_TARGET)
 
 clean:
 	rm -rf libcachester.a libcachester$(SO_EXT) \

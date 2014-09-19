@@ -25,7 +25,7 @@ var feedPattern string
 var env string
 var run = true
 var wireProtocolVersion = "*"
-var subscriberBin = "../subscriber"
+var subscriberPath = "../subscriber"
 var clientVersion = "<DEV>"
 
 type Discovery struct {
@@ -56,10 +56,10 @@ func init() {
 
 }
 func usage() {
-	v, err := exec.Command(subscriberBin, "-v").Output()
+	v, err := exec.Command(subscriberPath, "-v").Output()
 	var subscriberVersion string
 	if err != nil {
-		subscriberVersion = "Error, can't find subscriber at: " + subscriberBin
+		subscriberVersion = "Error, can't find subscriber at: " + subscriberPath
 	} else {
 		subscriberVersion = strings.TrimSpace(string(v))
 	}
@@ -80,10 +80,10 @@ func main() {
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
-	flag.StringVar(&subscriberBin, "sub", subscriberBin, "Path to subscriber exeutable")
+	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber exeutable")
 	flag.Parse()
 
-	if _, err := os.Stat(subscriberBin); err != nil {
+	if _, err := os.Stat(subscriberPath); err != nil {
 		log.Fatalln(err)
 	}
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
@@ -159,17 +159,17 @@ func (si *SubscriberInstance) run() {
 	addr, err := net.LookupHost(si.discovery.Hostname)
 	chkFatal(err)
 
-	si.commander, err = commander.New("../../cachester/subscriber",
+	si.commander, err = commander.New(subscriberPath,
 		"-j",
 		"-p", si.discovery.Data[0].Description,
 		"shm:/client."+si.discovery.Data[0].Description,
 		strconv.Itoa(1024*1024),
 		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port),
 	)
-	si.commander.Name = si.name
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", si, "error:", err)
 	}
+        si.commander.Name = si.name
 	si.commander.AutoRestart = false
 	err = si.commander.Run()
 	log.Println("Commander for:", si, "exited:", err)
