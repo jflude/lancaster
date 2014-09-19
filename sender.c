@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
-#define PROTOCOL_VERSION 1
-
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define IDLE_TIMEOUT_USEC 100
 #define IDLE_SLEEP_USEC 10
@@ -619,8 +617,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	(*psndr)->pkt_next = (*psndr)->pkt_buf;
 
 	st = sprintf((*psndr)->hello_str,
-				 "%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 PROTOCOL_VERSION,
+				 WIRE_VERSION
+				 "\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
 				 mcast_address,
 				 mcast_port,
 				 (*psndr)->mcast_mtu,

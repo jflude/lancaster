@@ -21,7 +21,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("inspector " BUILD_VERSION);
+	puts("inspector " SOURCE_VERSION);
 	exit(0);
 }
 
@@ -73,7 +73,8 @@ static status print_queue(storage_handle store)
 	q_index i;
 	struct q_element elem;
 	size_t cap = storage_get_queue_capacity(store);
-	char buf[256], head[] = " <--";
+	char buf[64];
+	static char head[] = " <--";
 
 	if (puts("------------------------------------------------") < 0)
 		return (feof(stdin) ? error_eof : error_errno)("puts");
@@ -97,7 +98,8 @@ static status print_record(storage_handle store, record_handle rec,
 	status st;
 	identifier id;
 	size_t prop_sz;
-	static char buf[128], divider[] =
+	char buf[128];
+	static const char divider[] =
 		"========================================="
 		"=========================================";
 

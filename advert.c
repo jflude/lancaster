@@ -21,7 +21,7 @@ struct advert
 	sock_addr_handle mcast_addr;
 	thread_handle mcast_thr;
 	char* json_msg;
-	const char* env;
+	char* env;
 	size_t json_sz;
 	struct notice* notices;
 	volatile int lock;
@@ -57,8 +57,8 @@ static status make_json_map(advert_handle advert)
 
 	strcat(buf, escape_quotes(hostname));
 	strcat(buf, "\", \"env\":\"");
-	strcat(buf, advert->env);
-	strcat(buf, "\", \"version\":\"1.0\"");
+	strcat(buf, escape_quotes(advert->env));
+	strcat(buf, "\", \"version\":\"" WIRE_VERSION "\"");
 	strcat(buf, ", \"data\":[");
 
 	for (it = advert->notices; it; it = it->next) {
@@ -134,7 +134,10 @@ status advert_create(advert_handle* padvert, const char* mcast_address,
 
 	BZERO(*padvert);
 	SPIN_CREATE(&(*padvert)->lock);
-	(*padvert)->env=env;
+
+	(*padvert)->env = xstrdup(env);
+	if (!(*padvert)->env)
+		return NO_MEMORY;
 
 	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
 								SOCK_DGRAM, IPPROTO_UDP)) ||
@@ -159,6 +162,7 @@ status advert_destroy(advert_handle* padvert)
 {
 	status st = OK;
 	struct notice* it;
+
 	if (!padvert || !*padvert ||
 		FAILED(st = thread_destroy(&(*padvert)->mcast_thr)) ||
 		FAILED(st = sock_destroy(&(*padvert)->mcast_sock)) ||
@@ -173,6 +177,7 @@ status advert_destroy(advert_handle* padvert)
 	}
 
 	XFREE((*padvert)->json_msg);
+	XFREE((*padvert)->env);
 	XFREE(*padvert);
 	return st;
 }

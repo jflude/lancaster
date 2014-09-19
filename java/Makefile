@@ -1,3 +1,5 @@
+include ../VERSION.mk
+
 all:
 	gradle jar
 

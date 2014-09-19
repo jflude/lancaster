@@ -29,7 +29,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("reader " BUILD_VERSION);
+	puts("reader " SOURCE_VERSION);
 	exit(0);
 }
 

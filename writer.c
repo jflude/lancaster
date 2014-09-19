@@ -32,7 +32,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("writer " BUILD_VERSION);
+	puts("writer " SOURCE_VERSION);
 	exit(0);
 }
 

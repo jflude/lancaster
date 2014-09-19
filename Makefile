@@ -16,18 +16,15 @@ twist.c \
 xalloc.c \
 yield.c
 
-BUILD_VERSION = $(shell git log --pretty=format:'%ad %h%d' --abbrev-commit --date=short -1)
+include VERSION.mk
 
-CFLAGS = -ansi -pedantic -Wall -Wextra -Werror -g \
-	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE -DBUILD_VERSION='"$(BUILD_VERSION)"'
-LDLIBS = -lm
-OBJS = $(SRCS:.c=.o)
+CFLAGS := -ansi -pedantic -Wall -Wextra -Werror -g \
+	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE \
+	-DSOURCE_VERSION='$(SOURCE_VERSION)' \
+	-DWIRE_VERSION='$(WIRE_VERSION)'
 
-DEPFLAGS = \
--I/usr/include/linux \
--I/usr/include/x86_64-linux-gnu \
--I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
--I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
+LDLIBS := -lm
+OBJS := $(SRCS:.c=.o)
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -D_DARWIN_C_SOURCE
@@ -38,13 +35,18 @@ LDLIBS += -lrt
 endif
 
 ifneq (,$(findstring CYGWIN,$(shell uname -s)))
-SO_EXT = .dll
+SO_EXT := .dll
 else
+SO_EXT := .so
 CFLAGS += -fPIC
-SO_EXT = .so
+DEPFLAGS += \
+-I/usr/include/linux \
+-I/usr/include/x86_64-linux-gnu \
+-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
+-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
 
 release: CFLAGS += -DNDEBUG -O3
 release: all
@@ -70,14 +72,6 @@ libcachester.a: $(OBJS)
 libcachester$(SO_EXT): $(OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-DEPEND.mk:
-	touch DEPEND.mk
-
-depend: DEPEND.mk
-	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
-	    $(SRCS)
-
 clean:
 	rm -rf libcachester.a libcachester$(SO_EXT) \
 	    writer writer.o publisher publisher.o \
@@ -90,6 +84,14 @@ clean:
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
+
+DEPEND.mk:
+	touch DEPEND.mk
+
+depend: DEPEND.mk
+	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
+	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
+	    $(SRCS)
 
 .PHONY: all release debug depend clean distclean
 

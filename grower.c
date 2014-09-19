@@ -21,7 +21,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("grower " BUILD_VERSION);
+	puts("grower " SOURCE_VERSION);
 	exit(0);
 }
 

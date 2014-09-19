@@ -19,8 +19,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#define PROTOCOL_VERSION 1
-
 #define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)
 #define INITIAL_MC_HB_USEC (2 * 1000000)
@@ -370,8 +368,9 @@ static status init(receiver_handle* precv, const char* mmap_file,
 				   const char* tcp_address, unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, mcast_addr = NULL, iface_addr = NULL;
-	char buf[512], mcast_address[32];
-	int mcast_port, proto_ver, proto_len;
+	char buf[512], wire_ver[8], mcast_address[32];
+	static char expected_ver[] = WIRE_VERSION;
+	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
 	status st;
@@ -401,8 +400,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return st;
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%d %31s %d %lu %ld %ld %lu %ld %ld %n",
-				&proto_ver, mcast_address, &mcast_port, &(*precv)->mcast_mtu,
+	st = sscanf(buf, "%7s %31s %d %lu %ld %ld %lu %ld %ld %n",
+				wire_ver, mcast_address, &mcast_port, &(*precv)->mcast_mtu,
 				&base_id, &max_id, &val_size, &max_age_usec, &hb_usec,
 				&proto_len);
 
@@ -410,9 +409,12 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return error_msg("receiver_create: invalid publisher attributes: \"%s\"",
 						 PROTOCOL_ERROR, buf);
 
-	if (proto_ver != PROTOCOL_VERSION)
-		return error_msg("receiver_create: unknown protocol version: %d",
-						 UNKNOWN_PROTOCOL, proto_ver);
+	st = strchr(expected_ver, '.') - expected_ver;
+
+	if (strlen(wire_ver) < (size_t) st ||
+		strncmp(expected_ver, wire_ver, st) != 0)
+		return error_msg("receiver_create: wrong wire version: %s (expecting "
+						 WIRE_VERSION ")", WIRE_WRONG_VERSION, wire_ver);
 
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
@@ -422,8 +424,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	(*precv)->next_seq = 0;
 	(*precv)->timeout_usec = 5 * hb_usec / 2;
 
-	(*precv)->in_buf = xmalloc(
-		sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
+	(*precv)->in_buf =
+		xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
 
 	if (!(*precv)->in_buf)
 		return NO_MEMORY;
