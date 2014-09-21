@@ -17,7 +17,8 @@ SRCS := \
 	yield.c
 
 COMPONENTS := \
-	submgr
+	submgr \
+	pubmgr
 
 include VERSION.mk
 
