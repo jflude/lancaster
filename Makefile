@@ -85,7 +85,7 @@ components: $(COMPONENTS)
 $(COMPONENTS):
 	$(MAKE) -C $@ $(COMPONENT_TARGET)
 
-clean:
+clean: 
 	rm -rf libcachester.a libcachester$(SO_EXT) \
 	    writer writer.o publisher publisher.o \
 	    subscriber subscriber.o reader reader.o \
@@ -94,7 +94,9 @@ clean:
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
 	    $(OBJS)
+
 	@ cd submgr; $(MAKE) clean
+	@ cd pubmgr; $(MAKE) clean
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump

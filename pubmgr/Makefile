@@ -1,20 +1,31 @@
-WIRE_VERSION=1.0
-BUILD_VERSION:=$(shell git log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1)
+include ../VERSION.mk
 
-LD_FLAGS= \
-	-X main.wireProtocolVersion $(WIRE_VERSION) \
-	-X main.myVersion '$(BUILD_VERSION)'
+PUBLISHER_PATH="../publisher"
+
+build: LD_FLAGS= \
+		-X main.wireProtocolVersion $(WIRE_VERSION) \
+		-X main.sourceVersion $(SOURCE_VERSION) \
+		-X main.publisherPath $(PUBLISHER_PATH)
 
 all: pubmgr
 
 pubmgr: deps build
 
+release: SUBSCRIBER_PATH="./subscriber"
+release: build dist
+
 build: 
-	go build -ldflags "$(LD_FLAGS)" .
+	go build -ldflags '$(LD_FLAGS)' .
 
 deps: 
 	../scripts/go-update-deps.sh
 
+dist:
+	mkdir release
+	cp submgr release
+	cp $(PUBLISHER_PATH) release
+
 clean:
-	rm pubmgr
+	rm -f pubmgr
+	rm -Rf release
 

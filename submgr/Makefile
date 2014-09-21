@@ -3,9 +3,9 @@ include ../VERSION.mk
 SUBSCRIBER_PATH="../subscriber"
 
 build: LD_FLAGS = \
-        -X main.wireProtocolVersion $(WIRE_VERSION) \
-        -X main.clientVersion $(SOURCE_VERSION) \
-        -X main.subscriberPath '$(SUBSCRIBER_PATH)'
+	    -X main.wireProtocolVersion $(WIRE_VERSION) \
+		-X main.sourceVersion $(SOURCE_VERSION) \
+	    -X main.subscriberPath $(SUBSCRIBER_PATH)
 
 all: submgr
 
@@ -23,7 +23,7 @@ deps:
 dist:
 	mkdir release
 	cp submgr release
-	cp ../subscriber release
+	cp $(SUBSCRIBER_PATH) release
 
 clean:
 	rm -f submgr

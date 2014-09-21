@@ -26,7 +26,7 @@ var env string
 var run = true
 var wireProtocolVersion = "*"
 var subscriberPath = "../subscriber"
-var clientVersion = "<DEV>"
+var sourceVersion = "<DEV>"
 
 type Discovery struct {
 	Hostname string
@@ -64,7 +64,7 @@ func usage() {
 		subscriberVersion = strings.TrimSpace(string(v))
 	}
 	fmt.Fprintln(os.Stderr, ""+
-		"         Client: "+clientVersion+
+		"         Source: "+sourceVersion+
 		"\n     Subscriber: "+subscriberVersion+
 		"\n  Wire Protocol: "+wireProtocolVersion+
 		"\n\n Usage: "+os.Args[0]+" [flags]")
@@ -169,7 +169,7 @@ func (si *SubscriberInstance) run() {
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", si, "error:", err)
 	}
-        si.commander.Name = si.name
+	si.commander.Name = si.name
 	si.commander.AutoRestart = false
 	err = si.commander.Run()
 	log.Println("Commander for:", si, "exited:", err)

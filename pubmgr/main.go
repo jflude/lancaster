@@ -25,8 +25,8 @@ type PublisherInstance struct {
 var stop = make(chan struct{})
 var env string
 var run = true
-var publisherBin = "../publisher"
-var myVersion = "<DEV>"
+var publisherPath = "../publisher"
+var sourceVersion = "<DEV>"
 var filePatternFlag filePattern
 var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 500
@@ -56,19 +56,19 @@ func init() {
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
 	flag.Usage = usage
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
-	flag.StringVar(&publisherBin, "pub", publisherBin, "Path to publisher exeutable")
+	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher exeutable")
 }
 
 func usage() {
-	v, err := exec.Command(publisherBin, "-v").Output()
+	v, err := exec.Command(publisherPath, "-v").Output()
 	var publisherVersion string
 	if err != nil {
-		publisherVersion = "Error, can't find Publisher at: " + publisherBin
+		publisherVersion = "Error, can't find Publisher at: " + publisherPath
 	} else {
 		publisherVersion = strings.TrimSpace(string(v))
 	}
 	fmt.Fprintln(os.Stderr, ""+
-		"             My: "+myVersion+
+		"        Source: "+sourceVersion+
 		"\n     Publisher: "+publisherVersion+
 		"\n\n Usage: "+os.Args[0]+" [flags] DIR1 [DIR2...]")
 
@@ -80,7 +80,7 @@ func main() {
 	var err error
 	flag.Parse()
 	log.Println("Patterns:", filePatternFlag)
-	if _, err = os.Stat(publisherBin); err != nil {
+	if _, err = os.Stat(publisherPath); err != nil {
 		log.Fatalln(err)
 	}
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
@@ -163,7 +163,7 @@ func startIfNeeded(path string) {
 			port int
 		}
 
-		cmd, err := commander.New(publisherBin)
+		cmd, err := commander.New(publisherPath)
 		if err != nil {
 			log.Fatal(err)
 		}
