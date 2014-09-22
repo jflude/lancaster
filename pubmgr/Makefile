@@ -11,7 +11,7 @@ all: pubmgr
 
 pubmgr: deps build
 
-release: SUBSCRIBER_PATH="./subscriber"
+release: PUBLISHER_PATH="./publisher"
 release: build dist
 
 build: 
@@ -22,8 +22,8 @@ deps:
 
 dist:
 	mkdir release
-	cp submgr release
-	cp $(PUBLISHER_PATH) release
+	cp pubmgr release
+	cp ../publisher release
 
 clean:
 	rm -f pubmgr

@@ -23,7 +23,7 @@ deps:
 dist:
 	mkdir release
 	cp submgr release
-	cp $(SUBSCRIBER_PATH) release
+	cp ../subscriber release
 
 clean:
 	rm -f submgr
