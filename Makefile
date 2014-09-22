@@ -30,7 +30,7 @@ CFLAGS := \
 
 LDLIBS := -lm
 OBJS := $(SRCS:.c=.o)
-COMPONENT_TARGET = "build"
+COMPONENT_TARGET = "all"
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -D_DARWIN_C_SOURCE
