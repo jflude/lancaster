@@ -106,6 +106,7 @@ func discoveryLoop() error {
 	}
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
+	log.Println("Listening for advertisements on:", addr)
 	chkFatal(err)
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
