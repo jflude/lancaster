@@ -103,11 +103,11 @@ distclean: clean
 DEPEND.mk:
 	touch DEPEND.mk
 
-depend: COMPONENT_TARGET = "depend"
 depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
 	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
 	    $(SRCS)
+depend: COMPONENT_TARGET = "depend"
 depend: components
 
 .PHONY: all release debug depend clean distclean components $(COMPONENTS)
