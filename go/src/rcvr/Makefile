@@ -10,7 +10,7 @@ release: build dist
 build:
 	go build 
 
-depend: getGoop
+depend: .getGoop
 	(cd $(GOOP_DIR) && goop install)
 
 dist:

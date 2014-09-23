@@ -30,7 +30,6 @@ CFLAGS := \
 
 LDLIBS := -lm
 OBJS := $(SRCS:.c=.o)
-COMPONENT_TARGET = "all"
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -D_DARWIN_C_SOURCE
@@ -53,10 +52,17 @@ DEPFLAGS += \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower components
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
+all: 
+	@ for dir in $(COMPONENTS); do \
+        $(MAKE) -C $$dir all; \
+        done
 
 release: CFLAGS += -DNDEBUG -O3
-release: COMPONENT_TARGET = "release"
+release: 
+	@ for dir in $(COMPONENTS); do \
+         $(MAKE) -C $$dir release; \
+	 done
 release: all
 
 debug: CFLAGS += -DDEBUG_PROTOCOL
@@ -80,11 +86,6 @@ libcachester.a: $(OBJS)
 libcachester$(SO_EXT): $(OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-components: $(COMPONENTS)
-
-$(COMPONENTS):
-	$(MAKE) -C $@ $(COMPONENT_TARGET)
-
 clean: 
 	rm -rf libcachester.a libcachester$(SO_EXT) \
 	    writer writer.o publisher publisher.o \
@@ -94,8 +95,9 @@ clean:
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
 	    $(OBJS)
-clean: COMPONENT_TARGET = "clean"
-clean: components
+	@ for dir in $(COMPONENTS); do \
+         $(MAKE) -C $$dir clean; \
+         done
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
@@ -107,8 +109,9 @@ depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
 	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
 	    $(SRCS)
-depend: COMPONENT_TARGET = "depend"
-depend: components
+	@ for dir in $(COMPONENTS); do \
+         $(MAKE) -C $$dir depend; \
+         done
 
 .PHONY: all release debug depend clean distclean components $(COMPONENTS)
 

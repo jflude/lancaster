@@ -18,7 +18,7 @@ release: build dist
 build:
 	go build -ldflags '$(LD_FLAGS)' .
 
-depend: getGoop
+depend: .getGoop
 	(cd $(GOOP_DIR) && goop install)
 
 dist:
