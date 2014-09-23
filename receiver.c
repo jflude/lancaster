@@ -21,7 +21,7 @@
 
 #define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)
-#define INITIAL_MC_HB_USEC (2 * 1000000)
+#define INITIAL_MC_HB_USEC (5 * 1000000)
 
 #ifdef DEBUG_PROTOCOL
 #include "dump.h"
@@ -64,7 +64,7 @@ struct receiver
 	microsec touched_time;
 	microsec timeout_usec;
 	sock_addr_handle mcast_src_addr;
-	sock_addr_handle mcast_addr;
+	sock_addr_handle mcast_pub_addr;
 	struct receiver_stats* curr_stats;
 	struct receiver_stats* next_stats;
 	volatile int stats_lock;
@@ -159,9 +159,15 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	return st;
 }
 
-void long_to_ip(unsigned long addr, char* buff){
-	sprintf(buff,"%lu.%lu.%lu.%lu",(addr>>24) & 0xff, (addr>>16)& 0xff, (addr>>8)& 0xff, addr & 0xFF);
+static status get_sock_addr_text(sock_addr_handle addr, char* text, size_t text_sz)
+{
+	status st;
+	if (FAILED(st = sock_addr_get_text(addr, text, text_sz)))
+		sprintf(text, "sock_addr_get_text failed: error #%d", (int) st);
+
+	return st;
 }
+
 static status mcast_on_read(receiver_handle recv)
 {
 	status st, st2;
@@ -183,21 +189,14 @@ static status mcast_on_read(receiver_handle recv)
 	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
 	if (mcast_ip != tcp_ip) {
-		char src_text[256];
-		char tcp_text[256];
-		char mcast_text[256];
-		if (FAILED(st = sock_addr_get_text(recv->mcast_src_addr,
-										   src_text, sizeof(src_text))))
-			sprintf(src_text, "sock_addr_get_text failed: error #%d", (int) st);
-		if (FAILED(st = sock_addr_get_text(recv->tcp_addr,
-										   tcp_text, sizeof(tcp_text))))
-			sprintf(tcp_text, "sock_addr_get_text failed: error #%d", (int) st);
-		if (FAILED(st = sock_addr_get_text(recv->mcast_addr,
-										   mcast_text, sizeof(mcast_text))))
-			sprintf(tcp_text, "sock_addr_get_text failed: error #%d", (int) st);
+		char src_text[256], tcp_text[256], pub_text[256];
+		get_sock_addr_text(recv->mcast_pub_addr, pub_text, sizeof(pub_text));
+		get_sock_addr_text(recv->mcast_src_addr, src_text, sizeof(src_text));
+		get_sock_addr_text(recv->tcp_addr, tcp_text, sizeof(tcp_text));
 
-		return error_msg("mcast_on_read of: %s, expected source: %s, got: %s",
-						 UNEXPECTED_SOURCE, mcast_text, tcp_text, src_text);
+		return error_msg("mcast_on_read: error: unexpected source: "
+						 "%s from %s, not %s",
+						 UNEXPECTED_SOURCE, pub_text, src_text, tcp_text);
 	}
 
 	recv->mcast_recv_time = now;
@@ -378,7 +377,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 				   unsigned q_capacity, size_t property_size,
 				   const char* tcp_address, unsigned short tcp_port)
 {
-	sock_addr_handle bind_addr = NULL, mcast_addr = NULL, iface_addr = NULL;
+	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], wire_ver[8], mcast_address[32];
 	static char expected_ver[] = WIRE_VERSION;
 	int mcast_port, proto_len;
@@ -464,11 +463,12 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		!FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
 		!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
 		!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
-		!FAILED(st = sock_addr_create(&mcast_addr, mcast_address, mcast_port)) &&
+		!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
+									  mcast_port)) &&
 		!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
 		!FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) &&
 		!FAILED(st = sock_mcast_add((*precv)->mcast_sock,
-									mcast_addr, iface_addr)) &&
+									(*precv)->mcast_pub_addr, iface_addr)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->tcp_sock)) &&
 		!FAILED(st = sock_addr_create(&(*precv)->mcast_src_addr, NULL, 0)) &&
@@ -479,7 +479,6 @@ static status init(receiver_handle* precv, const char* mmap_file,
 								(*precv)->tcp_sock, POLLIN)) &&
 		!FAILED(st = clock_time(&(*precv)->mcast_recv_time))) {
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
-		sock_addr_create(&(*precv)->mcast_addr, mcast_address, mcast_port);
 
 #ifdef DEBUG_PROTOCOL
 		sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
@@ -492,7 +491,6 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	}
 
 	sock_addr_destroy(&bind_addr);
-	sock_addr_destroy(&mcast_addr);
 	sock_addr_destroy(&iface_addr);
 	return st;
 }

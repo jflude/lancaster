@@ -12,24 +12,24 @@ status fdump(const void* p, size_t sz, boolean relative, FILE* f)
 
 	while (n < sz) {
 		int i;
-
-		if (fprintf(f, "%012lX | ",
+		if (fprintf(f, "%012lX|",
 					(q - (const char*) (relative ? p : NULL)) + n) < 0)
 			return (feof(f) ? error_eof : error_errno)("fprintf");
 
 		for (i = 0; i < 16; ++i) {
 			if ((n + i) < sz) {
 				unsigned val = (unsigned char) q[n + i];
-				if (fprintf(f, "%02X ", val) < 0)
+				if (fprintf(f, "%02X", val) < 0)
 					return (feof(f) ? error_eof : error_errno)("fprintf");
-			} else {
-				if (fprintf(f, "   ") < 0)
-					return (feof(f) ? error_eof : error_errno)("fprintf");
-			}
+			} else if (putc(' ', f) == EOF || putc(' ', f) == EOF)
+					return (feof(f) ? error_eof : error_errno)("putc");
+
+			if (i < 15 && putc(' ', f) == EOF)
+				return (feof(f) ? error_eof : error_errno)("putc");
 		}
 
-		if (fprintf(f, "| ") < 0)
-			return (feof(f) ? error_eof : error_errno)("fprintf");
+		if (putc('|', f) == EOF)
+			return (feof(f) ? error_eof : error_errno)("putc");
 
 		for (i = 0; i < 16 && (n + i) < sz; ++i) {
 			char c = isprint((int) q[n + i]) ? q[n + i] : '.';

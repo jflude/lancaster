@@ -100,8 +100,8 @@ static status print_record(storage_handle store, record_handle rec,
 	size_t prop_sz;
 	char buf[128];
 	static const char divider[] =
-		"========================================="
-		"=========================================";
+		"======================================="
+		"=======================================";
 
 	if (FAILED(st = storage_get_id(store, rec, &id)))
 		return st;
