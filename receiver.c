@@ -64,6 +64,7 @@ struct receiver
 	microsec touched_time;
 	microsec timeout_usec;
 	sock_addr_handle mcast_src_addr;
+	sock_addr_handle mcast_addr;
 	struct receiver_stats* curr_stats;
 	struct receiver_stats* next_stats;
 	volatile int stats_lock;
@@ -158,6 +159,9 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	return st;
 }
 
+void long_to_ip(unsigned long addr, char* buff){
+	sprintf(buff,"%lu.%lu.%lu.%lu",(addr>>24) & 0xff, (addr>>16)& 0xff, (addr>>8)& 0xff, addr & 0xFF);
+}
 static status mcast_on_read(receiver_handle recv)
 {
 	status st, st2;
@@ -178,15 +182,22 @@ static status mcast_on_read(receiver_handle recv)
 
 	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
-
 	if (mcast_ip != tcp_ip) {
 		char src_text[256];
+		char tcp_text[256];
+		char mcast_text[256];
 		if (FAILED(st = sock_addr_get_text(recv->mcast_src_addr,
 										   src_text, sizeof(src_text))))
 			sprintf(src_text, "sock_addr_get_text failed: error #%d", (int) st);
+		if (FAILED(st = sock_addr_get_text(recv->tcp_addr,
+										   tcp_text, sizeof(tcp_text))))
+			sprintf(tcp_text, "sock_addr_get_text failed: error #%d", (int) st);
+		if (FAILED(st = sock_addr_get_text(recv->mcast_addr,
+										   mcast_text, sizeof(mcast_text))))
+			sprintf(tcp_text, "sock_addr_get_text failed: error #%d", (int) st);
 
-		return error_msg("mcast_on_read: unexpected source: %s",
-						 UNEXPECTED_SOURCE, src_text);
+		return error_msg("mcast_on_read of: %s, expected source: %s, got: %s",
+						 UNEXPECTED_SOURCE, mcast_text, tcp_text, src_text);
 	}
 
 	recv->mcast_recv_time = now;
@@ -468,6 +479,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 								(*precv)->tcp_sock, POLLIN)) &&
 		!FAILED(st = clock_time(&(*precv)->mcast_recv_time))) {
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
+		sock_addr_create(&(*precv)->mcast_addr, mcast_address, mcast_port);
 
 #ifdef DEBUG_PROTOCOL
 		sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
