@@ -1,0 +1,5 @@
+github.peak6.net/platform/gocore.git/commander
+github.peak6.net/platform/gocore.git/mmd
+github.com/peak6/go-mmd/mmd
+gopkg.in/fsnotify.v1
+github.com/lib/pq #fbed41b4c063a307ab21bf37ae6705519fb34ca3
