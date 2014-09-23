@@ -17,8 +17,8 @@ SRCS := \
 	yield.c
 
 COMPONENTS := \
-	submgr \
-	pubmgr
+	go/src/submgr \
+	go/src/pubmgr
 
 include VERSION.mk
 
@@ -94,9 +94,8 @@ clean:
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
 	    $(OBJS)
-
-	@ cd submgr; $(MAKE) clean
-	@ cd pubmgr; $(MAKE) clean
+clean: COMPONENT_TARGET = "clean"
+clean: components
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
@@ -108,6 +107,8 @@ depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
 	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
 	    $(SRCS)
+depend: COMPONENT_TARGET = "depend"
+depend: components
 
 .PHONY: all release debug depend clean distclean components $(COMPONENTS)
 

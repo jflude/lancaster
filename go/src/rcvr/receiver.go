@@ -1,10 +1,10 @@
 package main
 
-// #include "../../status.h"
-// #include "../../storage.h"
-// #include "../../error.h"
-// #include "../../receiver.h"
-// #cgo LDFLAGS: ../../libcachester.a -lrt -lm -w
+// #include "../../../status.h"
+// #include "../../../storage.h"
+// #include "../../../error.h"
+// #include "../../../receiver.h"
+// #cgo LDFLAGS: ../../../libcachester.a -lrt -lm -w
 import "C"
 
 import (
@@ -116,7 +116,7 @@ func (r *Receiver) Start() {
 				if !r.Alive {
 					r.Stats = Stats{}
 					r.Status = "Not Running"
-					str := C.GoString(C.error_last_desc())
+					str := C.GoString(C.error_last_msg())
 					log.Println(r.Address, "died, last error:", str)
 				} else {
 					r.updateStats()
@@ -188,7 +188,7 @@ func chkStatus(status C.status) error {
 	if status == 0 {
 		return nil
 	}
-	str := strings.TrimSpace(C.GoString(C.error_last_desc()))
+	str := strings.TrimSpace(C.GoString(C.error_last_msg()))
 	return fmt.Errorf("%d: %s", status, errors.New(str))
 }
 

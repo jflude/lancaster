@@ -1,6 +1,7 @@
-include ../VERSION.mk
+include ../../../VERSION.mk
+include ../../GOOP.mk
 
-PUBLISHER_PATH="../publisher"
+PUBLISHER_PATH="$(CACHESTER_DIR)/publisher"
 
 build: LD_FLAGS= \
 		-X main.wireProtocolVersion $(WIRE_VERSION) \
@@ -9,7 +10,7 @@ build: LD_FLAGS= \
 
 all: pubmgr
 
-pubmgr: deps build
+pubmgr: build
 
 release: PUBLISHER_PATH="./publisher"
 release: build dist
@@ -17,13 +18,13 @@ release: build dist
 build: 
 	go build -ldflags '$(LD_FLAGS)' .
 
-deps: 
-	../scripts/go-update-deps.sh
+depend: getGoop
+	(cd $(GOOP_DIR) && goop install)
 
 dist:
 	mkdir release
 	cp pubmgr release
-	cp ../publisher release
+	cp $(CACHESTER_DIR)/publisher release
 
 clean:
 	rm -f pubmgr
