@@ -29,6 +29,3 @@ dist:
 clean:
 	rm -f submgr
 	rm -Rf release
-
-getGoop:
-	go get github.com/nitrous-io/goop

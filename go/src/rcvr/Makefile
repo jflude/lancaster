@@ -21,6 +21,3 @@ clean:
 	rm -f rcvr
 	rm -Rf release
 
-getGoop:
-	go get github.com/nitrous-io/goop
-
