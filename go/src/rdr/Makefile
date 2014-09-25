@@ -10,14 +10,14 @@ release: build dist
 build:
 	go build 
 
-depend: .getGoop
-	(cd ../../ && goop install)
+goop: .getGoop
+	cd ../../ && goop install
 
 dist:
-	mkdir release
-	cp rdr release
+	mkdir -p release
+	cp -p rdr release/
 
 clean:
-	rm -f rdr
-	rm -Rf release
+	rm -rf rdr release
 
+.PHONY: all release build goop dist clean

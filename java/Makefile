@@ -5,3 +5,5 @@ all:
 
 clean:
 	gradle clean
+
+.PHONY: all clean

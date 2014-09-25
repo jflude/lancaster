@@ -98,7 +98,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
 	  		   ===============================================
 
-	inspector [-v] [-a] [-p] [-q] [-r] STORAGE-FILE [RECORD ID...]
+	inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...]
 
 	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
 		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
@@ -108,10 +108,12 @@ These are utility programs to show and modify a storage.
 INSPECTOR if given the -a option outputs the attribute values of a storage, such
 as the size of a record within it, the size of its change queue, the description
 associated with it, etc.  The -q option will cause the change queue, if any, to
-be output, while the -r option will cause all the records to be output as well.
-Instead of all records being output, individual records can be output by giving
-their identifiers.  Properties for records will be included in the output if the
--p option is specified.
+be output, while the -V option will cause the values of records to be output.
+Properties for records will be included in the output if the -p option is
+specified.  Individual records can be chosen for output by specifying their
+record ID, or every record can be selected by specifying "all".  If no option is
+specified, the program will attempt to open and verify the storage, exiting with
+zero (success) if the format of the storage is valid.
 
 The GROWER program will create a new storage based upon an existing storage, and
 containing the same data copied to its records (as applicable).  Any attribute

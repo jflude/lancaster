@@ -618,7 +618,9 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	st = sprintf((*psndr)->hello_str,
 				 WIRE_VERSION
-				 "\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 "\r\n%hu\r\n%s\r\n%d\r\n%lu\r\n"
+				 "%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 storage_get_app_version((*psndr)->store),
 				 mcast_address,
 				 mcast_port,
 				 (*psndr)->mcast_mtu,

@@ -54,15 +54,15 @@ endif
 
 all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
 all: 
-	@ for dir in $(COMPONENTS); do \
+	for dir in $(COMPONENTS); do \
         $(MAKE) -C $$dir all; \
         done
 
 release: CFLAGS += -DNDEBUG -O3
 release: 
-	@ for dir in $(COMPONENTS); do \
+	for dir in $(COMPONENTS); do \
          $(MAKE) -C $$dir release; \
-	 done
+	done
 release: all
 
 debug: CFLAGS += -DDEBUG_PROTOCOL
@@ -95,7 +95,7 @@ clean:
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
 	    $(OBJS)
-	@ for dir in $(COMPONENTS); do \
+	for dir in $(COMPONENTS); do \
          $(MAKE) -C $$dir clean; \
          done
 
@@ -109,10 +109,12 @@ depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
 	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
 	    $(SRCS)
-	@ for dir in $(COMPONENTS); do \
-         $(MAKE) -C $$dir depend; \
-         done
 
-.PHONY: all release debug depend clean distclean components $(COMPONENTS)
+goop:
+	for dir in $(COMPONENTS); do \
+         $(MAKE) -C $$dir goop; \
+     done
+
+.PHONY: all release debug depend clean distclean goop components $(COMPONENTS)
 
 include DEPEND.mk

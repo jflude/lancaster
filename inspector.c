@@ -10,9 +10,16 @@
 #include <string.h>
 #include <unistd.h>
 
+#define SHOW_ATTRIBUTE 1
+#define SHOW_QUEUE 2
+#define SHOW_VALUE 4
+#define SHOW_PROPERTY 8
+
+#define SHOW_RECORD (SHOW_VALUE | SHOW_PROPERTY)
+
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-r] "
+	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-V] "
 			"STORAGE-FILE [RECORD ID...]\n",
 			error_get_program_name());
 
@@ -92,12 +99,10 @@ static status print_queue(storage_handle store)
 	return OK;
 }
 
-static status print_record(storage_handle store, record_handle rec,
-						   boolean show_prop)
+static status print_header(storage_handle store, record_handle rec)
 {
 	status st;
 	identifier id;
-	size_t prop_sz;
 	char buf[128];
 	static const char divider[] =
 		"======================================="
@@ -115,14 +120,32 @@ static status print_record(storage_handle store, record_handle rec,
 	if (printf("%s%s\n", divider + st, buf) < 0)
 		return (feof(stdin) ? error_eof : error_errno)("printf");
 
+	return OK;
+}
+
+static status print_value(storage_handle store, record_handle rec)
+{
+	status st;
 	if (FAILED(st = dump(record_get_value_ref(rec),
 						 storage_get_value_size(store), TRUE)))
 		return st;
 
-	if (show_prop && (prop_sz = storage_get_property_size(store)) > 0) {
-		if (putchar('\n') == EOF)
-			return (feof(stdin) ? error_eof : error_errno)("putchar");
+	return OK;
+}
 
+static status print_divider(void)
+{
+	if (puts("*") == EOF)
+		return (feof(stdin) ? error_eof : error_errno)("puts");
+
+	return OK;
+}
+
+static status print_property(storage_handle store, record_handle rec)
+{
+	size_t prop_sz = storage_get_property_size(store);
+	if (prop_sz > 0) {
+		status st;
 		if (FAILED(st = dump(storage_get_property_ref(store, rec),
 							 prop_sz, TRUE)))
 			return st;
@@ -134,31 +157,38 @@ static status print_record(storage_handle store, record_handle rec,
 static status iter_func(storage_handle store, record_handle rec, void* param)
 {
 	status st;
-	return FAILED(st = print_record(store, rec, (param != NULL))) ? st : TRUE;
+	int show = (long) param;
+
+	if (FAILED(st = print_header(store, rec)) ||
+		((show & SHOW_VALUE) && FAILED(st = print_value(store, rec))) ||
+		(((show & SHOW_RECORD) == SHOW_RECORD) && FAILED(print_divider())) ||
+		((show & SHOW_PROPERTY) && FAILED(st = print_property(store, rec))))
+		return st;
+
+	return TRUE;
 }
 
 int main(int argc, char* argv[])
 {
 	storage_handle store;
-	boolean show_attr = FALSE, show_queue = FALSE,
-		show_recs = FALSE, show_prop = FALSE;
+	int show = 0;
 	int opt;
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "apqrv")) != -1)
+	while ((opt = getopt(argc, argv, "apqVv")) != -1)
 		switch (opt) {
 		case 'a':
-			show_attr = TRUE;
+			show |= SHOW_ATTRIBUTE;
 			break;
 		case 'p':
-			show_prop = TRUE;
+			show |= SHOW_PROPERTY;
 			break;
 		case 'q':
-			show_queue = TRUE;
+			show |= SHOW_QUEUE;
 			break;
-		case 'r':
-			show_recs = TRUE;
+		case 'V':
+			show |= SHOW_VALUE;
 			break;
 		case 'v':
 			show_version();
@@ -172,21 +202,21 @@ int main(int argc, char* argv[])
 	if (FAILED(storage_open(&store, argv[optind++], O_RDONLY)))
 		error_report_fatal();
 
-	if ((show_attr && FAILED(print_attributes(store))) ||
-		(show_queue && FAILED(print_queue(store))))
+	if (((show & SHOW_ATTRIBUTE) && FAILED(print_attributes(store))) ||
+		((show & SHOW_QUEUE) && FAILED(print_queue(store))))
 		error_report_fatal();
 
-	if (show_recs) {
+	if (argv[optind] && strcmp(argv[optind], "all") == 0) {
 		if (FAILED(storage_iterate(store, iter_func, NULL,
-								   (void*) (long) show_prop)))
+								   (void*) (long) show)))
 			error_report_fatal();
 	} else {
-		identifier id;
-		record_handle rec = NULL;
 		for (; optind < argc; ++optind) {
-			id = atoi(argv[optind]);
+			record_handle rec = NULL;
+			identifier id = atoi(argv[optind]);
+
 			if (FAILED(storage_get_record(store, id, &rec)) ||
-				FAILED(print_record(store, rec, show_prop)))
+				FAILED(iter_func(store, rec, (void*) (long) show)))
 				error_report_fatal();
 		}
 	}
