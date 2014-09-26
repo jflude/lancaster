@@ -127,7 +127,7 @@ static status update_record(receiver_handle recv, sequence seq,
 				seq, id, NEXT_REV(rev)) < 0)
 		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
 
-	st = fdump(record_get_value_ref(rec), 16, FALSE, recv->debug_file);
+	st = fdump(record_get_value_ref(rec), NULL, 16, recv->debug_file);
 #endif
 	return st;
 }

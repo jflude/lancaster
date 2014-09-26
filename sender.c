@@ -156,7 +156,7 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 				sndr->next_seq, id, rev) < 0)
 		return (feof(sndr->debug_file) ? error_eof : error_errno)("fprintf");
 
-	st = fdump(record_get_value_ref(rec), 16, FALSE, sndr->debug_file);
+	st = fdump(record_get_value_ref(rec), NULL, 16, sndr->debug_file);
 #endif
 	return st;
 }

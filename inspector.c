@@ -126,8 +126,8 @@ static status print_header(storage_handle store, record_handle rec)
 static status print_value(storage_handle store, record_handle rec)
 {
 	status st;
-	if (FAILED(st = dump(record_get_value_ref(rec),
-						 storage_get_value_size(store), TRUE)))
+	if (FAILED(st = dump(record_get_value_ref(rec), storage_get_array(store),
+						 storage_get_value_size(store))))
 		return st;
 
 	return OK;
@@ -143,11 +143,11 @@ static status print_divider(void)
 
 static status print_property(storage_handle store, record_handle rec)
 {
-	size_t prop_sz = storage_get_property_size(store);
-	if (prop_sz > 0) {
+	size_t sz = storage_get_property_size(store);
+	if (sz > 0) {
 		status st;
 		if (FAILED(st = dump(storage_get_property_ref(store, rec),
-							 prop_sz, TRUE)))
+							 storage_get_array(store), sz)))
 			return st;
 	}
 

@@ -2,18 +2,17 @@
 #include "error.h"
 #include <ctype.h>
 
-status fdump(const void* p, size_t sz, boolean relative, FILE* f)
+status fdump(const void* p, const void* base, size_t sz, FILE* f)
 {
 	const char* q = p;
 	size_t n = 0;
+	int i;
 
 	if (!p || sz == 0 || !f)
 		return error_invalid_arg("fdump");
 
 	while (n < sz) {
-		int i;
-		if (fprintf(f, "%012lX|",
-					(q - (const char*) (relative ? p : NULL)) + n) < 0)
+		if (fprintf(f, "%012lX|", (const char*) q - (const char*) base) < 0)
 			return (feof(f) ? error_eof : error_errno)("fprintf");
 
 		for (i = 0; i < 16; ++i) {
@@ -46,7 +45,7 @@ status fdump(const void* p, size_t sz, boolean relative, FILE* f)
 	return OK;
 }
 
-status dump(const void* p, size_t sz, boolean relative)
+status dump(const void* p, const void* base, size_t sz)
 {
-	return fdump(p, sz, relative, stdout);
+	return fdump(p, base, sz, stdout);
 }
