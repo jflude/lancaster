@@ -12,7 +12,7 @@ status fdump(const void* p, const void* base, size_t sz, FILE* f)
 		return error_invalid_arg("fdump");
 
 	while (n < sz) {
-		if (fprintf(f, "%012lX|", (const char*) q - (const char*) base) < 0)
+		if (fprintf(f, "%012lX|", (const char*) q - (const char*) base + n) < 0)
 			return (feof(f) ? error_eof : error_errno)("fprintf");
 
 		for (i = 0; i < 16; ++i) {
