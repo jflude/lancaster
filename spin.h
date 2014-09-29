@@ -10,43 +10,44 @@
 #define MAX_SPINS 8191
 
 #define SPIN_MASK(lock) \
-	(0x80uL << (CHAR_BIT * sizeof(lock) - 1))
+	(0x80uL << (CHAR_BIT * (sizeof(lock) - 1)))
 
-#define SPIN_CREATE(lock) \
+#define SPIN_CREATE(lock_ref) \
 	do { \
-		SYNC_LOCK_RELEASE(lock); \
+		SYNC_LOCK_RELEASE(lock_ref); \
 	} while (0)
 
-#define SPIN_READ_LOCK(lock, rev) \
+#define SPIN_READ_LOCK(lock_ref, rev) \
 	do { \
 		int n = 0; \
 		long no_rev; \
 		(void) no_rev; \
-		while ((rev = *(lock)) < 0) \
+		while ((rev = *(lock_ref)) < 0) \
 			if ((++n & MAX_SPINS) != 0) \
 				CPU_RELAX(); \
 			else \
 				yield(); \
 	} while (0)
 
-#define SPIN_WRITE_LOCK(lock, old_rev) \
+#define SPIN_WRITE_LOCK(lock_ref, old_rev) \
 	do { \
 		int n = 0; \
 		long no_rev; \
 		(void) no_rev; \
-		while ((old_rev = SYNC_FETCH_AND_OR(lock, SPIN_MASK(lock))) < 0) \
+		while ((old_rev = SYNC_FETCH_AND_OR(lock_ref, \
+											SPIN_MASK(*(lock_ref)))) < 0) \
 			if ((++n & MAX_SPINS) != 0) \
 				CPU_RELAX(); \
 			else \
 				yield(); \
 	} while (0)
 
-#define SPIN_UNLOCK(lock, new_rev) \
+#define SPIN_UNLOCK(lock_ref, new_rev) \
 	do { \
 		int no_rev = 0; \
 		(void) no_rev; \
 		SYNC_SYNCHRONIZE(); \
-		*(lock) = new_rev; \
+		*(lock_ref) = new_rev; \
 	} while (0)
 
 #endif
