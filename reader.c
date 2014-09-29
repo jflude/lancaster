@@ -51,7 +51,9 @@ static status update(q_index q)
 
 	d = record_get_value_ref(rec);
 	do {
-		rev = record_read_lock(rec);
+		if (FAILED(st = record_read_lock(rec, &rev)))
+			return st;
+
 		xyz = d->xyz;
 	} while (rev != record_get_revision(rec));
 
@@ -99,6 +101,7 @@ int main(int argc, char* argv[])
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_open(&store, argv[optind], O_RDONLY)) ||
+		FAILED(storage_get_created_time(store, &created_time)) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
 
@@ -114,14 +117,13 @@ int main(int argc, char* argv[])
 
 	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
-	created_time = storage_get_created_time(store);
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
 	delay = (queue_stats ? QUEUE_DELAY_USEC : DISPLAY_DELAY_USEC);
 
 	for (;;) {
 		q_index q, new_head = storage_get_queue_head(store);
-		microsec now;
+		microsec now, when;
 		if (new_head == old_head) {
 			if (FAILED(st = clock_sleep(1)))
 				break;
@@ -140,10 +142,11 @@ int main(int argc, char* argv[])
 
 		if (FAILED(st = signal_is_raised(SIGHUP)) ||
 			FAILED(st = signal_is_raised(SIGINT)) ||
-			FAILED(st = signal_is_raised(SIGTERM)))
+			FAILED(st = signal_is_raised(SIGTERM)) ||
+			FAILED(st = storage_get_created_time(store, &when)))
 			break;
 
-		if (storage_get_created_time(store) != created_time) {
+		if (when != created_time) {
 			putchar('\n');
 			fprintf(stderr, "%s: main: storage is recreated\n",
 					error_get_program_name());
@@ -151,10 +154,11 @@ int main(int argc, char* argv[])
 			exit(-STORAGE_RECREATED);
 		}
 
-		if (FAILED(clock_time(&now)))
+		if (FAILED(clock_time(&now)) ||
+			FAILED(storage_get_touched_time(store, &when)))
 			break;
 
-		if ((now - storage_get_touched_time(store)) >= ORPHAN_TIMEOUT_USEC) {
+		if ((now - when) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
 			fprintf(stderr, "%s: main: storage is orphaned\n",
 					error_get_program_name());
@@ -174,7 +178,8 @@ int main(int argc, char* argv[])
 					   event + (event > 9 ? 'A' - 10 : '0'),
 					   eol_seq);
 
-				storage_next_stats(store);
+				if (FAILED(st = storage_next_stats(store)))
+					break;
 			} else
 				putchar(event + (event > 9 ? 'A' - 10 : '0'));
 

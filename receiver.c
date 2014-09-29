@@ -67,7 +67,7 @@ struct receiver
 	sock_addr_handle mcast_pub_addr;
 	struct receiver_stats* curr_stats;
 	struct receiver_stats* next_stats;
-	volatile int stats_lock;
+	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
 #ifdef DEBUG_PROTOCOL
 	FILE* debug_file;
@@ -77,8 +77,10 @@ struct receiver
 static status update_stats(receiver_handle recv, size_t pkt_sz,
 						   microsec now, microsec* pkt_time)
 {
+	status st;
 	double latency, delta;
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
+	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
+		return st;
 
 	recv->next_stats->mcast_bytes_recv += pkt_sz;
 
@@ -99,7 +101,7 @@ static status update_stats(receiver_handle recv, size_t pkt_sz,
 		latency > recv->next_stats->mcast_max_latency)
 		recv->next_stats->mcast_max_latency = latency;
 
-	SPIN_UNLOCK(&recv->stats_lock, no_rev);
+	spin_unlock(&recv->stats_lock, 0);
 	return OK;
 }
 
@@ -110,10 +112,10 @@ static status update_record(receiver_handle recv, sequence seq,
 	revision rev;
 	record_handle rec = NULL;
 
-	if (FAILED(st = storage_get_record(recv->store, id, &rec)))
+	if (FAILED(st = storage_get_record(recv->store, id, &rec)) ||
+		FAILED(st = record_write_lock(rec, &rev)))
 		return st;
 
-	rev = record_write_lock(rec);
 	memcpy(record_get_value_ref(rec), new_val, recv->val_size);
 	record_set_revision(rec, NEXT_REV(rev));
 
@@ -144,12 +146,12 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	recv->out_remain = sizeof(struct sequence_range);
 
 	if (FAILED(st = poller_set_event(recv->poller, recv->tcp_sock,
-									 POLLIN | POLLOUT)))
+									 POLLIN | POLLOUT)) ||
+		FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
 		return st;
 
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 	++recv->next_stats->tcp_gap_count;
-	SPIN_UNLOCK(&recv->stats_lock, no_rev);
+	spin_unlock(&recv->stats_lock, 0);
 
 #ifdef DEBUG_PROTOCOL
 	if (fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n",
@@ -256,13 +258,13 @@ static status tcp_read_buf(receiver_handle recv)
 	}
 
 	if (recv_sz > 0) {
-		status st2 = clock_time(&recv->tcp_recv_time);
-		if (!FAILED(st))
-			st = st2;
+		status st2;
+		if (FAILED(st2 = clock_time(&recv->tcp_recv_time)) ||
+			FAILED(st2 = spin_write_lock(&recv->stats_lock, NULL)))
+			return st2;
 
-		SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
 		recv->next_stats->tcp_bytes_recv += recv_sz;
-		SPIN_UNLOCK(&recv->stats_lock, no_rev);
+		spin_unlock(&recv->stats_lock, 0);
 	}
 
 	return st;
@@ -401,7 +403,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	BZERO((*precv)->curr_stats);
 	BZERO((*precv)->next_stats);
-	SPIN_CREATE(&(*precv)->stats_lock);
+	spin_create(&(*precv)->stats_lock);
 
 	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
 								SOCK_STREAM, IPPROTO_TCP)) ||
@@ -632,15 +634,20 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 			: 0);
 }
 
-void receiver_next_stats(receiver_handle recv)
+status receiver_next_stats(receiver_handle recv)
 {
+	status st;
 	struct receiver_stats* tmp;
-	SPIN_WRITE_LOCK(&recv->stats_lock, no_rev);
+
+	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
+		return st;
 
 	tmp = recv->next_stats;
 	recv->next_stats = recv->curr_stats;
 	recv->curr_stats = tmp;
 
 	BZERO(recv->next_stats);
-	SPIN_UNLOCK(&recv->stats_lock, no_rev);
+
+	spin_unlock(&recv->stats_lock, 0);
+	return st;
 }

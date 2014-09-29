@@ -2,20 +2,73 @@
 #include "clock.h"
 #include "error.h"
 #include "spin.h"
+#include "sync.h"
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#ifndef NDEBUG
-#define INLINE
-#include "storage.inl"
-#endif
+struct record
+{
+	volatile revision rev;
+	char val[1];
+};
+
+struct segment
+{
+	unsigned magic;
+	unsigned short lib_version;
+	unsigned short app_version;
+	char description[256];
+	size_t seg_size;
+	size_t hdr_size;
+	size_t rec_size;
+	size_t val_size;
+	size_t val_offset;
+	size_t prop_size;
+	size_t prop_offset;
+	identifier base_id;
+	identifier max_id;
+	microsec last_created;
+	microsec last_touched;
+	volatile revision last_touched_rev;
+	size_t q_mask;
+	q_index q_head;
+	union { char reserved[1024]; } new_fields;
+	struct q_element change_q[1];
+};
+
+struct storage_stats
+{
+	size_t q_elem_read;
+	double q_min_latency;
+	double q_max_latency;
+	double q_mean_latency;
+	double q_M2_latency;
+};
+
+struct storage
+{
+	struct segment* seg;
+	record_handle first;
+	record_handle limit;
+	char* mmap_file;
+	size_t mmap_size;
+	int seg_fd;
+	boolean is_read_only;
+	boolean is_persistent;
+	volatile spin_lock stats_lock;
+	struct storage_stats* curr_stats;
+	struct storage_stats* next_stats;
+};
 
 #define MAGIC_NUMBER 0x0C0FFEE0
+#define STORAGE_RECORD(stg, base, idx) \
+	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 
 static status init_create(storage_handle* pstore, const char* mmap_file,
 						  boolean persist, int open_flags, identifier base_id,
@@ -148,7 +201,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 			 r < (*pstore)->limit;
 			 r = STORAGE_RECORD(*pstore, r, 1))
 			if (r->rev < 0)
-				r->rev &= ~SPIN_MASK(r->rev);
+				r->rev &= ~SPIN_MASK;
 
 		SYNC_SYNCHRONIZE();
 	}
@@ -445,33 +498,49 @@ status storage_set_description(storage_handle store, const char* desc)
 	return OK;
 }
 
-microsec storage_get_created_time(storage_handle store)
+status storage_get_created_time(storage_handle store, microsec* when)
 {
-	return store->seg->last_created;
+	if (!when)
+		return error_invalid_arg("storage_get_created_time");
+
+	*when = store->seg->last_created;
+	return OK;
 }
 
-microsec storage_get_touched_time(storage_handle store)
+status storage_get_touched_time(storage_handle store, microsec* when)
 {
-	microsec t;
+	status st;
 	revision rev;
+	microsec t;
+
+	if (!when)
+		return error_invalid_arg("storage_get_touched_time");
+
 	do {
-		SPIN_READ_LOCK(&store->seg->last_touched_rev, rev);
+		if (FAILED(st = spin_read_lock(&store->seg->last_touched_rev, &rev)))
+			return st;
+
 		t = store->seg->last_touched;
 	} while (rev != store->seg->last_touched_rev);
 
-	return t;
+	*when = t;
+	return OK;
 }
 
 status storage_touch(storage_handle store, microsec when)
 {
+	status st;
 	revision rev;
+
 	if (store->is_read_only)
 		return error_msg("storage_touch: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	SPIN_WRITE_LOCK(&store->seg->last_touched_rev, rev);
+	if (FAILED(st = spin_write_lock(&store->seg->last_touched_rev, &rev)))
+		return st;
+
 	store->seg->last_touched = when;
-	SPIN_UNLOCK(&store->seg->last_touched_rev, NEXT_REV(rev));
+	spin_unlock(&store->seg->last_touched_rev, NEXT_REV(rev));
 	return OK;
 }
 
@@ -534,7 +603,9 @@ status storage_read_queue(storage_handle store, q_index idx,
 
 	latency = now - pelem->ts;
 
-	SPIN_WRITE_LOCK(&store->stats_lock, no_rev);
+	if (FAILED(st = spin_write_lock(&store->stats_lock, NULL)))
+		return st;
+
 	delta = latency - store->next_stats->q_mean_latency;
 
 	store->next_stats->q_mean_latency +=
@@ -551,7 +622,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 		latency > store->next_stats->q_max_latency)
 		store->next_stats->q_max_latency = latency;
 
-	SPIN_UNLOCK(&store->stats_lock, no_rev);
+	spin_unlock(&store->stats_lock, 0);
 	return OK;
 }
 
@@ -566,6 +637,20 @@ status storage_get_id(storage_handle store, record_handle rec,
 						 STORAGE_INVALID_SLOT);
 
 	*pident = ((char*) rec - (char*) store->first) / store->seg->rec_size;
+	return OK;
+}
+
+status storage_get_record(storage_handle store, identifier id,
+						  record_handle* prec)
+{
+	if (!prec)
+		return error_invalid_arg("storage_get_record");
+
+	if (id < store->seg->base_id || id >= store->seg->max_id)
+		return error_msg("storage_get_record: invalid identifier",
+						 STORAGE_INVALID_SLOT);
+
+	*prec = STORAGE_RECORD(store, store->first, id - store->seg->base_id);
 	return OK;
 }
 
@@ -691,11 +776,19 @@ revision record_get_revision(record_handle rec)
 	return rec->rev;
 }
 
-revision record_read_lock(record_handle rec)
+void record_set_revision(record_handle rec, revision rev)
 {
-	revision old_rev;
-	SPIN_READ_LOCK(&rec->rev, old_rev);
-	return old_rev;
+	spin_unlock(&rec->rev, rev);
+}
+
+status record_read_lock(record_handle rec, revision* old_rev)
+{
+	return spin_read_lock(&rec->rev, old_rev);
+}
+
+status record_write_lock(record_handle rec, revision* old_rev)
+{
+	return spin_write_lock(&rec->rev, old_rev);
 }
 
 double storage_get_queue_min_latency(storage_handle store)
@@ -721,10 +814,13 @@ double storage_get_queue_stddev_latency(storage_handle store)
 			: 0);
 }
 
-void storage_next_stats(storage_handle store)
+status storage_next_stats(storage_handle store)
 {
+	status st;
 	struct storage_stats* tmp;
-	SPIN_WRITE_LOCK(&store->stats_lock, no_rev);
+
+	if (FAILED(st = spin_write_lock(&store->stats_lock, NULL)))
+		return st;
 
 	tmp = store->next_stats;
 	store->next_stats = store->curr_stats;
@@ -732,5 +828,6 @@ void storage_next_stats(storage_handle store)
 
 	BZERO(store->next_stats);
 
-	SPIN_UNLOCK(&store->stats_lock, no_rev);
+	spin_unlock(&store->stats_lock, 0);
+	return st;
 }

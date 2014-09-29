@@ -4,6 +4,7 @@
 #define STORAGE_H
 
 #include "clock.h"
+#include "spin.h"
 #include "status.h"
 #include <limits.h>
 #include <stddef.h>
@@ -24,15 +25,12 @@ typedef struct record* record_handle;
 typedef status (*storage_iterate_func)(storage_handle, record_handle, void*);
 
 typedef long identifier;
-typedef long revision;
 typedef long q_index;
+typedef spin_lock revision;
 
 struct q_element { identifier id; microsec ts; };
 
-#define REVISION_MIN LONG_MIN
-#define REVISION_MAX LONG_MAX
-
-#define NEXT_REV(v) (((v) + 1) & REVISION_MAX)
+#define NEXT_REV(v) (((v) + 1) & SPIN_MAX)
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
 					  boolean persist, int open_flags, identifier base_id,
@@ -61,8 +59,8 @@ const char* storage_get_file(storage_handle store);
 const char* storage_get_description(storage_handle store);
 status storage_set_description(storage_handle store, const char* desc);
 
-microsec storage_get_created_time(storage_handle store);
-microsec storage_get_touched_time(storage_handle store);
+status storage_get_created_time(storage_handle store, microsec* when);
+status storage_get_touched_time(storage_handle store, microsec* when);
 status storage_touch(storage_handle store, microsec when);
 
 const struct q_element* storage_get_queue_base_ref(storage_handle store);
@@ -93,20 +91,15 @@ void* record_get_value_ref(record_handle rec);
 
 revision record_get_revision(record_handle rec);
 void record_set_revision(record_handle rec, revision rev);
-revision record_read_lock(record_handle rec);
-revision record_write_lock(record_handle rec);
+status record_read_lock(record_handle rec, revision* old_rev);
+status record_write_lock(record_handle rec, revision* old_rev);
 
 double storage_get_queue_min_latency(storage_handle store);
 double storage_get_queue_max_latency(storage_handle store);
 double storage_get_queue_mean_latency(storage_handle store);
 double storage_get_queue_stddev_latency(storage_handle store);
 
-void storage_next_stats(storage_handle store);
-
-#ifdef NDEBUG
-#define INLINE extern __inline__
-#include "storage.inl"
-#endif
+status storage_next_stats(storage_handle store);
 
 #ifdef __cplusplus
 }

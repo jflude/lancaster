@@ -71,7 +71,8 @@ static void* stats_func(thread_handle thr)
 				   storage_get_queue_stddev_latency(store),
 				   eol_seq);
 
-			storage_next_stats(store);
+			if (FAILED(st = storage_next_stats(store)))
+				break;
 		} else {
 			if (as_json) {
 				char ts[64];
@@ -101,10 +102,8 @@ static void* stats_func(thread_handle thr)
 					   storage_get_queue_min_latency(store),
 					   storage_get_queue_mean_latency(store),
 					   storage_get_queue_max_latency(store),
-					   storage_get_queue_stddev_latency(store)
-					   );
-				storage_next_stats(store);
-			} else
+					   storage_get_queue_stddev_latency(store));
+			} else {
 				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
 					   storage_get_description(store),
@@ -114,8 +113,10 @@ static void* stats_func(thread_handle thr)
 					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
 					   sender_get_mcast_bytes_sent(sender) / secs / 1024,
 					   eol_seq);
+			}
 
-			sender_next_stats(sender);
+			if (FAILED(st = sender_next_stats(sender)))
+				break;
 		}
 
 		last_print = now;

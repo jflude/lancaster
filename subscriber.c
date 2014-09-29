@@ -91,7 +91,7 @@ static void* stats_func(thread_handle thr)
 				   receiver_get_mcast_mean_latency(recv),
 				   receiver_get_mcast_max_latency(recv),
 				   receiver_get_mcast_stddev_latency(recv));
-		} else
+		} else {
 			printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
@@ -106,8 +106,11 @@ static void* stats_func(thread_handle thr)
 				   receiver_get_mcast_max_latency(recv),
 				   receiver_get_mcast_stddev_latency(recv),
 				   eol_seq);
+		}
 
-		receiver_next_stats(recv);
+		if (FAILED(st = receiver_next_stats(recv)))
+			break;
+
 		last_print = now;
 		fflush(stdout);
 	}

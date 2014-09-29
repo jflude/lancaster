@@ -35,12 +35,13 @@ static void show_version(void)
 static status print_attributes(storage_handle store)
 {
 	status st;
-	char created_time[64], touched_time[64];
+	microsec when;
+	char created[64], touched[64];
 
-	if (FAILED(st = clock_get_text(storage_get_created_time(store), 6,
-								   created_time, sizeof(created_time))) ||
-		FAILED(st = clock_get_text(storage_get_touched_time(store), 6,
-								   touched_time, sizeof(touched_time))))
+	if (FAILED(st = storage_get_created_time(store, &when)) ||
+		FAILED(st = clock_get_text(when, 6, created, sizeof(created))) ||
+		FAILED(st = storage_get_touched_time(store, &when)) ||
+		FAILED(st = clock_get_text(when, 6, touched, sizeof(touched))))
 		return st;
 
 	if (printf("file:           \"%s\"\n"
@@ -67,8 +68,8 @@ static status print_attributes(storage_handle store)
 			   storage_get_property_size(store),
 			   storage_get_queue_capacity(store),
 			   storage_get_queue_head(store),
-			   created_time,
-			   touched_time) < 0)
+			   created,
+			   touched) < 0)
 		return (feof(stdin) ? error_eof : error_errno)("printf");
 
 	return OK;

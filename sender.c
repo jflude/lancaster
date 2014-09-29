@@ -56,7 +56,7 @@ struct sender
 	q_index last_q_idx;
 	struct sender_stats* curr_stats;
 	struct sender_stats* next_stats;
-	volatile int stats_lock;
+	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
 	char hello_str[128];
 #ifdef DEBUG_PROTOCOL
@@ -97,10 +97,13 @@ static status mcast_send_pkt(sender_handle sndr)
 
 	sndr->last_active_time = sndr->mcast_send_time = now;
 
-	SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
+	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
+		return st;
+
 	sndr->next_stats->mcast_bytes_sent += st;
 	++sndr->next_stats->mcast_packets_sent;
-	SPIN_UNLOCK(&sndr->stats_lock, no_rev);
+
+	spin_unlock(&sndr->stats_lock, 0);
 
 	sndr->pkt_next = sndr->pkt_buf;
 	sndr->mcast_insert_time = 0;
@@ -113,7 +116,6 @@ static status mcast_send_pkt(sender_handle sndr)
 				ntohll(*((sequence*) sndr->pkt_buf))) < 0)
 		st = (feof(sndr->debug_file) ? error_eof : error_errno)("fprintf");
 #endif
-
 	return st;
 }
 
@@ -140,7 +142,9 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	sndr->pkt_next += sizeof(identifier);
 
 	do {
-		rev = record_read_lock(rec);
+		if (FAILED(st = record_read_lock(rec, &rev)))
+			return st;
+
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
 	} while (rev != record_get_revision(rec));
 
@@ -239,15 +243,15 @@ static status tcp_write_buf(struct tcp_client* clnt)
 	}
 
 	if (sent_sz > 0) {
-		status st2 = clock_time(&clnt->tcp_send_time);
-		if (!FAILED(st))
-			st = st2;
+		status st2;
+		if (FAILED(st2 = clock_time(&clnt->tcp_send_time)) ||
+			FAILED(st2 = spin_write_lock(&clnt->sndr->stats_lock, NULL)))
+			return st2;
 
 		clnt->sndr->last_active_time = clnt->tcp_send_time;
-
-		SPIN_WRITE_LOCK(&clnt->sndr->stats_lock, no_rev);
 		clnt->sndr->next_stats->tcp_bytes_sent += sent_sz;
-		SPIN_UNLOCK(&clnt->sndr->stats_lock, no_rev);
+
+		spin_unlock(&clnt->sndr->stats_lock, 0);
 	}
 
 	return st;
@@ -406,7 +410,9 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 					val_at = record_get_value_ref(rec);
 					do {
-						rev = record_read_lock(rec);
+						if (FAILED(st = record_read_lock(rec, &rev)))
+							return st;
+
 						if (rev == 0)
 							goto next_id;
 
@@ -498,9 +504,11 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		clnt->in_next = clnt->in_buf;
 		clnt->in_remain = sizeof(struct sequence_range);
 
-		SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
+		if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
+			return st;
+
 		++sndr->next_stats->tcp_gap_count;
-		SPIN_UNLOCK(&sndr->stats_lock, no_rev);
+		spin_unlock(&sndr->stats_lock, 0);
 	}
 
 	return st;
@@ -558,7 +566,7 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	BZERO((*psndr)->curr_stats);
 	BZERO((*psndr)->next_stats);
-	SPIN_CREATE(&(*psndr)->stats_lock);
+	spin_create(&(*psndr)->stats_lock);
 
 	(*psndr)->base_id = storage_get_base_id((*psndr)->store);
 	(*psndr)->max_id = storage_get_max_id((*psndr)->store);
@@ -567,10 +575,13 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	(*psndr)->min_seq = 0;
 	(*psndr)->max_pkt_age_usec = max_pkt_age_usec;
 	(*psndr)->heartbeat_usec = heartbeat_usec;
-	(*psndr)->store_created_time = storage_get_created_time((*psndr)->store);
+
+	if (FAILED(st = storage_get_created_time((*psndr)->store,
+											 &(*psndr)->store_created_time)))
+		return st;
 
 	(*psndr)->record_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id,
-								  sizeof(sequence));
+									sizeof(sequence));
 	if (!(*psndr)->record_seqs)
 		return NO_MEMORY;
 
@@ -727,20 +738,24 @@ status sender_run(sender_handle sndr)
 	status st = OK, st2;
 
 	while (!sndr->is_stopping) {
-		microsec now, touched;
+		microsec now, when;
 		if (FAILED(st = poller_events(sndr->poller, 0)) ||
 			(st > 0 && FAILED(st = poller_process_events(sndr->poller,
 														 event_func, sndr))) ||
-			FAILED(st = clock_time(&now)))
+			FAILED(st = clock_time(&now)) ||
+			FAILED(st = storage_get_touched_time(sndr->store, &when)))
 			break;
 
-		touched = now - storage_get_touched_time(sndr->store);
-		if (touched >= ORPHAN_TIMEOUT_USEC) {
+		when = now - when;
+		if (when >= ORPHAN_TIMEOUT_USEC) {
 			st = error_msg("sender_run: storage is orphaned", STORAGE_ORPHANED);
 			break;
 		}
 
-		if (storage_get_created_time(sndr->store) != sndr->store_created_time) {
+		if (FAILED(st = storage_get_created_time(sndr->store, &when)))
+			break;
+
+		if (when != sndr->store_created_time) {
 			st = error_msg("sender_run: storage is recreated",
 						   STORAGE_RECREATED);
 			break;
@@ -798,15 +813,20 @@ size_t sender_get_receiver_count(sender_handle sndr)
 	return sndr->client_count;
 }
 
-void sender_next_stats(sender_handle sndr)
+status sender_next_stats(sender_handle sndr)
 {
+	status st;
 	struct sender_stats* tmp;
-	SPIN_WRITE_LOCK(&sndr->stats_lock, no_rev);
+
+	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
+		return st;
 
 	tmp = sndr->next_stats;
 	sndr->next_stats = sndr->curr_stats;
 	sndr->curr_stats = tmp;
 
 	BZERO(sndr->next_stats);
-	SPIN_UNLOCK(&sndr->stats_lock, no_rev);
+
+	spin_unlock(&sndr->stats_lock, 0);
+	return st;
 }

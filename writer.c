@@ -52,7 +52,9 @@ static status update(identifier id, long n)
 		return st;
 
 	d = record_get_value_ref(rec);
-	rev = record_write_lock(rec);
+
+	if (FAILED(st = record_write_lock(rec, &rev)))
+		return st;
 
 	d->xyz = n;
 	d->ts = now;

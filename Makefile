@@ -9,12 +9,12 @@ SRCS := \
 	sender.c \
 	signals.c \
 	sock.c \
+	spin.c \
 	storage.c \
 	table.c \
 	thread.c \
 	twist.c \
-	xalloc.c \
-	yield.c
+	xalloc.c
 
 COMPONENTS := \
 	go/src/submgr \

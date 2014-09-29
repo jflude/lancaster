@@ -24,7 +24,7 @@ struct advert
 	char* env;
 	size_t json_sz;
 	struct notice* notices;
-	volatile int lock;
+	volatile spin_lock lock;
 };
 
 static const char* escape_quotes(const char* in)
@@ -73,13 +73,14 @@ static status make_json_map(advert_handle advert)
 	if (!new_msg)
 		return NO_MEMORY;
 
-	SPIN_WRITE_LOCK(&advert->lock, no_rev);
+	if (FAILED(st = spin_write_lock(&advert->lock, NULL)))
+		return st;
 
 	XFREE(advert->json_msg);
 	advert->json_msg = new_msg;
 	advert->json_sz = strlen(advert->json_msg) + 1;
 
-	SPIN_UNLOCK(&advert->lock, no_rev);
+	spin_unlock(&advert->lock, 0);
 	return OK;
 }
 
@@ -103,12 +104,14 @@ static void* mcast_func(thread_handle thr)
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		SPIN_WRITE_LOCK(&advert->lock, no_rev);
+		if (FAILED(st = spin_write_lock(&advert->lock, NULL)))
+			break;
+
 		if (advert->json_msg)
 			st = sock_sendto(advert->mcast_sock, advert->mcast_addr,
 							 advert->json_msg, advert->json_sz);
 
-		SPIN_UNLOCK(&advert->lock, no_rev);
+		spin_unlock(&advert->lock, 0);
 		if (FAILED(st) || FAILED(st = clock_sleep(SEND_DELAY_USEC)))
 			break;
 	}
@@ -133,7 +136,7 @@ status advert_create(advert_handle* padvert, const char* mcast_address,
 		return NO_MEMORY;
 
 	BZERO(*padvert);
-	SPIN_CREATE(&(*padvert)->lock);
+	spin_create(&(*padvert)->lock);
 
 	(*padvert)->env = xstrdup(env);
 	if (!(*padvert)->env)
