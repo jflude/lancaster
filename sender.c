@@ -172,13 +172,11 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 		return st;
 
 #ifdef DEBUG_PROTOCOL
-#if 0
 	fprintf(sndr->debug_file,
 			"%s       staging seq %07ld, id #%07ld, rev %07ld, ",
 			debug_time(), sndr->next_seq, id, rev);
 
 	fdump(record_get_value_ref(rec), NULL, 16, sndr->debug_file);
-#endif
 #endif
 	return sent_pkt;
 }

@@ -138,13 +138,11 @@ static status update_record(receiver_handle recv, sequence seq,
 		return st;
 
 #ifdef DEBUG_PROTOCOL
-#if 0
 	fprintf(recv->debug_file,
 			"%s       updating seq %07ld, id #%07ld, rev %07ld, ",
 			debug_time(), seq, id, NEXT_REV(rev));
 
 	fdump(record_get_value_ref(rec), NULL, 16, recv->debug_file);
-#endif
 #endif
 	return st;
 }

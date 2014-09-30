@@ -53,18 +53,18 @@ DEPFLAGS += \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower 
+all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
 all: 
 	for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir all; \
 	done
 
 release: CFLAGS += -DNDEBUG -O3
+release: all
 release: 
 	for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir release; \
 	done
-release: all
 
 debug: CFLAGS += -DDEBUG_PROTOCOL
 debug: all

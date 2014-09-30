@@ -45,6 +45,7 @@ static void* stats_func(thread_handle thr)
     if (udp_stat_url != NULL) {
         if (FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url)))
             return (void*) (long) st;
+
         udp_stat_pub_enabled = TRUE;
     }
     
@@ -117,7 +118,7 @@ static void* stats_func(thread_handle thr)
 											stats_buf, stats_buff_used)))
                     break;
             } else {
-                fprintf(stdout, "%s", stats_buf);
+                fputs(stats_buf, stdout);
             }
         } else
 			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %lu, "
@@ -139,11 +140,17 @@ static void* stats_func(thread_handle thr)
 			break;
 
 		last_print = now;
-		fflush(stdout);
+		if (!udp_stat_pub_enabled)
+			fflush(stdout);
 	}
 
 	receiver_stop(recv);
-    if (udp_stat_pub_enabled) close_udp_sock_conn(&udp_stat_conn);
+
+    if (udp_stat_pub_enabled) {
+		status st2 = close_udp_sock_conn(&udp_stat_conn);
+		if (!FAILED(st))
+			st = st2;
+	}
     
 	putchar('\n');
 	return (void*) (long) st;

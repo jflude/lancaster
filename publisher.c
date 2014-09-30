@@ -130,7 +130,7 @@ static void* stats_func(thread_handle thr)
 												stats_buf, stats_buff_used)))
                         break;
                 } else {
-                    fprintf(stdout, "%s", stats_buf);
+                    fputs(stats_buf, stdout);
                 }
 			} else
 				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP/s: %lu, "
@@ -148,11 +148,17 @@ static void* stats_func(thread_handle thr)
 		}
 
 		last_print = now;
-        if (!udp_stat_pub_enabled) fflush(stdout);
+        if (!udp_stat_pub_enabled)
+			fflush(stdout);
 	}
 
 	sender_stop(sender);
-    if (udp_stat_pub_enabled) close_udp_sock_conn(&udp_stat_conn);
+
+    if (udp_stat_pub_enabled) {
+		status st2 = close_udp_sock_conn(&udp_stat_conn);
+		if (!FAILED(st))
+			st = st2;
+	}
     
 	putchar('\n');
 	return (void*) (long) st;
@@ -172,7 +178,6 @@ int main(int argc, char* argv[])
 	microsec max_pkt_age;
 	void* stats_result;
 	char* env = "";
-    
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
