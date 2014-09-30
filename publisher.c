@@ -87,37 +87,42 @@ static void* stats_func(thread_handle thr)
 				break;
 		} else {
 			if (as_json) {
-                char stats_buf[1024];
 				char ts[64];
+                char stats_buf[1024];
 				if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
 					break;
 
 				stats_buff_used =
-					snprintf(stats_buf, sizeof(stats_buf),
-							 "{\"@timestamp\":\"%s\", "
-							 "\"app\":\"publisher\", "
-							 "\"cat\":\"data_feed\", "
-							 "\"storage\":\"%s\", "
-							 "\"recv\":%ld, "
-							 "\"pkt/s\":%.2f, "
-							 "\"gap/s\":%lu, "
-							 "\"tcp_kb/s\":%.2f, "
-							 "\"mcast_kb/s\":%.2f, "
-							 "\"qMin/us\":%.2f, "
-							 "\"qAvg/us\":%.2f, "
-							 "\"qMax/us\":%.2f, "
-							 "\"qStd/us\":%.2f}\n",
-							 ts,
-							 storage_get_file(store),
-							 sender_get_receiver_count(sender),
-							 sender_get_mcast_packets_sent(sender) / secs,
-							 sender_get_tcp_gap_count(sender),
-							 sender_get_tcp_bytes_sent(sender) / secs / 1024,
-							 sender_get_mcast_bytes_sent(sender) / secs / 1024,
-							 storage_get_queue_min_latency(store),
-							 storage_get_queue_mean_latency(store),
-							 storage_get_queue_max_latency(store),
-							 storage_get_queue_stddev_latency(store));
+					sprintf(stats_buf,
+							"{\"@timestamp\":\"%s\", "
+							"\"app\":\"publisher\", "
+							"\"cat\":\"data_feed\", "
+							"\"storage\":\"%s\", "
+							"\"recv\":%ld, "
+							"\"pkt/s\":%.2f, "
+							"\"gap/s\":%lu, "
+							"\"tcp_kb/s\":%.2f, "
+							"\"mcast_kb/s\":%.2f, "
+							"\"qMin/us\":%.2f, "
+							"\"qAvg/us\":%.2f, "
+							"\"qMax/us\":%.2f, "
+							"\"qStd/us\":%.2f}\n",
+							ts,
+							storage_get_file(store),
+							sender_get_receiver_count(sender),
+							sender_get_mcast_packets_sent(sender) / secs,
+							sender_get_tcp_gap_count(sender),
+							sender_get_tcp_bytes_sent(sender) / secs / 1024,
+							sender_get_mcast_bytes_sent(sender) / secs / 1024,
+							storage_get_queue_min_latency(store),
+							storage_get_queue_mean_latency(store),
+							storage_get_queue_max_latency(store),
+							storage_get_queue_stddev_latency(store));
+
+				if (stats_buff_used < 0) {
+					st = error_errno("sprintf");
+					break;
+				}
 
                 if (udp_stat_pub_enabled) {
                     if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,

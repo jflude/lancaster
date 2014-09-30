@@ -32,7 +32,6 @@ static void show_version(void)
 
 static void* stats_func(thread_handle thr)
 {
-    char udp_stats_buffer[1024];
 	receiver_handle recv = thread_get_param(thr);
 	char hostname[256], alias[32];
 	const char *storage_desc, *delim_pos, *eol_seq;
@@ -76,43 +75,49 @@ static void* stats_func(thread_handle thr)
 
 		if (as_json) {
 			char ts[64];
+			char stats_buf[1024];
 			if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
                 break;
 
             stats_buff_used =
-				snprintf(udp_stats_buffer, sizeof (udp_stats_buffer),
-						 "{\"@timestamp\":\"%s\", "
-						 "\"app\":\"subscriber\", "
-						 "\"cat\":\"data_feed\", "
-						 "\"alias\":\"%s\", "
-						 "\"storage\":\"%s\", "
-						 "\"pkt/s\":%.2f, "
-						 "\"gap/s\":%lu, "
-						 "\"tcp_kb/s\":%.2f, "
-						 "\"mcast_kb/s\":%.2f, "
-						 "\"min/us\":%.2f, "
-						 "\"avg/us\":%.2f, "
-						 "\"max/us\":%.2f, "
-						 "\"std/us\":%.2f}\n",
-						 ts,
-						 alias,
-						 storage_get_file(receiver_get_storage(recv)),
-						 receiver_get_mcast_packets_recv(recv) / secs,
-						 receiver_get_tcp_gap_count(recv),
-						 receiver_get_tcp_bytes_recv(recv) / secs / 1024,
-						 receiver_get_mcast_bytes_recv(recv) / secs / 1024,
-						 receiver_get_mcast_min_latency(recv),
-						 receiver_get_mcast_mean_latency(recv),
-						 receiver_get_mcast_max_latency(recv),
-						 receiver_get_mcast_stddev_latency(recv));
+				sprintf(stats_buf,
+						"{\"@timestamp\":\"%s\", "
+						"\"app\":\"subscriber\", "
+						"\"cat\":\"data_feed\", "
+						"\"alias\":\"%s\", "
+						"\"storage\":\"%s\", "
+						"\"pkt/s\":%.2f, "
+						"\"gap/s\":%lu, "
+						"\"tcp_kb/s\":%.2f, "
+						"\"mcast_kb/s\":%.2f, "
+						"\"min/us\":%.2f, "
+						"\"avg/us\":%.2f, "
+						"\"max/us\":%.2f, "
+						"\"std/us\":%.2f}\n",
+						ts,
+						alias,
+						storage_get_file(receiver_get_storage(recv)),
+						receiver_get_mcast_packets_recv(recv) / secs,
+						receiver_get_tcp_gap_count(recv),
+						receiver_get_tcp_bytes_recv(recv) / secs / 1024,
+						receiver_get_mcast_bytes_recv(recv) / secs / 1024,
+						receiver_get_mcast_min_latency(recv),
+						receiver_get_mcast_mean_latency(recv),
+						receiver_get_mcast_max_latency(recv),
+						receiver_get_mcast_stddev_latency(recv));
+
+			if (stats_buff_used < 0) {
+				st = error_errno("sprintf");
+				break;
+			}
             
             if (udp_stat_pub_enabled) {
                 if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
 											udp_stat_conn.server_sock_addr_,
-											udp_stats_buffer, stats_buff_used)))
+											stats_buf, stats_buff_used)))
                     break;
             } else {
-                fprintf(stdout, "%s", udp_stats_buffer);
+                fprintf(stdout, "%s", stats_buf);
             }
         } else
 			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %lu, "
