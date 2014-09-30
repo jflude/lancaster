@@ -69,6 +69,10 @@ release:
 debug: CFLAGS += -DDEBUG_PROTOCOL
 debug: all
 
+profile: CFLAGS += -pg
+profile: LDFLAGS += -pg
+profile: all
+
 publisher: publisher.o libcachester.a
 
 subscriber: subscriber.o libcachester.a
@@ -118,6 +122,7 @@ fetch:
 	   $(MAKE) -C $$dir fetch; \
 	done
 
-.PHONY: all release debug depend clean distclean goop components $(COMPONENTS)
+.PHONY: all release debug profile depend clean distclean
+.PHONY: goop components $(COMPONENTS)
 
 include DEPEND.mk
