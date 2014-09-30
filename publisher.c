@@ -152,7 +152,8 @@ static void* stats_func(thread_handle thr)
 	}
 
 	sender_stop(sender);
-
+    if (udp_stat_pub_enabled) close_udp_sock_conn(&udp_stat_conn);
+    
 	putchar('\n');
 	return (void*) (long) st;
 }
