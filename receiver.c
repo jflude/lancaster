@@ -74,6 +74,20 @@ struct receiver
 #endif
 };
 
+#ifdef DEBUG_PROTOCOL
+static const char* debug_time(void)
+{
+	microsec now;
+	static char buf[64];
+
+	if (FAILED(clock_time(&now)) ||
+		FAILED(clock_get_text(now, 6, buf, sizeof(buf))))
+		error_report_fatal();
+
+	return buf;
+}
+#endif
+
 static status update_stats(receiver_handle recv, size_t pkt_sz,
 						   microsec now, microsec* pkt_time)
 {
@@ -124,12 +138,13 @@ static status update_record(receiver_handle recv, sequence seq,
 		return st;
 
 #ifdef DEBUG_PROTOCOL
-	if (fprintf(recv->debug_file,
-				"\t\t\tupdating seq %07ld, id #%07ld, rev %07ld, ",
-				seq, id, NEXT_REV(rev)) < 0)
-		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
+#if 0
+	fprintf(recv->debug_file,
+			"%s       updating seq %07ld, id #%07ld, rev %07ld, ",
+			debug_time(), seq, id, NEXT_REV(rev));
 
-	st = fdump(record_get_value_ref(rec), NULL, 16, recv->debug_file);
+	fdump(record_get_value_ref(rec), NULL, 16, recv->debug_file);
+#endif
 #endif
 	return st;
 }
@@ -154,14 +169,14 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	spin_unlock(&recv->stats_lock, 0);
 
 #ifdef DEBUG_PROTOCOL
-	if (fprintf(recv->debug_file, "\tgap request seq %07ld --> %07ld\n",
-				low, high) < 0)
-		st = (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
+	fprintf(recv->debug_file, "%s   tcp gap request seq %07ld --> %07ld\n",
+			debug_time(), low, high);
 #endif
 	return st;
 }
 
-static status get_sock_addr_text(sock_addr_handle addr, char* text, size_t text_sz)
+static status get_sock_addr_text(sock_addr_handle addr, char* text,
+								 size_t text_sz)
 {
 	status st;
 	if (FAILED(st = sock_addr_get_text(addr, text, text_sz)))
@@ -190,6 +205,7 @@ static status mcast_on_read(receiver_handle recv)
 
 	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
+
 	if (mcast_ip != tcp_ip) {
 		char src_text[256], tcp_text[256], pub_text[256];
 		get_sock_addr_text(recv->mcast_pub_addr, pub_text, sizeof(pub_text));
@@ -209,8 +225,13 @@ static status mcast_on_read(receiver_handle recv)
 	*in_seq_ref = ntohll(*in_seq_ref);
 
 #ifdef DEBUG_PROTOCOL
-	if (fprintf(recv->debug_file, "mcast recv seq %07ld\n", *in_seq_ref) < 0)
-		return (feof(recv->debug_file) ? error_eof : error_errno)("fprintf");
+	if (*in_seq_ref < 0) {
+		fprintf(recv->debug_file, "%s mcast heartbeat seq %07ld\n",
+				debug_time(), -*in_seq_ref);
+	} else {
+		fprintf(recv->debug_file, "%s mcast recv seq %07ld\n",
+				debug_time(), *in_seq_ref);
+	}
 #endif
 
 	if (*in_seq_ref < 0)
@@ -267,12 +288,20 @@ static status tcp_read_buf(receiver_handle recv)
 		spin_unlock(&recv->stats_lock, 0);
 	}
 
+#ifdef DEBUG_PROTOCOL
+	fprintf(recv->debug_file, "%s   tcp recv %lu bytes\n",
+			debug_time(), recv_sz);
+#endif
 	return st;
 }
 
 static status tcp_write_buf(receiver_handle recv)
 {
 	status st = OK;
+#ifdef DEBUG_PROTOCOL
+	size_t sent_sz = 0;
+#endif
+
 	while (recv->out_remain > 0) {
 		if (FAILED(st = sock_write(recv->tcp_sock, recv->out_next,
 								   recv->out_remain)))
@@ -280,8 +309,16 @@ static status tcp_write_buf(receiver_handle recv)
 
 		recv->out_next += st;
 		recv->out_remain -= st;
+
+#ifdef DEBUG_PROTOCOL
+		sent_sz += st;
+#endif
 	}
 
+#ifdef DEBUG_PROTOCOL
+	fprintf(recv->debug_file, "%s   tcp sent %lu bytes\n",
+			debug_time(), sent_sz);
+#endif
 	return st;
 }
 
@@ -314,9 +351,7 @@ static status tcp_on_read(receiver_handle recv)
 
 			if (*in_seq_ref == WILL_QUIT_SEQ) {
 #ifdef DEBUG_PROTOCOL
-				if (fprintf(recv->debug_file, "WILL QUIT\n") < 0)
-					st = (feof(recv->debug_file)
-						  ? error_eof : error_errno)("fprintf");
+				fprintf(recv->debug_file, "%s   tcp will quit\n", debug_time());
 #endif
 				recv->is_stopping = TRUE;
 				return st;
@@ -324,9 +359,7 @@ static status tcp_on_read(receiver_handle recv)
 
 			if (*in_seq_ref == HEARTBEAT_SEQ) {
 #ifdef DEBUG_PROTOCOL
-				if (fprintf(recv->debug_file, "TCP heartbeat\n") < 0)
-					st = (feof(recv->debug_file)
-						  ? error_eof : error_errno)("fprintf");
+				fprintf(recv->debug_file, "%s   tcp heartbeat\n", debug_time());
 #endif
 				recv->in_next = recv->in_buf;
 				recv->in_remain = sizeof(sequence);
@@ -340,10 +373,9 @@ static status tcp_on_read(receiver_handle recv)
 		*id = ntohll(*id);
 
 #ifdef DEBUG_PROTOCOL
-		if (fprintf(recv->debug_file, "\t\tgap response seq %07ld, id #%07ld\n",
-					*in_seq_ref, *id) < 0)
-			return (feof(recv->debug_file)
-					? error_eof : error_errno)("fprintf");
+		fprintf(recv->debug_file,
+				"%s     tcp gap response seq %07ld, id #%07ld\n",
+				debug_time(), *in_seq_ref, *id);
 #endif
 		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id] &&
 			FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1)))
@@ -407,7 +439,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
 								SOCK_STREAM, IPPROTO_TCP)) ||
-		FAILED(st = sock_addr_create(&(*precv)->tcp_addr, tcp_address, tcp_port)) ||
+		FAILED(st = sock_addr_create(&(*precv)->tcp_addr,
+									 tcp_address, tcp_port)) ||
 		FAILED(st = sock_connect((*precv)->tcp_sock, (*precv)->tcp_addr)) ||
 		FAILED(st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1)))
 		return st;
@@ -559,6 +592,10 @@ status receiver_run(receiver_handle recv)
 
 	while (!recv->is_stopping) {
 		microsec now, mc_hb_usec;
+#ifdef DEBUG_PROTOCOL
+		fprintf(recv->debug_file, "%s ======================================\n",
+				debug_time());
+#endif
 		if (FAILED(st = poller_events(recv->poller, 10)) ||
 			(st > 0 && FAILED(st = poller_process_events(recv->poller,
 														 event_func, recv))) ||
@@ -572,12 +609,18 @@ status receiver_run(receiver_handle recv)
 			 ? INITIAL_MC_HB_USEC : recv->timeout_usec);
 
 		if ((now - recv->mcast_recv_time) >= mc_hb_usec) {
+#ifdef DEBUG_PROTOCOL
+			fprintf(recv->debug_file, "%s mcast no heartbeat\n", debug_time());
+#endif
 			st = error_msg("receiver_run: no multicast heartbeat",
 						   NO_HEARTBEAT);
 			break;
 		}
 
 		if ((now - recv->tcp_recv_time) >= recv->timeout_usec) {
+#ifdef DEBUG_PROTOCOL
+			fprintf(recv->debug_file, "%s   tcp no heartbeat\n", debug_time());
+#endif
 			st = error_msg("receiver_run: no TCP heartbeat", NO_HEARTBEAT);
 			break;
 		}

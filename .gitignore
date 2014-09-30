@@ -37,3 +37,4 @@ DEPEND.mk
 # etc
 core
 core.*
+*.DEBUG

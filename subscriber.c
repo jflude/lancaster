@@ -92,7 +92,7 @@ static void* stats_func(thread_handle thr)
 				   receiver_get_mcast_max_latency(recv),
 				   receiver_get_mcast_stddev_latency(recv));
 		} else {
-			printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
+			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %lu, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
 				   "STD/us: %.2f%s",

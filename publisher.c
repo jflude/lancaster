@@ -104,7 +104,7 @@ static void* stats_func(thread_handle thr)
 					   storage_get_queue_max_latency(store),
 					   storage_get_queue_stddev_latency(store));
 			} else {
-				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
+				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP/s: %lu, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
 					   storage_get_description(store),
 					   sender_get_receiver_count(sender),
