@@ -46,7 +46,7 @@ static status print_attributes(storage_handle store)
 
 	if (printf("file:           \"%s\"\n"
 			   "description:    \"%s\"\n"
-			   "lib version:    0x%hX\n"
+			   "file version:   0x%hX\n"
 			   "app version:    0x%hX\n"
 			   "base id:        %ld\n"
 			   "max id:         %ld\n"
@@ -59,7 +59,7 @@ static status print_attributes(storage_handle store)
 			   "touched time:   %s\n",
 			   storage_get_file(store),
 			   storage_get_description(store),
-			   storage_get_lib_version(store),
+			   storage_get_file_version(store),
 			   storage_get_app_version(store),
 			   storage_get_base_id(store),
 			   storage_get_max_id(store),

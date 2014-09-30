@@ -21,7 +21,7 @@ struct record
 struct segment
 {
 	unsigned magic;
-	unsigned short lib_version;
+	unsigned short file_version;
 	unsigned short app_version;
 	char description[256];
 	size_t seg_size;
@@ -67,6 +67,7 @@ struct storage
 };
 
 #define MAGIC_NUMBER 0x0C0FFEE0
+
 #define STORAGE_RECORD(stg, base, idx) \
 	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
 
@@ -163,8 +164,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return NO_MEMORY;
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
-		(*pstore)->seg->lib_version =
-			(STORAGE_MAJOR_VERSION << 8) | STORAGE_MINOR_VERSION;
+		(*pstore)->seg->file_version =
+			(FILE_MAJOR_VERSION << 8) | FILE_MINOR_VERSION;
 		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
@@ -177,8 +178,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
 		BZERO((*pstore)->seg->description);
-	} else if (((*pstore)->seg->lib_version >> 8) != STORAGE_MAJOR_VERSION)
-		return error_msg("storage_create: incompatible library version",
+	} else if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
+		return error_msg("storage_create: incompatible file version",
 						 STORAGE_WRONG_VERSION);
 	else if ((*pstore)->seg->seg_size != seg_sz ||
 			 (*pstore)->seg->hdr_size != hdr_sz ||
@@ -280,7 +281,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	if ((*pstore)->seg->magic != MAGIC_NUMBER)
 		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 
-	if (((*pstore)->seg->lib_version >> 8) != STORAGE_MAJOR_VERSION)
+	if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible library version",
 						 STORAGE_WRONG_VERSION);
 
@@ -411,9 +412,9 @@ status storage_set_persistence(storage_handle store, boolean persist)
 	return old_val;
 }
 
-unsigned short storage_get_lib_version(storage_handle store)
+unsigned short storage_get_file_version(storage_handle store)
 {
-	return store->seg->lib_version;
+	return store->seg->file_version;
 }
 
 unsigned short storage_get_app_version(storage_handle store)

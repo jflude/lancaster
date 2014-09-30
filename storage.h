@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-#define STORAGE_MAJOR_VERSION 1
-#define STORAGE_MINOR_VERSION 0
+#define FILE_MAJOR_VERSION 1
+#define FILE_MINOR_VERSION 0
 
 struct storage;
 typedef struct storage* storage_handle;
@@ -43,7 +43,7 @@ status storage_destroy(storage_handle* pstore);
 boolean storage_is_read_only(storage_handle store);
 status storage_set_persistence(storage_handle store, boolean persist);
 
-unsigned short storage_get_lib_version(storage_handle store);
+unsigned short storage_get_file_version(storage_handle store);
 unsigned short storage_get_app_version(storage_handle store);
 status storage_set_app_version(storage_handle store, unsigned short app_ver);
 
