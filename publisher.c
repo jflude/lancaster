@@ -7,6 +7,7 @@
 #include "signals.h"
 #include "sock.h"
 #include "thread.h"
+#include "udp.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +43,17 @@ static void* stats_func(thread_handle thr)
 	microsec last_print;
 	const char* eol_seq;
 	status st;
-
+    struct udp_conn_info udp_stat_connection;
+    const char* udp_stat_url = getenv("UDP_STATS_URL");
+    boolean udp_stat_pub_enabled = FALSE;
+    int stats_buff_used = 0;
+    
+    if (udp_stat_url != NULL) {
+        if (FAILED(st = open_udp_sock_conn(&udp_stat_connection, udp_stat_url)))
+            return (void*)(long) st;
+        udp_stat_pub_enabled = TRUE;
+    }
+    
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
 		FAILED(st = clock_time(&last_print)))
 		return (void*) (long) st;
@@ -75,11 +86,13 @@ static void* stats_func(thread_handle thr)
 				break;
 		} else {
 			if (as_json) {
+                char stats_buf[1024];
 				char ts[64];
 				if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
 					break;
 
-				printf("{\"@timestamp\":\"%s\", "
+				stats_buff_used = snprintf(stats_buf, sizeof(stats_buf),
+                    "{\"@timestamp\":\"%s\", "
 					   "\"app\":\"publisher\", "
 					   "\"cat\":\"data_feed\", "
 					   "\"storage\":\"%s\", "
@@ -102,8 +115,17 @@ static void* stats_func(thread_handle thr)
 					   storage_get_queue_min_latency(store),
 					   storage_get_queue_mean_latency(store),
 					   storage_get_queue_max_latency(store),
-					   storage_get_queue_stddev_latency(store));
-			} else {
+					   storage_get_queue_stddev_latency(store)
+					   );
+                if (udp_stat_pub_enabled){
+                    if (FAILED(st=sock_sendto(udp_stat_connection.sock_fd_, 
+                        udp_stat_connection.server_sock_addr_,
+                        stats_buf, stats_buff_used)))
+                        break;
+                } else {
+                    fprintf(stdout, "%s", stats_buf);
+                }
+			} else
 				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP: %lu, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
 					   storage_get_description(store),
@@ -113,14 +135,13 @@ static void* stats_func(thread_handle thr)
 					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
 					   sender_get_mcast_bytes_sent(sender) / secs / 1024,
 					   eol_seq);
-			}
 
 			if (FAILED(st = sender_next_stats(sender)))
 				break;
 		}
 
 		last_print = now;
-		fflush(stdout);
+        if (!udp_stat_pub_enabled) fflush(stdout);
 	}
 
 	sender_stop(sender);
@@ -143,6 +164,7 @@ int main(int argc, char* argv[])
 	microsec max_pkt_age;
 	void* stats_result;
 	char* env = "";
+    
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);

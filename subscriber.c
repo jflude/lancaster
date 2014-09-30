@@ -6,6 +6,7 @@
 #include "signals.h"
 #include "sock.h"
 #include "thread.h"
+#include "udp.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,12 +32,23 @@ static void show_version(void)
 
 static void* stats_func(thread_handle thr)
 {
+    char udp_stats_buffer[1024];
 	receiver_handle recv = thread_get_param(thr);
 	char hostname[256], alias[32];
 	const char *storage_desc, *delim_pos, *eol_seq;
 	microsec last_print;
 	status st;
-		
+	struct udp_conn_info udp_stat_connection;
+    const char* udp_stat_url = getenv("UDP_STATS_URL");
+    boolean udp_stat_pub_enabled = FALSE;
+    int stats_buff_used = 0;
+
+    if (udp_stat_url != NULL) {
+        if (FAILED(st = open_udp_sock_conn(&udp_stat_connection, udp_stat_url)))
+            return (void*) (long) st;
+        udp_stat_pub_enabled = TRUE;
+    }
+    
 	storage_desc = storage_get_description(receiver_get_storage(recv));
 
 	if ((delim_pos = strchr(storage_desc, '.')) == NULL)
@@ -64,34 +76,44 @@ static void* stats_func(thread_handle thr)
 
 		if (as_json) {
 			char ts[64];
-			if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
-				break;
+			if (FAILED(st = clock_get_text(now, 3, ts, sizeof (ts))))
+                break;
 
-			printf("{\"@timestamp\":\"%s\", "
-				   "\"app\":\"subscriber\", "
-				   "\"cat\":\"data_feed\", "
-				   "\"alias\":\"%s\", "
-				   "\"storage\":\"%s\", "
-				   "\"pkt/s\":%.2f, "
-				   "\"gap/s\":%lu, "
-				   "\"tcp_kb/s\":%.2f, "
-				   "\"mcast_kb/s\":%.2f, "
-				   "\"min/us\":%.2f, "
-				   "\"avg/us\":%.2f, "
-				   "\"max/us\":%.2f, "
-				   "\"std/us\":%.2f}\n",
-				   ts,
-				   alias,
-				   storage_get_file(receiver_get_storage(recv)),
-				   receiver_get_mcast_packets_recv(recv) / secs,
-				   receiver_get_tcp_gap_count(recv),
-				   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
-				   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
-				   receiver_get_mcast_min_latency(recv),
-				   receiver_get_mcast_mean_latency(recv),
-				   receiver_get_mcast_max_latency(recv),
-				   receiver_get_mcast_stddev_latency(recv));
-		} else {
+            stats_buff_used = snprintf(udp_stats_buffer, sizeof (udp_stats_buffer),
+                "{\"@timestamp\":\"%s\", "
+                "\"app\":\"subscriber\", "
+                "\"cat\":\"data_feed\", "
+                "\"alias\":\"%s\", "
+                "\"storage\":\"%s\", "
+                "\"pkt/s\":%.2f, "
+                "\"gap/s\":%lu, "
+                "\"tcp_kb/s\":%.2f, "
+                "\"mcast_kb/s\":%.2f, "
+                "\"min/us\":%.2f, "
+                "\"avg/us\":%.2f, "
+                "\"max/us\":%.2f, "
+                "\"std/us\":%.2f}\n",
+                ts,
+                alias,
+                storage_get_file(receiver_get_storage(recv)),
+                receiver_get_mcast_packets_recv(recv) / secs,
+                receiver_get_tcp_gap_count(recv),
+                receiver_get_tcp_bytes_recv(recv) / secs / 1024,
+                receiver_get_mcast_bytes_recv(recv) / secs / 1024,
+                receiver_get_mcast_min_latency(recv),
+                receiver_get_mcast_mean_latency(recv),
+                receiver_get_mcast_max_latency(recv),
+                receiver_get_mcast_stddev_latency(recv));
+            
+            if (udp_stat_pub_enabled) {
+                if (FAILED(st = sock_sendto(udp_stat_connection.sock_fd_,
+                    udp_stat_connection.server_sock_addr_,
+                    udp_stats_buffer, stats_buff_used)))
+                    break;
+            } else {
+                fprintf(stdout, "%s", udp_stats_buffer);
+            }
+        } else
 			printf("\"%.20s\", PKT/s: %.2f, GAP: %lu, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
@@ -106,7 +128,6 @@ static void* stats_func(thread_handle thr)
 				   receiver_get_mcast_max_latency(recv),
 				   receiver_get_mcast_stddev_latency(recv),
 				   eol_seq);
-		}
 
 		if (FAILED(st = receiver_next_stats(recv)))
 			break;
