@@ -163,8 +163,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return NO_MEMORY;
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
-		(*pstore)->seg->lib_version =
-			(STORAGE_MAJOR_VERSION << 8) | STORAGE_MINOR_VERSION;
+		(*pstore)->seg->lib_version = storage_get_current_lib_version()
 		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
@@ -409,6 +408,11 @@ status storage_set_persistence(storage_handle store, boolean persist)
 	old_val = store->is_persistent;
 	store->is_persistent = persist;
 	return old_val;
+}
+
+unsigned short storage_get_current_lib_version() 
+{
+	return (STORAGE_MAJOR_VERSION << 8) | STORAGE_MINOR_VERSION;
 }
 
 unsigned short storage_get_lib_version(storage_handle store)
