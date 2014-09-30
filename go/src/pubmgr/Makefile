@@ -18,7 +18,7 @@ build: LD_FLAGS = \
 build: 
 	go build -ldflags '$(LD_FLAGS)' .
 
-goop: .getGoop
+fetch: .getGoop
 	cd $(GOOP_DIR) && goop install
 
 dist:
