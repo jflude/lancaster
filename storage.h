@@ -43,7 +43,6 @@ status storage_destroy(storage_handle* pstore);
 boolean storage_is_read_only(storage_handle store);
 status storage_set_persistence(storage_handle store, boolean persist);
 
-unsigned short storage_get_current_lib_version();
 unsigned short storage_get_lib_version(storage_handle store);
 unsigned short storage_get_app_version(storage_handle store);
 status storage_set_app_version(storage_handle store, unsigned short app_ver);
