@@ -12,6 +12,7 @@ SRCS := \
 	spin.c \
 	storage.c \
 	table.c \
+	udp.c \
 	thread.c \
 	twist.c \
 	xalloc.c
