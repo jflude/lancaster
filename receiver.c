@@ -89,7 +89,7 @@ static const char* debug_time(void)
 #endif
 
 static status update_stats(receiver_handle recv, size_t pkt_sz,
-						   microsec now, microsec* pkt_time)
+						   microsec now, microsec pkt_time)
 {
 	status st;
 	double latency, delta;
@@ -98,7 +98,7 @@ static status update_stats(receiver_handle recv, size_t pkt_sz,
 
 	recv->next_stats->mcast_bytes_recv += pkt_sz;
 
-	latency = now - ntohll(*pkt_time);
+	latency = now - pkt_time;
 	delta = latency - recv->next_stats->mcast_mean_latency;
 
 	recv->next_stats->mcast_mean_latency +=
@@ -217,7 +217,7 @@ static status mcast_on_read(receiver_handle recv)
 
 	recv->mcast_recv_time = now;
 
-	if (FAILED(st = update_stats(recv, st2, now, in_stamp_ref)))
+	if (FAILED(st = update_stats(recv, st2, now, ntohll(*in_stamp_ref))))
 		return st;
 
 	*in_seq_ref = ntohll(*in_seq_ref);
@@ -448,8 +448,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 				&max_age_usec, &hb_usec, &proto_len);
 
-	if (st != 11)
-		return error_msg("receiver_create: invalid publisher attributes:\n%s\n",
+	if (st != 10)
+		return error_msg("receiver_create: invalid publisher attributes:\n%s",
 						 PROTOCOL_ERROR, buf);
 
 	if ((wire_ver >> 8) != WIRE_MAJOR_VERSION)
@@ -602,7 +602,7 @@ status receiver_run(receiver_handle recv)
 			break;
 
 		mc_hb_usec =
-			(recv->next_seq == 1 && recv->timeout_usec < INITIAL_MC_HB_USEC
+			(recv->next_seq == 0 && recv->timeout_usec < INITIAL_MC_HB_USEC
 			 ? INITIAL_MC_HB_USEC : recv->timeout_usec);
 
 		if ((now - recv->mcast_recv_time) >= mc_hb_usec) {
