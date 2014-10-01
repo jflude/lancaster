@@ -410,9 +410,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 				   const char* tcp_address, unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
-	char buf[512], wire_ver[8], mcast_address[32];
-	static char expected_ver[] = WIRE_VERSION;
-	unsigned short data_ver;
+	char buf[512], mcast_address[32];
+	unsigned short wire_ver, data_ver;
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
@@ -444,21 +443,21 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return st;
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%7s %hu %31s %d %lu %ld %ld %lu %ld %ld %n",
-				wire_ver, &data_ver, mcast_address, &mcast_port,
+	st = sscanf(buf, "%hu %hu %31s %d %lu %ld %ld %lu %ld %ld %n",
+				&wire_ver, &data_ver, mcast_address, &mcast_port,
 				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 				&max_age_usec, &hb_usec, &proto_len);
 
-	if (st != 10)
+	if (st != 11)
 		return error_msg("receiver_create: invalid publisher attributes:\n%s\n",
 						 PROTOCOL_ERROR, buf);
 
-	st = strchr(expected_ver, '.') - expected_ver;
-
-	if (strlen(wire_ver) < (size_t) st ||
-		strncmp(expected_ver, wire_ver, st) != 0)
-		return error_msg("receiver_create: wrong wire version: %s (expecting "
-						 WIRE_VERSION ")", WIRE_WRONG_VERSION, wire_ver);
+	if ((wire_ver >> 8) != WIRE_MAJOR_VERSION)
+		return error_msg("receiver_create: incompatible wire version "
+						 "(%hu.%hu but expecting %hu.%hu)",
+						 WRONG_WIRE_VERSION,
+						 wire_ver >> 8, wire_ver & 0xFF,
+						 WIRE_MAJOR_VERSION, WIRE_MINOR_VERSION);
 
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';

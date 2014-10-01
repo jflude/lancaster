@@ -12,7 +12,7 @@ release: SUBSCRIBER_PATH = ./subscriber
 release: build dist
 
 build: LD_FLAGS = \
-		-X main.wireProtocolVersion $(WIRE_VERSION) \
+		-X main.wireProtocolVersion "$(WIRE_MAJOR_VERSION).$(WIRE_MINOR_VERSION)" \
 		-X main.sourceVersion $(SOURCE_VERSION) \
 		-X main.subscriberPath $(SUBSCRIBER_PATH)
 

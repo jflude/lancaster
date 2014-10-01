@@ -13,9 +13,6 @@
 extern "C" {
 #endif
 
-#define FILE_MAJOR_VERSION 1
-#define FILE_MINOR_VERSION 0
-
 struct storage;
 typedef struct storage* storage_handle;
 

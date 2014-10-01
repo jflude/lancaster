@@ -50,8 +50,8 @@ static status print_attributes(storage_handle store)
 
 	if (printf("file:           \"%s\"\n"
 			   "description:    \"%s\"\n"
-			   "file version:   %d.%d\n"
-			   "data version:   %d.%d\n"
+			   "file version:   %hu.%hu\n"
+			   "data version:   %hu.%hu\n"
 			   "base id:        %ld\n"
 			   "max id:         %ld\n"
 			   "record size:    %lu\n"

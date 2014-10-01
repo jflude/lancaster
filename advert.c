@@ -55,11 +55,10 @@ static status make_json_map(advert_handle advert)
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))))
 		return st;
 
-	strcat(buf, escape_quotes(hostname));
-	strcat(buf, "\", \"env\":\"");
-	strcat(buf, escape_quotes(advert->env));
-	strcat(buf, "\", \"version\":\"" WIRE_VERSION "\"");
-	strcat(buf, ", \"data\":[");
+	sprintf(buf, "%s\", \"env\":\"%s\", \"version\":\"%hu.%hu\", \"data\":[",
+			escape_quotes(hostname),
+			escape_quotes(advert->env),
+			WIRE_MAJOR_VERSION, WIRE_MINOR_VERSION);
 
 	for (it = advert->notices; it; it = it->next) {
 		strcat(buf, it->json_desc);
