@@ -1,13 +1,14 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-SUBSCRIBER_PATH = "../../../subscriber"
+SUBSCRIBER_PATH = ../../../subscriber
+BIN_DIR = ../../../bin
 
 all: submgr
 
 submgr: build
 
-release: SUBSCRIBER_PATH = "./subscriber"
+release: SUBSCRIBER_PATH = ./subscriber
 release: build dist
 
 build: LD_FLAGS = \
@@ -22,10 +23,11 @@ fetch: .getGoop
 	cd $(GOOP_DIR) && goop install
 
 dist:
-	mkdir -p release
-	cp -p submgr $(CACHESTER_DIR)/subscriber release/
+	cp -p submgr $(CACHESTER_DIR)/subscriber $(BIN_DIR)
 
 clean:
-	rm -rf submgr release
+	rm -f submgr
+	rm -f $(BIN_DIR)/submgr
+	rm -f $(BIN_DIR)/subscriber
 
 .PHONY: all release build goop dist clean

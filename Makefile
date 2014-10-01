@@ -60,7 +60,7 @@ all:
 	done
 
 release: CFLAGS += -DNDEBUG -O3
-release: all
+release: publisher subscriber 
 release: 
 	for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir release; \
