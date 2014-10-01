@@ -3,4 +3,4 @@ DIR_NAME=`dirname "$0"`
 echo "BUILD cachester (${DIR_NAME})!!" 
 
 cd ${DIR_NAME}/..
-make clean all
+make clean release

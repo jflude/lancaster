@@ -1,13 +1,14 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-PUBLISHER_PATH = "$(CACHESTER_DIR)/publisher"
+PUBLISHER_PATH = $(CACHESTER_DIR)/publisher
+BIN_DIR = ../../../bin
 
 all: pubmgr
 
 pubmgr: build
 
-release: PUBLISHER_PATH = "./publisher"
+release: PUBLISHER_PATH = ./publisher
 release: build dist
 
 build: LD_FLAGS = \
@@ -22,10 +23,11 @@ fetch: .getGoop
 	cd $(GOOP_DIR) && goop install
 
 dist:
-	mkdir -p release
-	cp -p pubmgr $(CACHESTER_DIR)/publisher release/
+	cp -p pubmgr $(CACHESTER_DIR)/publisher $(BIN_DIR)
 
 clean:
-	rm -rf pubmgr release
+	rm -f pubmgr 
+	rm -f $(BIN_DIR)/publisher
+	rm -f $(BIN_DIR)/pubmgr
 
 .PHONY: all build release fetch dist clean
