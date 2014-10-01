@@ -23,7 +23,7 @@ static void show_syntax(void)
 			"STORAGE-FILE [RECORD ID...]\n",
 			error_get_program_name());
 
-	exit(SYNTAX_ERROR);
+	exit(-SYNTAX_ERROR);
 }
 
 static void show_version(void)

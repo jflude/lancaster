@@ -26,7 +26,7 @@ static void show_syntax(void)
 			" MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
-	exit(SYNTAX_ERROR);
+	exit(-SYNTAX_ERROR);
 }
 
 static void show_version(void)
