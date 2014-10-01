@@ -123,6 +123,6 @@ fetch:
 	done
 
 .PHONY: all release debug profile depend clean distclean
-.PHONY: goop components $(COMPONENTS)
+.PHONY: fetch components $(COMPONENTS)
 
 include DEPEND.mk
