@@ -22,7 +22,7 @@ struct segment
 {
 	unsigned magic;
 	unsigned short file_version;
-	unsigned short app_version;
+	unsigned short data_version;
 	char description[256];
 	size_t seg_size;
 	size_t hdr_size;
@@ -180,7 +180,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		BZERO((*pstore)->seg->description);
 	} else if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible file version",
-						 STORAGE_WRONG_VERSION);
+						 WRONG_FILE_VERSION);
 	else if ((*pstore)->seg->seg_size != seg_sz ||
 			 (*pstore)->seg->hdr_size != hdr_sz ||
 			 (*pstore)->seg->rec_size != rec_sz ||
@@ -282,8 +282,8 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 
 	if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
-		return error_msg("storage_create: incompatible library version",
-						 STORAGE_WRONG_VERSION);
+		return error_msg("storage_create: incompatible file version",
+						 WRONG_FILE_VERSION);
 
 	seg_sz = (*pstore)->seg->seg_size;
 
@@ -417,18 +417,18 @@ unsigned short storage_get_file_version(storage_handle store)
 	return store->seg->file_version;
 }
 
-unsigned short storage_get_app_version(storage_handle store)
+unsigned short storage_get_data_version(storage_handle store)
 {
-	return store->seg->app_version;
+	return store->seg->data_version;
 }
 
-status storage_set_app_version(storage_handle store, unsigned short app_ver)
+status storage_set_data_version(storage_handle store, unsigned short data_ver)
 {
 	if (store->is_read_only)
 		return error_msg("storage_set_app_version: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	store->seg->app_version = app_ver;
+	store->seg->data_version = data_ver;
 	return OK;
 }
 
@@ -574,7 +574,7 @@ status storage_write_queue(storage_handle store, identifier id)
 
 	if (store->seg->q_mask == -1u)
 		return error_msg("storage_write_queue: no change queue",
-						 STORAGE_NO_CHANGE_QUEUE);
+						 NO_CHANGE_QUEUE);
 
 	q = &store->seg->change_q[store->seg->q_head++ & store->seg->q_mask];
 	q->id = id;
@@ -593,7 +593,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 
 	if (store->seg->q_mask == -1u)
 		return error_msg("storage_read_queue: no change queue",
-						 STORAGE_NO_CHANGE_QUEUE);
+						 NO_CHANGE_QUEUE);
 
 	*pelem = store->seg->change_q[idx & store->seg->q_mask];
 	if (!update_stats)
@@ -635,7 +635,7 @@ status storage_get_id(storage_handle store, record_handle rec,
 
 	if (rec < store->first || rec >= store->limit)
 		return error_msg("storage_get_id: invalid record address",
-						 STORAGE_INVALID_SLOT);
+						 INVALID_SLOT);
 
 	*pident = ((char*) rec - (char*) store->first) / store->seg->rec_size;
 	return OK;
@@ -649,7 +649,7 @@ status storage_get_record(storage_handle store, identifier id,
 
 	if (id < store->seg->base_id || id >= store->seg->max_id)
 		return error_msg("storage_get_record: invalid identifier",
-						 STORAGE_INVALID_SLOT);
+						 INVALID_SLOT);
 
 	*prec = STORAGE_RECORD(store, store->first, id - store->seg->base_id);
 	return OK;
@@ -747,7 +747,7 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 				   (char*) old_r + store->seg->prop_offset, copy_sz);
 	}
 
-	(*pnewstore)->seg->app_version = store->seg->app_version;
+	(*pnewstore)->seg->data_version = store->seg->data_version;
 	strcpy((*pnewstore)->seg->description, store->seg->description);
 
 	if (FAILED(st = clock_time(&(*pnewstore)->seg->last_created))) {

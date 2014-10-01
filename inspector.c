@@ -37,6 +37,7 @@ static status print_attributes(storage_handle store)
 	status st;
 	microsec when;
 	char created[64], touched[64];
+	unsigned short file_ver, data_ver;
 
 	if (FAILED(st = storage_get_created_time(store, &when)) ||
 		FAILED(st = clock_get_text(when, 6, created, sizeof(created))) ||
@@ -44,10 +45,13 @@ static status print_attributes(storage_handle store)
 		FAILED(st = clock_get_text(when, 6, touched, sizeof(touched))))
 		return st;
 
+	file_ver = storage_get_file_version(store);
+	data_ver = storage_get_data_version(store);
+
 	if (printf("file:           \"%s\"\n"
 			   "description:    \"%s\"\n"
-			   "file version:   0x%hX\n"
-			   "app version:    0x%hX\n"
+			   "file version:   %d.%d\n"
+			   "data version:   %d.%d\n"
 			   "base id:        %ld\n"
 			   "max id:         %ld\n"
 			   "record size:    %lu\n"
@@ -59,8 +63,10 @@ static status print_attributes(storage_handle store)
 			   "touched time:   %s\n",
 			   storage_get_file(store),
 			   storage_get_description(store),
-			   storage_get_file_version(store),
-			   storage_get_app_version(store),
+			   file_ver >> 8,
+			   file_ver & 0xFF,
+			   data_ver >> 8,
+			   data_ver & 0xFF,
 			   storage_get_base_id(store),
 			   storage_get_max_id(store),
 			   storage_get_record_size(store),

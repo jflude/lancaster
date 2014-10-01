@@ -44,8 +44,8 @@ boolean storage_is_read_only(storage_handle store);
 status storage_set_persistence(storage_handle store, boolean persist);
 
 unsigned short storage_get_file_version(storage_handle store);
-unsigned short storage_get_app_version(storage_handle store);
-status storage_set_app_version(storage_handle store, unsigned short app_ver);
+unsigned short storage_get_data_version(storage_handle store);
+status storage_set_data_version(storage_handle store, unsigned short data_ver);
 
 record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);

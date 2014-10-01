@@ -10,7 +10,7 @@ release: build dist
 build:
 	go build 
 
-goop: .getGoop
+fetch: .getGoop
 	cd $(GOOP_DIR) && goop install
 
 dist:
@@ -20,4 +20,4 @@ dist:
 clean:
 	rm -rf rcvr release
 
-.PHONY: all release build goop dist clean
+.PHONY: all release build fetch dist clean

@@ -412,7 +412,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], wire_ver[8], mcast_address[32];
 	static char expected_ver[] = WIRE_VERSION;
-	unsigned short app_ver;
+	unsigned short data_ver;
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
@@ -445,7 +445,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	buf[st] = '\0';
 	st = sscanf(buf, "%7s %hu %31s %d %lu %ld %ld %lu %ld %ld %n",
-				wire_ver, &app_ver, mcast_address, &mcast_port,
+				wire_ver, &data_ver, mcast_address, &mcast_port,
 				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 				&max_age_usec, &hb_usec, &proto_len);
 
@@ -490,7 +490,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file, TRUE,
 									O_CREAT | O_TRUNC, base_id, max_id,
 									val_size, property_size, q_capacity)) &&
-		!FAILED(st = storage_set_app_version((*precv)->store, app_ver)) &&
+		!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
 		!FAILED(st = storage_set_description((*precv)->store,
 											 buf + proto_len)) &&
 	    !FAILED(st = sock_create(&(*precv)->mcast_sock,

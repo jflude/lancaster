@@ -28,4 +28,4 @@ dist:
 clean:
 	rm -rf pubmgr release
 
-.PHONY: all build release goop dist clean
+.PHONY: all build release fetch dist clean

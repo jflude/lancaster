@@ -28,4 +28,4 @@ dist:
 clean:
 	rm -rf submgr release
 
-.PHONY: all release build goop dist clean
+.PHONY: all release build fetch dist clean

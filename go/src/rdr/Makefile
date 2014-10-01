@@ -10,8 +10,8 @@ release: build dist
 build:
 	go build 
 
-goop: .getGoop
-	cd ../../ && goop install
+fetch: .getGoop
+	cd $(GOOP_DIR) && goop install
 
 dist:
 	mkdir -p release
@@ -20,4 +20,4 @@ dist:
 clean:
 	rm -rf rdr release
 
-.PHONY: all release build goop dist clean
+.PHONY: all release build fetch dist clean
