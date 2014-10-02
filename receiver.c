@@ -89,16 +89,15 @@ static const char* debug_time(void)
 #endif
 
 static status update_stats(receiver_handle recv, size_t pkt_sz,
-						   microsec now, microsec pkt_time)
+						   microsec latency)
 {
 	status st;
-	double latency, delta;
+	double delta;
 	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
 		return st;
 
 	recv->next_stats->mcast_bytes_recv += pkt_sz;
 
-	latency = now - pkt_time;
 	delta = latency - recv->next_stats->mcast_mean_latency;
 
 	recv->next_stats->mcast_mean_latency +=
@@ -217,7 +216,7 @@ static status mcast_on_read(receiver_handle recv)
 
 	recv->mcast_recv_time = now;
 
-	if (FAILED(st = update_stats(recv, st2, now, ntohll(*in_stamp_ref))))
+	if (FAILED(st = update_stats(recv, st2, now - ntohll(*in_stamp_ref))))
 		return st;
 
 	*in_seq_ref = ntohll(*in_seq_ref);

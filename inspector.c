@@ -50,8 +50,8 @@ static status print_attributes(storage_handle store)
 
 	if (printf("file:           \"%s\"\n"
 			   "description:    \"%s\"\n"
-			   "file version:   %hu.%hu\n"
-			   "data version:   %hu.%hu\n"
+			   "file version:   %d.%d\n"
+			   "data version:   %d.%d\n"
 			   "base id:        %ld\n"
 			   "max id:         %ld\n"
 			   "record size:    %lu\n"
@@ -63,10 +63,10 @@ static status print_attributes(storage_handle store)
 			   "touched time:   %s\n",
 			   storage_get_file(store),
 			   storage_get_description(store),
-			   file_ver >> 8,
-			   file_ver & 0xFF,
-			   data_ver >> 8,
-			   data_ver & 0xFF,
+			   (int) file_ver >> 8,
+			   (int) file_ver & 0xFF,
+			   (int) data_ver >> 8,
+			   (int) data_ver & 0xFF,
 			   storage_get_base_id(store),
 			   storage_get_max_id(store),
 			   storage_get_record_size(store),

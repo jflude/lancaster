@@ -48,14 +48,13 @@ static status make_json_map(advert_handle advert)
 	char buf[8192], hostname[256];
 	struct notice* it;
 	char* new_msg;
+
 	status st;
-
-	strcpy(buf, "{\"hostname\":\"");
-
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))))
 		return st;
 
-	sprintf(buf, "%s\", \"env\":\"%s\", \"version\":\"%hu.%hu\", \"data\":[",
+	sprintf(buf, "{\"hostname\":\"%s\", \"env\":\"%s\", "
+			"\"version\":\"%d.%d\", \"data\":[",
 			escape_quotes(hostname),
 			escape_quotes(advert->env),
 			WIRE_MAJOR_VERSION, WIRE_MINOR_VERSION);

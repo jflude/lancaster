@@ -167,7 +167,7 @@ static void* stats_func(thread_handle thr)
 int main(int argc, char* argv[])
 {
 	advert_handle adv;
-	sender_handle sender;
+	sender_handle sender = NULL;
 	thread_handle stats_thread;
 	int hb, opt, ttl = DEFAULT_TTL;
 	const char *mmap_file, *mcast_addr, *tcp_addr;
