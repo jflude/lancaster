@@ -10,8 +10,7 @@ release: build dist
 build:
 	go build 
 
-fetch: .getGoop
-	cd $(GOOP_DIR) && goop install
+fetch: .installGoop
 
 dist:
 	mkdir -p release
