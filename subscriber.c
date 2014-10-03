@@ -33,16 +33,16 @@ static void show_version(void)
 static void* stats_func(thread_handle thr)
 {
 	receiver_handle recv = thread_get_param(thr);
+	status st;
 	char hostname[256], alias[32];
 	const char *storage_desc, *delim_pos, *eol_seq;
 	microsec last_print;
-	status st;
 	struct udp_conn_info udp_stat_conn;
     const char* udp_stat_url = getenv("UDP_STATS_URL");
     boolean udp_stat_pub_enabled = FALSE;
     int stats_buff_used = 0;
 
-    if (udp_stat_url != NULL) {
+    if (udp_stat_url) {
         if (FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url)))
             return (void*) (long) st;
 
@@ -88,7 +88,7 @@ static void* stats_func(thread_handle thr)
 						"\"alias\":\"%s\", "
 						"\"storage\":\"%s\", "
 						"\"pkt/s\":%.2f, "
-						"\"gap/s\":%lu, "
+						"\"gap/s\":%.2f, "
 						"\"tcp_kb/s\":%.2f, "
 						"\"mcast_kb/s\":%.2f, "
 						"\"min/us\":%.2f, "
@@ -99,7 +99,7 @@ static void* stats_func(thread_handle thr)
 						alias,
 						storage_get_file(receiver_get_storage(recv)),
 						receiver_get_mcast_packets_recv(recv) / secs,
-						receiver_get_tcp_gap_count(recv),
+						receiver_get_tcp_gap_count(recv) / secs,
 						receiver_get_tcp_bytes_recv(recv) / secs / 1024,
 						receiver_get_mcast_bytes_recv(recv) / secs / 1024,
 						receiver_get_mcast_min_latency(recv),
@@ -112,22 +112,22 @@ static void* stats_func(thread_handle thr)
 				break;
 			}
             
-            if (udp_stat_pub_enabled) {
+            if (!udp_stat_pub_enabled)
+                fputs(stats_buf, stdout);
+			else {
                 if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
 											udp_stat_conn.server_sock_addr_,
 											stats_buf, stats_buff_used)))
                     break;
-            } else {
-                fputs(stats_buf, stdout);
             }
         } else
-			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %lu, "
+			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %.2f, "
 				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
 				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
 				   "STD/us: %.2f%s",
 				   storage_desc,
 				   receiver_get_mcast_packets_recv(recv) / secs,
-				   receiver_get_tcp_gap_count(recv),
+				   receiver_get_tcp_gap_count(recv) / secs,
 				   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
 				   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
 				   receiver_get_mcast_min_latency(recv),
@@ -136,7 +136,7 @@ static void* stats_func(thread_handle thr)
 				   receiver_get_mcast_stddev_latency(recv),
 				   eol_seq);
 
-		if (FAILED(st = receiver_next_stats(recv)))
+		if (FAILED(st = receiver_roll_stats(recv)))
 			break;
 
 		last_print = now;

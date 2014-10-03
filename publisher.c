@@ -17,13 +17,14 @@
 #define DEFAULT_TTL 1
 
 static boolean as_json;
-static boolean queue_stats;
+static boolean stg_stats;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j|-Q] [-a ADDRESS:PORT] [-i DEVICE] [-l]"
-			" [-t TTL] [-e ENV] [-p ERROR PREFIX] STORAGE-FILE TCP-ADDRESS:PORT"
-			" MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] "
+			"[-j|-s] [-l] [-p ERROR PREFIX] [-t TTL] STORAGE-FILE "
+			"TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD "
+			"MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -73,18 +74,16 @@ static void* stats_func(thread_handle thr)
 
 		secs = (now - last_print) / 1000000.0;
 
-		if (queue_stats) {
-			printf("\"%.20s\", Q.MIN/us: %.2f, Q.AVG/us: %.2f, "
-				   "Q.MAX/us: %.2f, Q.STD/us: %.2f%s",
+		if (stg_stats) {
+			printf("\"%.20s\", STG.REC/s: %.2f, STG.MIN/us: %.2f, "
+				   "STG.AVG/us: %.2f, STG.MAX/us: %.2f, STG.STD/us: %.2f%s",
 				   storage_get_description(store),
-				   storage_get_queue_min_latency(store),
-				   storage_get_queue_mean_latency(store),
-				   storage_get_queue_max_latency(store),
-				   storage_get_queue_stddev_latency(store),
+				   sender_get_storage_record_count(sender) / secs,
+				   sender_get_storage_min_latency(sender),
+				   sender_get_storage_mean_latency(sender),
+				   sender_get_storage_max_latency(sender),
+				   sender_get_storage_stddev_latency(sender),
 				   eol_seq);
-
-			if (FAILED(st = storage_next_stats(store)))
-				break;
 		} else {
 			if (as_json) {
 				char ts[64];
@@ -100,52 +99,54 @@ static void* stats_func(thread_handle thr)
 							"\"storage\":\"%s\", "
 							"\"recv\":%ld, "
 							"\"pkt/s\":%.2f, "
-							"\"gap/s\":%lu, "
+							"\"gap/s\":%.2f, "
 							"\"tcp_kb/s\":%.2f, "
 							"\"mcast_kb/s\":%.2f, "
-							"\"qMin/us\":%.2f, "
-							"\"qAvg/us\":%.2f, "
-							"\"qMax/us\":%.2f, "
-							"\"qStd/us\":%.2f}\n",
+							"\"stg_rec/s\":%.2f, "
+							"\"stg_min/us\":%.2f, "
+							"\"stg_avg/us\":%.2f, "
+							"\"stg_max/us\":%.2f, "
+							"\"stg_std/us\":%.2f}\n",
 							ts,
 							storage_get_file(store),
 							sender_get_receiver_count(sender),
 							sender_get_mcast_packets_sent(sender) / secs,
-							sender_get_tcp_gap_count(sender),
+							sender_get_tcp_gap_count(sender) / secs,
 							sender_get_tcp_bytes_sent(sender) / secs / 1024,
 							sender_get_mcast_bytes_sent(sender) / secs / 1024,
-							storage_get_queue_min_latency(store),
-							storage_get_queue_mean_latency(store),
-							storage_get_queue_max_latency(store),
-							storage_get_queue_stddev_latency(store));
+							sender_get_storage_record_count(sender) / secs,
+							sender_get_storage_min_latency(sender),
+							sender_get_storage_mean_latency(sender),
+							sender_get_storage_max_latency(sender),
+							sender_get_storage_stddev_latency(sender));
 
 				if (stats_buff_used < 0) {
 					st = error_errno("sprintf");
 					break;
 				}
 
-                if (udp_stat_pub_enabled) {
+                if (!udp_stat_pub_enabled)
+                    fputs(stats_buf, stdout);
+				else {
                     if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
 												udp_stat_conn.server_sock_addr_,
 												stats_buf, stats_buff_used)))
                         break;
-                } else {
-                    fputs(stats_buf, stdout);
                 }
 			} else
-				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP/s: %lu, "
+				printf("\"%.20s\", RECV: %ld, PKT/s: %.2f, GAP/s: %.2f, "
 					   "TCP KB/s: %.2f, MCAST KB/s: %.2f%s",
 					   storage_get_description(store),
 					   sender_get_receiver_count(sender),
 					   sender_get_mcast_packets_sent(sender) / secs,
-					   sender_get_tcp_gap_count(sender),
+					   sender_get_tcp_gap_count(sender) / secs,
 					   sender_get_tcp_bytes_sent(sender) / secs / 1024,
 					   sender_get_mcast_bytes_sent(sender) / secs / 1024,
 					   eol_seq);
-
-			if (FAILED(st = sender_next_stats(sender)))
-				break;
 		}
+
+		if (FAILED(st = sender_roll_stats(sender)))
+			break;
 
 		last_print = now;
         if (!udp_stat_pub_enabled)
@@ -183,7 +184,7 @@ int main(int argc, char* argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:e:i:jlp:Qt:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:e:i:jlp:st:v")) != -1)
 		switch (opt) {
 		case 'a':
 			adv_addr = optarg;
@@ -201,7 +202,7 @@ int main(int argc, char* argv[])
 			mcast_iface = optarg;
 			break;
 		case 'j':
-			if (queue_stats)
+			if (stg_stats)
 				show_syntax();
 
 			as_json = TRUE;
@@ -214,11 +215,11 @@ int main(int argc, char* argv[])
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
 			break;
-		case 'Q':
+		case 's':
 			if (as_json)
 				show_syntax();
 
-			queue_stats = TRUE;
+			stg_stats = TRUE;
 			break;
 		case 't':
 			ttl = atoi(optarg);

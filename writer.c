@@ -6,25 +6,20 @@
 #include "signals.h"
 #include "storage.h"
 #include "thread.h"
+#include "twist.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
-#define SCATTER_UPDATES
-
-#ifdef SCATTER_UPDATES
-#include "twist.h"
 #include <time.h>
-#endif
+#include <unistd.h>
 
 static storage_handle store;
 static microsec delay;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] STORAGE-FILE "
+	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE "
 			"CHANGE-QUEUE-SIZE DELAY\n", error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -57,8 +52,8 @@ static status update(identifier id, long n)
 		return st;
 
 	d->xyz = n;
-	d->ts = now;
 
+	record_set_timestamp(rec, now);
 	record_set_revision(rec, NEXT_REV(rev));
 
 	if (FAILED(st = storage_write_queue(store, id)) ||
@@ -86,25 +81,26 @@ int main(int argc, char* argv[])
 {
 	status st = OK;
 	thread_handle touch_thread;
+	twist_handle twister;
 	const char* mmap_file;
 	size_t q_capacity;
+	boolean at_random = FALSE;
 	long xyz = 0;
 	int opt;
-
-#ifdef SCATTER_UPDATES
-	twist_handle twister;
-#endif
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "p:v")) != -1)
+	while ((opt = getopt(argc, argv, "p:rv")) != -1)
 		switch (opt) {
 		case 'p':
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
+			break;
+		case 'r':
+			at_random = TRUE;
 			break;
 		case 'v':
 			show_version();
@@ -130,30 +126,27 @@ int main(int argc, char* argv[])
 		FAILED(thread_create(&touch_thread, touch_func, NULL)))
 		error_report_fatal();
 
-#ifdef SCATTER_UPDATES
-	if (FAILED(twist_create(&twister)))
-		error_report_fatal();
+	if (at_random) {
+		if (FAILED(twist_create(&twister)))
+			error_report_fatal();
 
-	twist_seed(twister, (unsigned) time(NULL));
-#endif
+		twist_seed(twister, (unsigned) time(NULL));
 
-	for (;;) {
-		identifier id;
-#ifdef SCATTER_UPDATES
-		id = twist_rand(twister) % MAX_ID;
-#else
-		for (id = 0; id < MAX_ID; ++id)
-#endif
-			if (FAILED(st = update(id, xyz++)))
+		for (;;)
+			if (FAILED(st = update(twist_rand(twister) % MAX_ID, xyz++)))
 				goto finish;
+	} else {
+		identifier id;
+		for (;;)
+			for (id = 0; id < MAX_ID; ++id)
+				if (FAILED(st = update(id, xyz++)))
+					goto finish;
 	}
 
 finish:
 	if (FAILED(st) ||
 		FAILED(thread_destroy(&touch_thread)) ||
-#ifdef SCATTER_UPDATES
-		FAILED(twist_destroy(&twister)) ||
-#endif
+		(at_random && FAILED(twist_destroy(&twister))) ||
 		FAILED(storage_destroy(&store)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||

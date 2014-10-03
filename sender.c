@@ -1,6 +1,7 @@
 #include "sender.h"
 #include "error.h"
 #include "h2n2h.h"
+#include "latency.h"
 #include "poller.h"
 #include "sequence.h"
 #include "spin.h"
@@ -23,10 +24,10 @@
 
 struct sender_stats
 {
-	size_t tcp_gap_count;
-	size_t tcp_bytes_sent;
-	size_t mcast_bytes_sent;
-	size_t mcast_packets_sent;
+	long tcp_gap_count;
+	long tcp_bytes_sent;
+	long mcast_bytes_sent;
+	long mcast_packets_sent;
 };
 
 struct sender
@@ -54,6 +55,7 @@ struct sender
 	char* pkt_buf;
 	char* pkt_next;
 	q_index last_q_idx;
+	latency_handle stg_latency;
 	struct sender_stats* curr_stats;
 	struct sender_stats* next_stats;
 	volatile spin_lock stats_lock;
@@ -98,29 +100,19 @@ static const char* debug_time(void)
 
 static status mcast_send_pkt(sender_handle sndr)
 {
-	status st;
+	status st, st2;
 	microsec now;
 	if (FAILED(st = clock_time(&now)))
 		return st;
 
 	*((microsec*) (sndr->pkt_buf + sizeof(sequence))) = htonll(now);
 
-	if (FAILED(st = sock_sendto(sndr->mcast_sock, sndr->sendto_addr,
-								sndr->pkt_buf, sndr->pkt_next - sndr->pkt_buf)))
-		return st;
+	if (FAILED(st2 = sock_sendto(sndr->mcast_sock,
+								 sndr->sendto_addr, sndr->pkt_buf,
+								 sndr->pkt_next - sndr->pkt_buf)))
+		return st2;
 
 	sndr->last_active_time = sndr->mcast_send_time = now;
-
-	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
-		return st;
-
-	sndr->next_stats->mcast_bytes_sent += st;
-	++sndr->next_stats->mcast_packets_sent;
-
-	spin_unlock(&sndr->stats_lock, 0);
-
-	sndr->pkt_next = sndr->pkt_buf;
-	sndr->mcast_insert_time = 0;
 
 	if (++sndr->next_seq < 0)
 		return error_msg("mcast_send_pkt: sequence sign overflow",
@@ -129,6 +121,17 @@ static status mcast_send_pkt(sender_handle sndr)
 	fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
 			debug_time(), ntohll(*((sequence*) sndr->pkt_buf)));
 #endif
+
+	sndr->pkt_next = sndr->pkt_buf;
+	sndr->mcast_insert_time = 0;
+
+	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
+		return st;
+
+	sndr->next_stats->mcast_bytes_sent += st2;
+	++sndr->next_stats->mcast_packets_sent;
+
+	spin_unlock(&sndr->stats_lock, 0);
 	return st;
 }
 
@@ -136,18 +139,22 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 {
 	status st;
 	revision rev;
-	record_handle rec = NULL;
+	microsec when;
 	boolean sent_pkt = FALSE;
+	record_handle rec = NULL;
 
-	size_t avail_sz = sndr->mcast_mtu - (sndr->pkt_next - sndr->pkt_buf);
+	size_t used_sz = sndr->pkt_next - sndr->pkt_buf;
+	size_t avail_sz = sndr->mcast_mtu - used_sz;
+
 	if (avail_sz < (sizeof(identifier) + sndr->val_size)) {
 		if (FAILED(st = mcast_send_pkt(sndr)))
 			return st;
 
 		sent_pkt = TRUE;
+		used_sz = 0;
 	}
 		
-	if (sndr->pkt_next == sndr->pkt_buf) {
+	if (used_sz == 0) {
 		*((sequence*) sndr->pkt_buf) = htonll(sndr->next_seq);
 		sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 	}
@@ -163,12 +170,15 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 			return st;
 
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
+		when = record_get_timestamp(rec);
 	} while (rev != record_get_revision(rec));
 
 	sndr->pkt_next += sndr->val_size;
 	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
 
-	if (FAILED(st = clock_time(&sndr->mcast_insert_time)))
+	if (FAILED(st = clock_time(&sndr->mcast_insert_time)) ||
+		FAILED(st = latency_on_sample(sndr->stg_latency,
+									  sndr->mcast_insert_time - when)))
 		return st;
 
 #ifdef DEBUG_PROTOCOL
@@ -181,22 +191,52 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	return sent_pkt;
 }
 
+static status mcast_on_empty_queue(sender_handle sndr)
+{
+	status st;
+	microsec now;
+
+	if (!FAILED(st = clock_time(&now))) {
+		if (sndr->mcast_insert_time != 0 &&
+			(now - sndr->mcast_insert_time) >= sndr->max_pkt_age_usec)
+			st = mcast_send_pkt(sndr);
+		else {
+			if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
+				if (sndr->pkt_next == sndr->pkt_buf) {
+					*((sequence*) sndr->pkt_buf) = htonll(-sndr->next_seq);
+					sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
+#ifdef DEBUG_PROTOCOL
+					fprintf(sndr->debug_file, "%s mcast heartbeat\n",
+							debug_time());
+#endif
+				}
+
+				st = mcast_send_pkt(sndr);
+			}
+		}
+	}
+
+	return st;
+}
+
 static status mcast_on_write(sender_handle sndr)
 {
 	status st = OK;
 	q_index new_q_idx = storage_get_queue_head(sndr->store);
 	q_index qi = new_q_idx - sndr->last_q_idx;
 
+#ifdef DEBUG_PROTOCOL
+	fprintf(sndr->debug_file, "%s mcast write %ld queued\n", debug_time(), qi);
+#endif
+
 	if (qi < 0) {
 		sndr->last_q_idx = new_q_idx;
 		qi = 0;
 	}
 
-#ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file, "%s mcast write %ld queued\n", debug_time(), qi);
-#endif
-
-	if (qi > 0) {
+	if (qi == 0)
+		st = mcast_on_empty_queue(sndr);
+	else {
 		if ((size_t) qi > storage_get_queue_capacity(sndr->store)) {
 #ifdef DEBUG_PROTOCOL
 			fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
@@ -206,36 +246,15 @@ static status mcast_on_write(sender_handle sndr)
 		}
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
-			struct q_element elem;
-			if (FAILED(st = storage_read_queue(sndr->store, qi, &elem, TRUE)) ||
-				FAILED(st = mcast_accum_record(sndr, elem.id)) || st)
+			identifier id;
+			if (FAILED(st = storage_read_queue(sndr->store, qi, &id)) ||
+				FAILED(st = mcast_accum_record(sndr, id)) || st)
 				break;
 		}
 
 		sndr->last_q_idx = qi;
 		if (st == BLOCKED)
 			st = OK;
-	} else {
-		microsec now;
-		if (!FAILED(st = clock_time(&now))) {
-			if (sndr->mcast_insert_time != 0 &&
-				(now - sndr->mcast_insert_time) >= sndr->max_pkt_age_usec)
-				st = mcast_send_pkt(sndr);
-			else {
-				if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
-					if (sndr->pkt_next == sndr->pkt_buf) {
-						*((sequence*) sndr->pkt_buf) = htonll(-sndr->next_seq);
-						sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
-#ifdef DEBUG_PROTOCOL
-						fprintf(sndr->debug_file, "%s mcast heartbeat\n",
-								debug_time());
-#endif
-					}
-
-					st = mcast_send_pkt(sndr);
-				}
-			}
-		}
 	}
 
 	return st;
@@ -615,7 +634,8 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 	BZERO(*psndr);
 
-	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)))
+	if (FAILED(st = storage_open(&(*psndr)->store, mmap_file, O_RDONLY)) ||
+		FAILED(st = latency_create(&(*psndr)->stg_latency)))
 		return st;
 
 	(*psndr)->curr_stats = XMALLOC(struct sender_stats);
@@ -769,13 +789,14 @@ status sender_destroy(sender_handle* psndr)
 		FAILED(st = poller_destroy(&(*psndr)->poller)) ||
 		FAILED(st = storage_destroy(&(*psndr)->store)) ||
 		FAILED(st = sock_addr_destroy(&(*psndr)->sendto_addr)) ||
-		FAILED(st = sock_addr_destroy(&(*psndr)->listen_addr)))
+		FAILED(st = sock_addr_destroy(&(*psndr)->listen_addr)) ||
+		FAILED(st = latency_destroy(&(*psndr)->stg_latency)))
 		return st;
 
-	XFREE((*psndr)->pkt_buf);
-	XFREE((*psndr)->record_seqs);
 	XFREE((*psndr)->next_stats);
 	XFREE((*psndr)->curr_stats);
+	XFREE((*psndr)->record_seqs);
+	XFREE((*psndr)->pkt_buf);
 
 #ifdef DEBUG_PROTOCOL
 	if ((*psndr)->debug_file && fclose((*psndr)->debug_file) == EOF)
@@ -855,36 +876,60 @@ void sender_stop(sender_handle sndr)
 	sndr->is_stopping = TRUE;
 }
 
-size_t sender_get_tcp_gap_count(sender_handle sndr)
+long sender_get_tcp_gap_count(sender_handle sndr)
 {
 	return sndr->curr_stats->tcp_gap_count;
 }
 
-size_t sender_get_tcp_bytes_sent(sender_handle sndr)
+long sender_get_tcp_bytes_sent(sender_handle sndr)
 {
 	return sndr->curr_stats->tcp_bytes_sent;
 }
 
-size_t sender_get_mcast_bytes_sent(sender_handle sndr)
+long sender_get_mcast_bytes_sent(sender_handle sndr)
 {
 	return sndr->curr_stats->mcast_bytes_sent;
 }
 
-size_t sender_get_mcast_packets_sent(sender_handle sndr)
+long sender_get_mcast_packets_sent(sender_handle sndr)
 {
 	return sndr->curr_stats->mcast_packets_sent;
 }
 
-size_t sender_get_receiver_count(sender_handle sndr)
+long sender_get_receiver_count(sender_handle sndr)
 {
 	return sndr->client_count;
 }
 
-status sender_next_stats(sender_handle sndr)
+long sender_get_storage_record_count(sender_handle sndr)
+{
+	return latency_get_count(sndr->stg_latency);
+}
+
+double sender_get_storage_min_latency(sender_handle sndr)
+{
+	return latency_get_min(sndr->stg_latency);
+}
+
+double sender_get_storage_max_latency(sender_handle sndr)
+{
+	return latency_get_max(sndr->stg_latency);
+}
+
+double sender_get_storage_mean_latency(sender_handle sndr)
+{
+	return latency_get_mean(sndr->stg_latency);
+}
+
+double sender_get_storage_stddev_latency(sender_handle sndr)
+{
+	return latency_get_stddev(sndr->stg_latency);
+}
+
+status sender_roll_stats(sender_handle sndr)
 {
 	status st;
 	struct sender_stats* tmp;
-
 	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
 		return st;
 
@@ -893,7 +938,7 @@ status sender_next_stats(sender_handle sndr)
 	sndr->curr_stats = tmp;
 
 	BZERO(sndr->next_stats);
-
 	spin_unlock(&sndr->stats_lock, 0);
-	return st;
+
+	return latency_roll(sndr->stg_latency);
 }

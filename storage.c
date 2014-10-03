@@ -6,7 +6,6 @@
 #include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -15,6 +14,7 @@
 struct record
 {
 	volatile revision rev;
+	microsec ts;
 	char val[1];
 };
 
@@ -28,8 +28,9 @@ struct segment
 	size_t hdr_size;
 	size_t rec_size;
 	size_t val_size;
-	size_t val_offset;
 	size_t prop_size;
+	size_t ts_offset;
+	size_t val_offset;
 	size_t prop_offset;
 	identifier base_id;
 	identifier max_id;
@@ -39,16 +40,7 @@ struct segment
 	size_t q_mask;
 	q_index q_head;
 	union { char reserved[1024]; } new_fields;
-	struct q_element change_q[1];
-};
-
-struct storage_stats
-{
-	size_t q_elem_read;
-	double q_min_latency;
-	double q_max_latency;
-	double q_mean_latency;
-	double q_M2_latency;
+	identifier change_q[1];
 };
 
 struct storage
@@ -61,9 +53,6 @@ struct storage
 	int seg_fd;
 	boolean is_read_only;
 	boolean is_persistent;
-	volatile spin_lock stats_lock;
-	struct storage_stats* curr_stats;
-	struct storage_stats* next_stats;
 };
 
 #define MAGIC_NUMBER 0x0C0FFEE0
@@ -76,31 +65,23 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 						  identifier max_id, size_t value_size,
 						  size_t property_size, size_t q_capacity)
 {
-	size_t rec_sz, hdr_sz, seg_sz, page_sz, val_aln_sz, prop_offset;
 	status st;
+	size_t rec_sz, hdr_sz, seg_sz, page_sz, prop_offset;
 
 	BZERO(*pstore);
 	(*pstore)->is_persistent = persist;
 
-	(*pstore)->curr_stats = XMALLOC(struct storage_stats);
-	if (!(*pstore)->curr_stats)
-		return NO_MEMORY;
-
-	(*pstore)->next_stats = XMALLOC(struct storage_stats);
-	if (!(*pstore)->next_stats)
-		return NO_MEMORY;
-
-	val_aln_sz = ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
-	rec_sz = offsetof(struct record, val) + val_aln_sz;
+	rec_sz = offsetof(struct record, val) +
+		ALIGNED_SIZE(value_size, DEFAULT_ALIGNMENT);
 
 	if (property_size > 0) {
+		prop_offset = rec_sz;
 		rec_sz += ALIGNED_SIZE(property_size, DEFAULT_ALIGNMENT);
-		prop_offset = offsetof(struct record, val) + val_aln_sz;
 	} else
 		prop_offset = 0;
 
 	hdr_sz = offsetof(struct segment, change_q) +
-		ALIGNED_SIZE(sizeof(struct q_element) *
+		ALIGNED_SIZE(sizeof(identifier) *
 					 (q_capacity > 0 ? q_capacity : 1), DEFAULT_ALIGNMENT);
 
 	page_sz = sysconf(_SC_PAGESIZE);
@@ -170,8 +151,9 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
 		(*pstore)->seg->val_size = value_size;
-		(*pstore)->seg->val_offset = offsetof(struct record, val);
 		(*pstore)->seg->prop_size = property_size;
+		(*pstore)->seg->ts_offset = offsetof(struct record, ts);
+		(*pstore)->seg->val_offset = offsetof(struct record, val);
 		(*pstore)->seg->prop_offset = prop_offset;
 		(*pstore)->seg->base_id = base_id;
 		(*pstore)->seg->max_id = max_id;
@@ -185,8 +167,9 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 			 (*pstore)->seg->hdr_size != hdr_sz ||
 			 (*pstore)->seg->rec_size != rec_sz ||
 			 (*pstore)->seg->val_size != value_size ||
-			 (*pstore)->seg->val_offset != offsetof(struct record, val) ||
 			 (*pstore)->seg->prop_size != property_size ||
+			 (*pstore)->seg->ts_offset != offsetof(struct record, ts) ||
+			 (*pstore)->seg->val_offset != offsetof(struct record, val) ||
 			 (*pstore)->seg->prop_offset != prop_offset ||
 			 (*pstore)->seg->q_mask != (q_capacity - 1))
 		return error_msg("storage_create: storage is unequal structure",
@@ -224,14 +207,6 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 
 	BZERO(*pstore);
 	(*pstore)->is_persistent = TRUE;
-
-	(*pstore)->curr_stats = XMALLOC(struct storage_stats);
-	if (!(*pstore)->curr_stats)
-		return NO_MEMORY;
-
-	(*pstore)->next_stats = XMALLOC(struct storage_stats);
-	if (!(*pstore)->next_stats)
-		return NO_MEMORY;
 
 	if (open_flags == O_RDONLY)
 		(*pstore)->is_read_only = TRUE;
@@ -317,7 +292,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file,
 					  identifier max_id, size_t value_size,
 					  size_t property_size, size_t q_capacity)
 {
-	/* q_capacity must be a power of 2 */
+	/* NB. q_capacity must be a power of 2 */
 	status st;
 	if (!pstore || !mmap_file ||
 		open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
@@ -452,14 +427,14 @@ size_t storage_get_record_size(storage_handle store)
 	return store->seg->rec_size;
 }
 
-size_t storage_get_property_size(storage_handle store)
-{
-	return store->seg->prop_size;
-}
-
 size_t storage_get_value_size(storage_handle store)
 {
 	return store->seg->val_size;
+}
+
+size_t storage_get_property_size(storage_handle store)
+{
+	return store->seg->prop_size;
 }
 
 size_t storage_get_value_offset(storage_handle store)
@@ -470,6 +445,11 @@ size_t storage_get_value_offset(storage_handle store)
 size_t storage_get_property_offset(storage_handle store)
 {
 	return store->seg->prop_offset;
+}
+
+size_t storage_get_timestamp_offset(storage_handle store)
+{
+	return store->seg->ts_offset;
 }
 
 const char* storage_get_file(storage_handle store)
@@ -545,7 +525,7 @@ status storage_touch(storage_handle store, microsec when)
 	return OK;
 }
 
-const struct q_element* storage_get_queue_base_ref(storage_handle store)
+const identifier* storage_get_queue_base_ref(storage_handle store)
 {
 	return store->seg->change_q;
 }
@@ -567,7 +547,6 @@ q_index storage_get_queue_head(storage_handle store)
 
 status storage_write_queue(storage_handle store, identifier id)
 {
-	struct q_element* q;
 	if (store->is_read_only)
 		return error_msg("storage_write_queue: storage is read-only",
 						 STORAGE_READ_ONLY);
@@ -576,54 +555,20 @@ status storage_write_queue(storage_handle store, identifier id)
 		return error_msg("storage_write_queue: no change queue",
 						 NO_CHANGE_QUEUE);
 
-	q = &store->seg->change_q[store->seg->q_head++ & store->seg->q_mask];
-	q->id = id;
-	return clock_time(&q->ts);
+	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
+	return OK;
 }
 
-status storage_read_queue(storage_handle store, q_index idx,
-						  struct q_element* pelem, boolean update_stats)
+status storage_read_queue(storage_handle store, q_index idx, identifier* pident)
 {
-	double latency, delta;
-	microsec now;
-	status st;
-
-	if (!pelem)
+	if (!pident)
 		return error_invalid_arg("storage_read_queue");
 
 	if (store->seg->q_mask == -1u)
 		return error_msg("storage_read_queue: no change queue",
 						 NO_CHANGE_QUEUE);
 
-	*pelem = store->seg->change_q[idx & store->seg->q_mask];
-	if (!update_stats)
-		return OK;
-
-	if (FAILED(st = clock_time(&now)))
-		return st;
-
-	latency = now - pelem->ts;
-
-	if (FAILED(st = spin_write_lock(&store->stats_lock, NULL)))
-		return st;
-
-	delta = latency - store->next_stats->q_mean_latency;
-
-	store->next_stats->q_mean_latency +=
-		delta / ++store->next_stats->q_elem_read;
-
-	store->next_stats->q_M2_latency +=
-		delta * (latency - store->next_stats->q_mean_latency);
-
-	if (store->next_stats->q_min_latency == 0 ||
-		latency < store->next_stats->q_min_latency)
-		store->next_stats->q_min_latency = latency;
-
-	if (store->next_stats->q_max_latency == 0 ||
-		latency > store->next_stats->q_max_latency)
-		store->next_stats->q_max_latency = latency;
-
-	spin_unlock(&store->stats_lock, 0);
+	*pident = store->seg->change_q[idx & store->seg->q_mask];
 	return OK;
 }
 
@@ -695,10 +640,7 @@ status storage_reset(storage_handle store)
 	store->seg->q_head = 0;
 	if (store->seg->q_mask != -1u)
 		memset(store->seg->change_q, 0,
-			   (store->seg->q_mask + 1) * sizeof(struct q_element));
-
-	BZERO(&store->curr_stats);
-	BZERO(&store->next_stats);
+			   (store->seg->q_mask + 1) * sizeof(identifier));
 
 	SYNC_SYNCHRONIZE();
 	return OK;
@@ -772,6 +714,16 @@ void* record_get_value_ref(record_handle rec)
 	return rec->val;
 }
 
+microsec record_get_timestamp(record_handle rec)
+{
+	return rec->ts;
+}
+
+void record_set_timestamp(record_handle rec, microsec ts)
+{
+	rec->ts = ts;
+}
+
 revision record_get_revision(record_handle rec)
 {
 	return rec->rev;
@@ -790,45 +742,4 @@ status record_read_lock(record_handle rec, revision* old_rev)
 status record_write_lock(record_handle rec, revision* old_rev)
 {
 	return spin_write_lock(&rec->rev, old_rev);
-}
-
-double storage_get_queue_min_latency(storage_handle store)
-{
-	return store->curr_stats->q_min_latency;
-}
-
-double storage_get_queue_max_latency(storage_handle store)
-{
-	return store->curr_stats->q_max_latency;
-}
-
-double storage_get_queue_mean_latency(storage_handle store)
-{
-	return store->curr_stats->q_mean_latency;
-}
-
-double storage_get_queue_stddev_latency(storage_handle store)
-{
-	return (store->curr_stats->q_elem_read > 1
-			? sqrt(store->curr_stats->q_M2_latency /
-				   (store->curr_stats->q_elem_read - 1))
-			: 0);
-}
-
-status storage_next_stats(storage_handle store)
-{
-	status st;
-	struct storage_stats* tmp;
-
-	if (FAILED(st = spin_write_lock(&store->stats_lock, NULL)))
-		return st;
-
-	tmp = store->next_stats;
-	store->next_stats = store->curr_stats;
-	store->curr_stats = tmp;
-
-	BZERO(store->next_stats);
-
-	spin_unlock(&store->stats_lock, 0);
-	return st;
 }

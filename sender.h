@@ -28,13 +28,19 @@ unsigned short sender_get_listen_port(sender_handle sndr);
 status sender_run(sender_handle sndr);
 void sender_stop(sender_handle sndr);
 
-size_t sender_get_tcp_gap_count(sender_handle sndr);
-size_t sender_get_tcp_bytes_sent(sender_handle sndr);
-size_t sender_get_mcast_bytes_sent(sender_handle sndr);
-size_t sender_get_mcast_packets_sent(sender_handle sndr);
-size_t sender_get_receiver_count(sender_handle sndr);
+long sender_get_tcp_gap_count(sender_handle sndr);
+long sender_get_tcp_bytes_sent(sender_handle sndr);
+long sender_get_mcast_bytes_sent(sender_handle sndr);
+long sender_get_mcast_packets_sent(sender_handle sndr);
+long sender_get_receiver_count(sender_handle sndr);
 
-status sender_next_stats(sender_handle sndr);
+long sender_get_storage_record_count(sender_handle sndr);
+double sender_get_storage_min_latency(sender_handle sndr);
+double sender_get_storage_max_latency(sender_handle sndr);
+double sender_get_storage_mean_latency(sender_handle sndr);
+double sender_get_storage_stddev_latency(sender_handle sndr);
+
+status sender_roll_stats(sender_handle sndr);
 
 #ifdef __cplusplus
 }

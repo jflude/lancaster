@@ -4,6 +4,7 @@ SRCS := \
 	dump.c \
 	dict.c \
 	error.c \
+	latency.c \
 	poller.c \
 	receiver.c \
 	sender.c \

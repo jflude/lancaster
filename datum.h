@@ -14,7 +14,6 @@ extern "C" {
 struct datum
 {
 	long xyz;
-	microsec ts;
 };
 
 typedef struct datum datum_t;

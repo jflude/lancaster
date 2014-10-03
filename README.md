@@ -10,9 +10,9 @@ Justin Flude <jflude@peak6.com>
 
 	  		   ===============================================
 
-	writer [-v] [-p ERROR PREFIX] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
+	writer [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
 
-	reader [-v] [-p ERROR PREFIX] [-Q] STORAGE-FILE
+	reader [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -28,8 +28,10 @@ containing the identifiers of records recently modified.  The size of a change
 queue must be either zero, or a non-zero power of two.
 
 WRITER will create a storage with a change queue of the given size, then update
-slots with ascending values at a speed determined by DELAY (the number of
-microseconds to pause after each write, which can be zero).
+sequential slots with ascending values at a speed determined by DELAY (the
+number of microseconds to pause after each write, which can be zero).  If the
+-r option is specified, slots will be chosen for update at random, instead of
+sequentially.
 
 READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
@@ -40,7 +42,7 @@ numbers, indicating which conditions occured in this last "tick":-
 	2 - data was read out-of-order to what was written
 	4 - change queue was overrun
 
-If the -Q option is supplied to READER then it will output change queue
+If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.
 
 The -p option causes the programs to include the specified prefix in error
@@ -48,9 +50,9 @@ messages, to allow easier identification when running multiple instances.
 
 	  		   ===============================================
 
-	publisher [-v] [-j|-Q] [-a ADDRESS:PORT] [-i DEVICE] [-l] [-t TTL] \
-			  STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT \
-			  HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
+	publisher [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] [-j|-s] [-l] \
+			  [-p ERROR PREFIX] [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT \
+			  MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
 
 	subscriber [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
 
@@ -79,9 +81,9 @@ SUBSCRIBER independently).  Data read by PUBLISHER is multicast to SUBSCRIBER
 and written to SUBSCRIBER's storage.
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
-output of statistics to be output in JSON format.  PUBLISHER also has a -Q
-option which causes it to output change queue statistics instead of its
-usual output (the -j option also includes the change queue statistics).
+output of statistics to be output in JSON format.  PUBLISHER also has a -s
+option which causes it to output storage latency statistics instead of its
+usual output (the -j option also includes the storage latency statistics).
 
 A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
 and SUBSCRIBER and READER on another.  For example, if the former were to be
@@ -98,7 +100,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
 	  		   ===============================================
 
-	inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...]
+	inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...|all]
 
 	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
 		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY

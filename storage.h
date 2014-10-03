@@ -25,8 +25,6 @@ typedef long identifier;
 typedef long q_index;
 typedef spin_lock revision;
 
-struct q_element { identifier id; microsec ts; };
-
 #define NEXT_REV(v) (((v) + 1) & SPIN_MAX)
 
 status storage_create(storage_handle* pstore, const char* mmap_file,
@@ -47,10 +45,14 @@ status storage_set_data_version(storage_handle store, unsigned short data_ver);
 record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);
 identifier storage_get_max_id(storage_handle store);
+
 size_t storage_get_record_size(storage_handle store);
-size_t storage_get_property_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
+size_t storage_get_property_size(storage_handle store);
+
 size_t storage_get_value_offset(storage_handle store);
+size_t storage_get_property_offset(storage_handle store);
+size_t storage_get_timestamp_offset(storage_handle store);
 
 const char* storage_get_file(storage_handle store);
 const char* storage_get_description(storage_handle store);
@@ -60,13 +62,13 @@ status storage_get_created_time(storage_handle store, microsec* when);
 status storage_get_touched_time(storage_handle store, microsec* when);
 status storage_touch(storage_handle store, microsec when);
 
-const struct q_element* storage_get_queue_base_ref(storage_handle store);
+const identifier* storage_get_queue_base_ref(storage_handle store);
 const q_index* storage_get_queue_head_ref(storage_handle store);
 size_t storage_get_queue_capacity(storage_handle store);
 q_index storage_get_queue_head(storage_handle store);
 status storage_write_queue(storage_handle store, identifier id);
 status storage_read_queue(storage_handle store, q_index idx,
-						  struct q_element* pelem, boolean update_stats);
+						  identifier* pident);
 
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier* pident);
@@ -86,17 +88,14 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 void* storage_get_property_ref(storage_handle store, record_handle rec);
 void* record_get_value_ref(record_handle rec);
 
+microsec record_get_timestamp(record_handle rec);
+void record_set_timestamp(record_handle rec, microsec ts);
+
 revision record_get_revision(record_handle rec);
 void record_set_revision(record_handle rec, revision rev);
+
 status record_read_lock(record_handle rec, revision* old_rev);
 status record_write_lock(record_handle rec, revision* old_rev);
-
-double storage_get_queue_min_latency(storage_handle store);
-double storage_get_queue_max_latency(storage_handle store);
-double storage_get_queue_mean_latency(storage_handle store);
-double storage_get_queue_stddev_latency(storage_handle store);
-
-status storage_next_stats(storage_handle store);
 
 #ifdef __cplusplus
 }

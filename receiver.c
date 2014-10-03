@@ -1,10 +1,8 @@
 #include "receiver.h"
 #include "clock.h"
-
-#include "dump.h"
-
 #include "error.h"
 #include "h2n2h.h"
+#include "latency.h"
 #include "poller.h"
 #include "sequence.h"
 #include "sock.h"
@@ -14,7 +12,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <float.h>
-#include <math.h>
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
@@ -31,14 +28,9 @@
 
 struct receiver_stats
 {
-	size_t tcp_gap_count;
-	size_t tcp_bytes_recv;
-	size_t mcast_bytes_recv;
-	size_t mcast_packets_recv;
-	double mcast_min_latency;
-	double mcast_max_latency;
-	double mcast_mean_latency;
-	double mcast_M2_latency;
+	long tcp_gap_count;
+	long tcp_bytes_recv;
+	long mcast_bytes_recv;
 };
 
 struct receiver
@@ -65,6 +57,7 @@ struct receiver
 	microsec timeout_usec;
 	sock_addr_handle mcast_src_addr;
 	sock_addr_handle mcast_pub_addr;
+	latency_handle mcast_latency;
 	struct receiver_stats* curr_stats;
 	struct receiver_stats* next_stats;
 	volatile spin_lock stats_lock;
@@ -88,38 +81,20 @@ static const char* debug_time(void)
 }
 #endif
 
-static status update_stats(receiver_handle recv, size_t pkt_sz,
-						   microsec latency)
+static status update_stats(receiver_handle recv, size_t pkt_sz, microsec delay)
 {
 	status st;
-	double delta;
 	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
 		return st;
 
 	recv->next_stats->mcast_bytes_recv += pkt_sz;
-
-	delta = latency - recv->next_stats->mcast_mean_latency;
-
-	recv->next_stats->mcast_mean_latency +=
-		delta / ++recv->next_stats->mcast_packets_recv;
-
-	recv->next_stats->mcast_M2_latency +=
-		delta * (latency - recv->next_stats->mcast_mean_latency);
-
-	if (recv->next_stats->mcast_min_latency == 0 ||
-		latency < recv->next_stats->mcast_min_latency)
-		recv->next_stats->mcast_min_latency = latency;
-
-	if (recv->next_stats->mcast_max_latency == 0 ||
-		latency > recv->next_stats->mcast_max_latency)
-		recv->next_stats->mcast_max_latency = latency;
-
 	spin_unlock(&recv->stats_lock, 0);
-	return OK;
+
+	return latency_on_sample(recv->mcast_latency, delay);
 }
 
-static status update_record(receiver_handle recv, sequence seq,
-							identifier id, void* new_val)
+static status update_record(receiver_handle recv, sequence seq, identifier id,
+							void* new_val, microsec when)
 {
 	status st;
 	revision rev;
@@ -130,6 +105,8 @@ static status update_record(receiver_handle recv, sequence seq,
 		return st;
 
 	memcpy(record_get_value_ref(rec), new_val, recv->val_size);
+
+	record_set_timestamp(rec, when);
 	record_set_revision(rec, NEXT_REV(rev));
 
 	recv->record_seqs[id - recv->base_id] = seq;
@@ -243,8 +220,8 @@ static status mcast_on_read(receiver_handle recv)
 
 		for (; p < last; p += sizeof(identifier) + recv->val_size) {
 			identifier* id = (identifier*) p;
-			if (FAILED(st = update_record(recv, *in_seq_ref,
-										  ntohll(*id), id + 1)))
+			if (FAILED(st = update_record(recv, *in_seq_ref, ntohll(*id),
+										  id + 1, now)))
 				break;
 		}
 	}
@@ -374,9 +351,12 @@ static status tcp_on_read(receiver_handle recv)
 				"%s     tcp gap response seq %07ld, id #%07ld\n",
 				debug_time(), *in_seq_ref, *id);
 #endif
-		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id] &&
-			FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1)))
-			return st;
+		if (*in_seq_ref > recv->record_seqs[*id - recv->base_id]) {
+			microsec now;
+			if (FAILED(st = clock_time(&now)) ||
+				FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1, now)))
+				return st;
+		}
 
 		recv->in_next = recv->in_buf;
 		recv->in_remain = sizeof(sequence);
@@ -433,7 +413,8 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	BZERO((*precv)->next_stats);
 	spin_create(&(*precv)->stats_lock);
 
-	if (FAILED(st = sock_create(&(*precv)->tcp_sock,
+	if (FAILED(st = latency_create(&(*precv)->mcast_latency)) ||
+		FAILED(st = sock_create(&(*precv)->tcp_sock,
 								SOCK_STREAM, IPPROTO_TCP)) ||
 		FAILED(st = sock_addr_create(&(*precv)->tcp_addr,
 									 tcp_address, tcp_port)) ||
@@ -559,14 +540,15 @@ status receiver_destroy(receiver_handle* precv)
 		FAILED(st = sock_destroy(&(*precv)->tcp_sock)) ||
 		FAILED(st = sock_addr_destroy(&(*precv)->tcp_addr)) ||
 		FAILED(st = sock_addr_destroy(&(*precv)->mcast_src_addr)) ||
-		FAILED(st = storage_destroy(&(*precv)->store)))
+		FAILED(st = storage_destroy(&(*precv)->store)) ||
+		FAILED(st = latency_destroy(&(*precv)->mcast_latency)))
 		return st;
 
-	XFREE((*precv)->in_buf);
-	XFREE((*precv)->out_buf);
-	XFREE((*precv)->record_seqs);
 	XFREE((*precv)->next_stats);
 	XFREE((*precv)->curr_stats);
+	XFREE((*precv)->record_seqs);
+	XFREE((*precv)->out_buf);
+	XFREE((*precv)->in_buf);
 
 #ifdef DEBUG_PROTOCOL
 	if ((*precv)->debug_file && fclose((*precv)->debug_file) == EOF)
@@ -630,54 +612,50 @@ void receiver_stop(receiver_handle recv)
 	recv->is_stopping = TRUE;
 }
 
-size_t receiver_get_tcp_gap_count(receiver_handle recv)
+long receiver_get_tcp_gap_count(receiver_handle recv)
 {
 	return recv->curr_stats->tcp_gap_count;
 }
 
-size_t receiver_get_tcp_bytes_recv(receiver_handle recv)
+long receiver_get_tcp_bytes_recv(receiver_handle recv)
 {
 	return recv->curr_stats->tcp_bytes_recv;
 }
 
-size_t receiver_get_mcast_bytes_recv(receiver_handle recv)
+long receiver_get_mcast_bytes_recv(receiver_handle recv)
 {
 	return recv->curr_stats->mcast_bytes_recv;
 }
 
-size_t receiver_get_mcast_packets_recv(receiver_handle recv)
+long receiver_get_mcast_packets_recv(receiver_handle recv)
 {
-	return recv->curr_stats->mcast_packets_recv;
+	return latency_get_count(recv->mcast_latency);
 }
 
 double receiver_get_mcast_min_latency(receiver_handle recv)
 {
-	return recv->curr_stats->mcast_min_latency;
+	return latency_get_min(recv->mcast_latency);
 }
 
 double receiver_get_mcast_max_latency(receiver_handle recv)
 {
-	return recv->curr_stats->mcast_max_latency;
+	return latency_get_max(recv->mcast_latency);
 }
 
 double receiver_get_mcast_mean_latency(receiver_handle recv)
 {
-	return recv->curr_stats->mcast_mean_latency;
+	return latency_get_mean(recv->mcast_latency);
 }
 
 double receiver_get_mcast_stddev_latency(receiver_handle recv)
 {
-	return (recv->curr_stats->mcast_packets_recv > 1
-			? sqrt(recv->curr_stats->mcast_M2_latency /
-				   (recv->curr_stats->mcast_packets_recv - 1))
-			: 0);
+	return latency_get_stddev(recv->mcast_latency);
 }
 
-status receiver_next_stats(receiver_handle recv)
+status receiver_roll_stats(receiver_handle recv)
 {
 	status st;
 	struct receiver_stats* tmp;
-
 	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
 		return st;
 
@@ -686,7 +664,7 @@ status receiver_next_stats(receiver_handle recv)
 	recv->curr_stats = tmp;
 
 	BZERO(recv->next_stats);
-
 	spin_unlock(&recv->stats_lock, 0);
-	return st;
+
+	return latency_roll(recv->mcast_latency);
 }
