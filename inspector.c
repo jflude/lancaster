@@ -137,7 +137,7 @@ static status print_record_header(storage_handle store, record_handle rec)
 	if (st < 0)
 		error_errno("sprintf");
 
-	if (printf("%s%s\n", divider + st, buf) < 0)
+	if (printf("%s%s\n", divider + st + 1, buf) < 0)
 		return (feof(stdin) ? error_eof : error_errno)("printf");
 
 	return OK;
