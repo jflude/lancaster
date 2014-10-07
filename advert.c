@@ -77,7 +77,7 @@ static status make_json_map(advert_handle advert)
 
 	XFREE(advert->json_msg);
 	advert->json_msg = new_msg;
-	advert->json_sz = strlen(advert->json_msg) + 1;
+	advert->json_sz = strlen(advert->json_msg);
 
 	spin_unlock(&advert->lock, 0);
 	return OK;

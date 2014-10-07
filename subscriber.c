@@ -94,7 +94,7 @@ static void* stats_func(thread_handle thr)
 						"\"min/us\":%.2f, "
 						"\"avg/us\":%.2f, "
 						"\"max/us\":%.2f, "
-						"\"std/us\":%.2f}\n",
+						"\"std/us\":%.2f}",
 						ts,
 						alias,
 						storage_get_file(receiver_get_storage(recv)),
@@ -113,7 +113,7 @@ static void* stats_func(thread_handle thr)
 			}
             
             if (!udp_stat_pub_enabled)
-                fputs(stats_buf, stdout);
+                puts(stats_buf);
 			else {
                 if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
 											udp_stat_conn.server_sock_addr_,

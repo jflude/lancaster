@@ -50,7 +50,7 @@ static status print_attributes(storage_handle store)
 	file_ver = storage_get_file_version(store);
 	data_ver = storage_get_data_version(store);
 
-	if (printf("storage:          \"%s\"\n"
+	if (printf("storage:          %s\n"
 			   "description:      \"%s\"\n"
 			   "file version:     %d.%d\n"
 			   "data version:     %d.%d\n"
@@ -91,7 +91,7 @@ static status print_attributes(storage_handle store)
 
 static status print_div1(void)
 {
-	if (puts("------------------------------------------------") < 0)
+	if (puts("--------------------------------------------------") < 0)
 		return (feof(stdin) ? error_eof : error_errno)("puts");
 
 	return OK;
@@ -103,14 +103,14 @@ static status print_queue(storage_handle store)
 	q_index i;
 	identifier id;
 	size_t cap = storage_get_queue_capacity(store);
+	q_index q_head = storage_get_queue_head(store) & (cap - 1);
 	static char head[] = " <--";
 
 	for (i = 0; (size_t) i < cap; ++i) {
 		if (FAILED(st = storage_read_queue(store, i, &id)))
 			return st;
 
-		if (printf("%08ld #%08ld%s\n", i, id,
-				   (storage_get_queue_head(store) == i ? head : "")) < 0)
+		if (printf("%08ld #%08ld%s\n", i, id, (q_head == i ? head : "")) < 0)
 			return (feof(stdin) ? error_eof : error_errno)("printf");
 	}
 

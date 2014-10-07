@@ -127,6 +127,6 @@ fetch:
 	done
 
 .PHONY: all release debug profile depend clean distclean
-.PHONY: fetch components $(COMPONENTS)
+.PHONY: deps fetch components $(COMPONENTS)
 
 include DEPEND.mk

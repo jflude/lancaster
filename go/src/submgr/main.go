@@ -120,7 +120,7 @@ func discoveryLoop() error {
 	for run {
 		n, from, err := sock.ReadFrom(data)
 		chkFatal(err)
-		jsbin := data[0 : n-1]
+		jsbin := data[:n]
 		jsstr := string(jsbin)
 		if ignore[jsstr] {
 			continue
