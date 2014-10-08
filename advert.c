@@ -58,7 +58,7 @@ static status make_json_map(advert_handle advert)
 	sprintf(buf, "{\"hostname\":\"%s\", \"env\":\"%s\", "
 			"\"version\":\"%d.%d\", \"data\":[",
 			hostname, escape_quotes(advert->env),
-			WIRE_MAJOR_VERSION, WIRE_MINOR_VERSION);
+			CACHESTER_WIRE_MAJOR_VERSION, CACHESTER_WIRE_MINOR_VERSION);
 
 	for (it = advert->notices; it; it = it->next) {
 		strcat(buf, it->json_desc);

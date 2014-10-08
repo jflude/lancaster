@@ -146,7 +146,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 
 	if (open_flags & (O_CREAT | O_TRUNC)) {
 		(*pstore)->seg->file_version =
-			(FILE_MAJOR_VERSION << 8) | FILE_MINOR_VERSION;
+			(CACHESTER_FILE_MAJOR_VERSION << 8) | CACHESTER_FILE_MINOR_VERSION;
 		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
@@ -160,7 +160,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
 		BZERO((*pstore)->seg->description);
-	} else if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
+	} else if (((*pstore)->seg->file_version >> 8) !=
+			       CACHESTER_FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible file version",
 						 WRONG_FILE_VERSION);
 	else if ((*pstore)->seg->seg_size != seg_sz ||
@@ -256,7 +257,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	if ((*pstore)->seg->magic != MAGIC_NUMBER)
 		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 
-	if (((*pstore)->seg->file_version >> 8) != FILE_MAJOR_VERSION)
+	if (((*pstore)->seg->file_version >> 8) != CACHESTER_FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible file version",
 						 WRONG_FILE_VERSION);
 

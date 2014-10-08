@@ -2,6 +2,7 @@
 
 #include "error.h"
 #include "storage.h"
+#include "version.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +22,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("grower " SOURCE_VERSION);
+	printf("grower %s\n", version_get_source());
 	exit(0);
 }
 

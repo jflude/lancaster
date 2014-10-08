@@ -7,6 +7,7 @@
 #include "storage.h"
 #include "thread.h"
 #include "twist.h"
+#include "version.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +28,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("writer " SOURCE_VERSION);
+	printf("writer %s\n", version_get_source());
 	exit(0);
 }
 
