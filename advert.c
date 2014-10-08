@@ -66,7 +66,7 @@ static status make_json_map(advert_handle advert)
 			strcat(buf, ", ");
 	}
 
-	strcat(buf, "]}");
+	strcat(buf, "]}}");
 
 	new_msg = xstrdup(buf);
 	if (!new_msg)
