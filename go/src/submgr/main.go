@@ -81,7 +81,7 @@ func main() {
 	var err error
 	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publis stats to udp address")
+	flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publish stats to udp address")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
 	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
@@ -139,7 +139,7 @@ func discoveryLoop() error {
 		if err != nil {
 			logln("Bad discovery format (", err, "), ignoring:", jsstr)
 		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
-			logln("Version mismatch, expected:", wireProtocolVersion, "got:", jsstr)
+			logln("Wire version mismatch, expected:", wireProtocolVersion, "got:", jsstr)
 		} else if len(disc.Data) != 1 {
 			logln("Unsupported discovery message, wrong number of data elements:", jsstr)
 		} else {
