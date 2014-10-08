@@ -432,12 +432,13 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return error_msg("receiver_create: invalid publisher attributes:\n%s",
 						 PROTOCOL_ERROR, buf);
 
-	if ((wire_ver >> 8) != WIRE_MAJOR_VERSION)
+	if ((wire_ver >> 8) != CACHESTER_WIRE_MAJOR_VERSION)
 		return error_msg("receiver_create: incompatible wire version "
 						 "(%hu.%hu but expecting %hu.%hu)",
 						 WRONG_WIRE_VERSION,
 						 wire_ver >> 8, wire_ver & 0xFF,
-						 WIRE_MAJOR_VERSION, WIRE_MINOR_VERSION);
+						 CACHESTER_WIRE_MAJOR_VERSION,
+						 CACHESTER_WIRE_MINOR_VERSION);
 
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';

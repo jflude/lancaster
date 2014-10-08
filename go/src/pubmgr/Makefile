@@ -12,9 +12,10 @@ release: PUBLISHER_PATH = ./publisher
 release: build dist
 
 build: LD_FLAGS = \
-		-X main.wireProtocolVersion "$(WIRE_MAJOR_VERSION).$(WIRE_MINOR_VERSION)" \
-		-X main.sourceVersion $(SOURCE_VERSION) \
-		-X main.publisherPath $(PUBLISHER_PATH)
+	-X main.wireProtocolVersion \
+		"$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
+	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION) \
+	-X main.publisherPath $(PUBLISHER_PATH)
 
 build: 
 	go build -ldflags '$(LD_FLAGS)' .

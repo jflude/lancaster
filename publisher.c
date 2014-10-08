@@ -8,6 +8,7 @@
 #include "sock.h"
 #include "thread.h"
 #include "udp.h"
+#include "version.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +33,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	puts("publisher " SOURCE_VERSION);
+	printf("publisher %s\n", version_get_source());
 	exit(0);
 }
 
