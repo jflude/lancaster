@@ -27,6 +27,11 @@ var run = true
 var wireProtocolVersion = "*"
 var subscriberPath = "../subscriber"
 var sourceVersion = "<DEV>"
+var udpStatsAddr = "none"
+
+func logln(args ...interface{}) {
+	log.Println(args...)
+}
 
 type Discovery struct {
 	Hostname string
@@ -73,8 +78,10 @@ func usage() {
 	os.Exit(1)
 }
 func main() {
+	var err error
 	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
+	flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publis stats to udp address")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
 	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
@@ -88,11 +95,11 @@ func main() {
 	}
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 	commander.SetDefaultStdIO(nil, os.Stderr, os.Stdout)
-	err := discoveryLoop()
+	err = discoveryLoop()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Done")
+	logln("Done")
 }
 
 func discoveryLoop() error {
@@ -106,7 +113,7 @@ func discoveryLoop() error {
 	}
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
-	log.Println("Listening for advertisements on:", addr)
+	logln("Listening for advertisements on:", addr)
 	chkFatal(err)
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
@@ -130,23 +137,24 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disc)
 
 		if err != nil {
-			log.Println("Bad discovery format (", err, "), ignoring:", jsstr)
+			logln("Bad discovery format (", err, "), ignoring:", jsstr)
 		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
-			log.Println("Version mismatch, expected:", wireProtocolVersion, "got:", jsstr)
+			logln("Version mismatch, expected:", wireProtocolVersion, "got:", jsstr)
 		} else if len(disc.Data) != 1 {
-			log.Println("Unsupported discovery message, wrong number of data elements:", jsstr)
+			logln("Unsupported discovery message, wrong number of data elements:", jsstr)
 		} else {
 			desc := disc.Data[0].Description
 			if env != disc.Env {
-				log.Println("No match on env:", env, "ignoring:", jsstr)
+				logln("No match on env:", env, "ignoring:", jsstr)
 			} else if !hp.MatchString(disc.Hostname) {
-				log.Println("No match on host pattern:", hostPattern, "ignoring:", jsstr)
+				logln("No match on host pattern:", hostPattern, "ignoring:", jsstr)
 			} else if !fp.MatchString(desc) {
-				log.Println("No match on feed pattern:", feedPattern, "ignoring:", jsstr)
+				logln("No match on feed pattern:", feedPattern, "ignoring:", jsstr)
 			} else if feeds[desc] != nil {
-				//log.Println("Already have a feed for:", desc, "ignoring:", jsstr)
+				//logln("Already have a feed for:", desc, "ignoring:", jsstr)
 			} else {
-				log.Println("New Feed:", desc, ", from:", from, "disc:", jsstr)
+				logln("New Feed1:", desc, ", from:", from, "disc:", jsstr)
+				logln("New Feed2:", desc, ", from:", from, "disc:", jsstr)
 				si := &SubscriberInstance{name: desc, discovery: disc}
 				feeds[desc] = si
 				go si.run()
@@ -167,13 +175,16 @@ func (si *SubscriberInstance) run() {
 		strconv.Itoa(1024*1024),
 		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port),
 	)
+	if udpStatsAddr != "" && udpStatsAddr != "none" {
+		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
+	}
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", si, "error:", err)
 	}
 	si.commander.Name = si.name
 	si.commander.AutoRestart = false
 	err = si.commander.Run()
-	log.Println("Commander for:", si, "exited:", err)
+	logln("Commander for:", si, "exited:", err)
 	delete(feeds, si.name)         // deregister this feed
 	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
 }

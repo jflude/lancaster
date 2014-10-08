@@ -4,7 +4,7 @@ SCRIPTS_DIR := "$(shell readlink -e $(CACHESTER_DIR)/scripts)"
 
 CACHESTER_VENDOR_DIR := $(SELF_DIR)/.vendor
 CACHESTER_GOOP_DIR=$(shell readlink -e $(CACHESTER_VENDOR_DIR)/..)
-export GOPATH:=$(CACHESTER_VENDOR_DIR):$(GOPATH)
+export GOPATH:=$(CACHESTER_VENDOR_DIR)
 export PATH:=$(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 
 .ensurePrivateGithubSSH:
