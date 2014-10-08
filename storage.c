@@ -407,6 +407,11 @@ status storage_set_data_version(storage_handle store, unsigned short data_ver)
 	return OK;
 }
 
+const void* storage_get_segment(storage_handle store)
+{
+	return store->seg;
+}
+
 record_handle storage_get_array(storage_handle store)
 {
 	return store->first;

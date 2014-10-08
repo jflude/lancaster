@@ -42,6 +42,7 @@ unsigned short storage_get_file_version(storage_handle store);
 unsigned short storage_get_data_version(storage_handle store);
 status storage_set_data_version(storage_handle store, unsigned short data_ver);
 
+const void* storage_get_segment(storage_handle store);
 record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);
 identifier storage_get_max_id(storage_handle store);
