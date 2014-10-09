@@ -9,13 +9,13 @@
 #define	_UDP_H_
 
 #include "sock.h"
-#include "status.h"
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
     
-struct udp_conn_info {
+struct udp_conn_info
+{
     sock_handle sock_fd_;
     sock_addr_handle server_sock_addr_;
 };

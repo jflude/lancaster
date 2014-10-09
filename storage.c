@@ -566,7 +566,8 @@ status storage_write_queue(storage_handle store, identifier id)
 	return OK;
 }
 
-status storage_read_queue(storage_handle store, q_index idx, identifier* pident)
+status storage_read_queue(storage_handle store, q_index idx,
+						  identifier* pident)
 {
 	if (!pident)
 		return error_invalid_arg("storage_read_queue");
