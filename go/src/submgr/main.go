@@ -27,7 +27,7 @@ var run = true
 var wireProtocolVersion = "*"
 var subscriberPath = "../subscriber"
 var sourceVersion = "<DEV>"
-var udpStatsAddr = "none"
+var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
 
 func logln(args ...interface{}) {
@@ -82,7 +82,7 @@ func main() {
 	var err error
 	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publish stats to udp address")
+	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
 	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")

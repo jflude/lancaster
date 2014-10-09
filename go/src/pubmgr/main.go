@@ -57,7 +57,7 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
-        flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publish stats to udp address")
+        flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in millis)")
 	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
