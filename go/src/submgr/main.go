@@ -177,7 +177,7 @@ func (si *SubscriberInstance) run() {
 		strconv.Itoa(1024*1024),
 		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port),
 	)
-	if udpStatsAddr != "" && udpStatsAddr != "none" {
+	if udpStatsAddr != "" {
 		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	if err != nil {

@@ -32,7 +32,7 @@ var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 500
 var maxIdle = 2
 var loopback = true
-var udpStatsAddr = "none"
+var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
 
 func (fp *filePattern) String() string {
@@ -223,7 +223,7 @@ func (pi *PublisherInstance) run() {
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", pi, "error:", err)
 	}
-        if udpStatsAddr != "" && udpStatsAddr != "none" {
+        if udpStatsAddr != "" {
 		pi.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	pi.commander.AutoRestart = false
