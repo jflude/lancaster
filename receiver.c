@@ -390,7 +390,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
-	unsigned short wire_ver, data_ver;
+	int wire_ver, data_ver;
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
@@ -423,7 +423,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 		return st;
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%hu %hu %31s %d %lu %ld %ld %lu %ld %ld %n",
+	st = sscanf(buf, "%d %d %31s %d %lu %ld %ld %lu %ld %ld %n",
 				&wire_ver, &data_ver, mcast_address, &mcast_port,
 				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 				&max_age_usec, &hb_usec, &proto_len);
@@ -434,7 +434,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 	if ((wire_ver >> 8) != CACHESTER_WIRE_MAJOR_VERSION)
 		return error_msg("receiver_create: incompatible wire version "
-						 "(%hu.%hu but expecting %hu.%hu)",
+						 "(%d.%d but expecting %d.%d)",
 						 WRONG_WIRE_VERSION,
 						 wire_ver >> 8, wire_ver & 0xFF,
 						 CACHESTER_WIRE_MAJOR_VERSION,

@@ -21,7 +21,8 @@ SRCS := \
 
 COMPONENTS := \
 	go/src/submgr \
-	go/src/pubmgr
+	go/src/pubmgr \
+	go/src/rdr
 
 include VERSION.mk
 
@@ -36,6 +37,8 @@ CFLAGS := \
 
 LDLIBS := -lm
 OBJS := $(SRCS:.c=.o)
+
+BIN_DIR := "bin"
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -D_DARWIN_C_SOURCE
@@ -104,7 +107,8 @@ clean:
 		reader.dSYM writer.dSYM \
 		publisher.dSYM subscriber.dSYM \
 		inspector.dSYM grower.dSYM \
-	    $(OBJS)
+	    $(OBJS) \
+            $(BIN_DIR)/publisher $(BIN_DIR)/subscriber
 	for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir clean; \
 	done

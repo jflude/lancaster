@@ -27,7 +27,8 @@ var run = true
 var wireProtocolVersion = "*"
 var subscriberPath = "../subscriber"
 var sourceVersion = "<DEV>"
-var udpStatsAddr = "none"
+var udpStatsAddr = "127.0.0.1:9411"
+var shmDirectory = "/dev/shm"
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -81,7 +82,7 @@ func main() {
 	var err error
 	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publish stats to udp address")
+	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
 	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
@@ -167,15 +168,16 @@ func discoveryLoop() error {
 func (si *SubscriberInstance) run() {
 	addr, err := net.LookupHost(si.discovery.Hostname)
 	chkFatal(err)
+        storePath := "shm:/client."+si.discovery.Data[0].Description
 
 	si.commander, err = commander.New(subscriberPath,
 		"-j",
 		"-p", si.discovery.Data[0].Description,
-		"shm:/client."+si.discovery.Data[0].Description,
+		storePath,
 		strconv.Itoa(1024*1024),
 		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port),
 	)
-	if udpStatsAddr != "" && udpStatsAddr != "none" {
+	if udpStatsAddr != "" {
 		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	if err != nil {
@@ -183,6 +185,14 @@ func (si *SubscriberInstance) run() {
 	}
 	si.commander.Name = si.name
 	si.commander.AutoRestart = false
+	si.commander.BeforeStart = func(command *commander.Command) error {
+		storePathToDelete := storePath
+		if strings.HasPrefix(storePath,"shm:") {
+			storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
+		}
+		removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
+		return removeFileCommand.Start()
+	}
 	err = si.commander.Run()
 	logln("Commander for:", si, "exited:", err)
 	delete(feeds, si.name)         // deregister this feed

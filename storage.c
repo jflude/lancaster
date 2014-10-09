@@ -159,7 +159,8 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		(*pstore)->seg->max_id = max_id;
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
-		BZERO((*pstore)->seg->description);
+		memset((*pstore)->seg->description, 0,
+			   sizeof(*pstore)->seg->description);
 	} else if (((*pstore)->seg->file_version >> 8) !=
 			       CACHESTER_FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible file version",
@@ -565,7 +566,8 @@ status storage_write_queue(storage_handle store, identifier id)
 	return OK;
 }
 
-status storage_read_queue(storage_handle store, q_index idx, identifier* pident)
+status storage_read_queue(storage_handle store, q_index idx,
+						  identifier* pident)
 {
 	if (!pident)
 		return error_invalid_arg("storage_read_queue");

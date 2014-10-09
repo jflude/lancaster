@@ -84,6 +84,7 @@ static void* stats_func(thread_handle thr)
             stats_buff_used =
 				sprintf(stats_buf,
 						"{\"@timestamp\":\"%s\", "
+                        "\"host\":\"%s\", "
 						"\"app\":\"subscriber\", "
 						"\"cat\":\"data_feed\", "
 						"\"alias\":\"%s\", "
@@ -97,6 +98,7 @@ static void* stats_func(thread_handle thr)
 						"\"max/us\":%.2f, "
 						"\"std/us\":%.2f}",
 						ts,
+                        hostname,
 						alias,
 						storage_get_file(receiver_get_storage(recv)),
 						receiver_get_mcast_packets_recv(recv) / secs,
