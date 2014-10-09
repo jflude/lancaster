@@ -1,15 +1,16 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-PUBLISHER_PATH = $(CACHESTER_DIR)/publisher
-BIN_DIR = ../../../bin
+PUBLISHER_PATH = ./publisher
+BIN_DIR := ../../../bin
+BIN := $(BIN_DIR)/pubmgr
 
 all: pubmgr
 
 pubmgr: build
 
 release: PUBLISHER_PATH = ./publisher
-release: build dist
+release: build
 
 build: LD_FLAGS = \
 	-X main.wireProtocolVersion \
@@ -18,16 +19,13 @@ build: LD_FLAGS = \
 	-X main.publisherPath $(PUBLISHER_PATH)
 
 build: 
-	go build -ldflags '$(LD_FLAGS)' .
+	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
+	cp ../../../publisher $(BIN_DIR)
 
 fetch: .installGoop
 
-dist:
-	cp -p pubmgr $(CACHESTER_DIR)/publisher $(BIN_DIR)
-
 clean:
-	rm -f pubmgr 
+	rm -f $(BIN)
 	rm -f $(BIN_DIR)/publisher
-	rm -f $(BIN_DIR)/pubmgr
 
-.PHONY: all build release fetch dist clean
+.PHONY: all build release fetch clean
