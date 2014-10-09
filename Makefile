@@ -21,7 +21,8 @@ SRCS := \
 
 COMPONENTS := \
 	go/src/submgr \
-	go/src/pubmgr
+	go/src/pubmgr \
+	go/src/rdr
 
 include VERSION.mk
 

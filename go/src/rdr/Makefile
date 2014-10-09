@@ -1,22 +1,21 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
+BIN_DIR=../../../bin
+BIN=$(BIN_DIR)/rdr
+
 all: rdr
 
 rdr: build
 
-release: build dist
+release: build 
 
 build:
-	go build 
+	go build -o $(BIN)
 
 fetch: .installGoop
 
-dist:
-	mkdir -p release
-	cp -p rdr release/
-
 clean:
-	rm -rf rdr release
+	rm -f $(BIN)
 
-.PHONY: all release build fetch dist clean
+ .PHONY: all release build fetch clean
