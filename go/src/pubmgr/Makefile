@@ -1,7 +1,7 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-PUBLISHER_PATH = ./publisher
+PUBLISHER_PATH = ../publisher
 BIN_DIR := ../../../bin
 BIN := $(BIN_DIR)/pubmgr
 
@@ -20,12 +20,10 @@ build: LD_FLAGS = \
 
 build: 
 	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
-	cp -f ../../../publisher $(BIN_DIR)
 
 fetch: .installGoop
 
 clean:
 	rm -f $(BIN)
-	rm -f $(BIN_DIR)/publisher
 
 .PHONY: all build release fetch clean

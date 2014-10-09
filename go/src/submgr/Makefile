@@ -1,7 +1,7 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-SUBSCRIBER_PATH = ./subscriber
+SUBSCRIBER_PATH = ../subscriber
 BIN_DIR = ../../../bin
 BIN = $(BIN_DIR)/submgr
 
@@ -19,12 +19,10 @@ build: LD_FLAGS = \
 
 build:
 	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
-	cp -f ../../../subscriber $(BIN_DIR)
 
 fetch: .installGoop
 
 clean:
 	rm -f $(BIN_DIR)/submgr
-	rm -f $(BIN_DIR)/subscriber
 
 .PHONY: all release build fetch clean
