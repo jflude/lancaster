@@ -32,6 +32,7 @@ var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 500
 var maxIdle = 2
 var loopback = true
+var udpStatsAddr = "none"
 
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
@@ -50,6 +51,7 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
+        flag.StringVar(&udpStatsAddr, "us", udpStatsAddr, "Publish stats to udp address")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in millis)")
 	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
@@ -209,6 +211,9 @@ func (pi *PublisherInstance) run() {
 	pi.commander.Name = pi.name
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", pi, "error:", err)
+	}
+        if udpStatsAddr != "" && udpStatsAddr != "none" {
+		pi.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	pi.commander.AutoRestart = false
 	err = pi.commander.Run()
