@@ -20,7 +20,7 @@ build: LD_FLAGS = \
 
 build: 
 	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
-	cp ../../../publisher $(BIN_DIR)
+	cp -f ../../../publisher $(BIN_DIR)
 
 fetch: .installGoop
 

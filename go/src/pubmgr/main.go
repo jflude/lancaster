@@ -27,12 +27,13 @@ var env string
 var run = true
 var publisherPath = "../publisher"
 var sourceVersion = "<DEV>"
-var filePatternFlag filePattern
+var filePatternFlag filePattern = makeFilePattern("feed.*")
 var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 500
 var maxIdle = 2
 var loopback = true
 var udpStatsAddr = "none"
+var defaultDirectory = "/dev/shm/"
 
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
@@ -44,6 +45,11 @@ func (fp *filePattern) Set(v string) error {
 
 func (pi *PublisherInstance) String() string {
 	return pi.commander.String()
+}
+
+func makeFilePattern(pattern string) filePattern {
+    aFilePattern := filePattern{}
+    return append(aFilePattern, regexp.MustCompile(pattern))
 }
 
 func init() {
@@ -109,8 +115,13 @@ func discoveryLoop() error {
 		return err
 	}
 	defer watcher.Close()
-	for _, d := range flag.Args() {
-		filepath.Walk(d, func(path string, info os.FileInfo, err error) error {
+	filePaths := flag.Args()
+	if len(filePaths) == 0 {
+		filePaths = make([]string, 1)
+		filePaths[0] = defaultDirectory
+	}
+	for _, filePath := range filePaths {
+		filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -120,7 +131,7 @@ func discoveryLoop() error {
 			startIfNeeded(path)
 			return nil
 		})
-		err = watcher.Add(d)
+		err = watcher.Add(filePath)
 		if err != nil {
 			return err
 		}
