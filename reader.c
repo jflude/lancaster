@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
 		error_report_fatal();
 
 	if (strcmp(storage_get_description(store), "TEST") != 0) {
-		fprintf(stderr, "%s: main: unrecognized storage description: \"%s\"\n",
+		fprintf(stderr, "%s: error: unrecognized storage description: \"%s\"\n",
 				error_get_program_name(), storage_get_description(store));
 
 		exit(-STORAGE_CORRUPTED);
@@ -157,7 +157,7 @@ int main(int argc, char* argv[])
 
 		if (when != created_time) {
 			putchar('\n');
-			fprintf(stderr, "%s: main: storage is recreated\n",
+			fprintf(stderr, "%s: error: storage is recreated\n",
 					error_get_program_name());
 
 			exit(-STORAGE_RECREATED);
@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
 
 		if ((now - when) >= ORPHAN_TIMEOUT_USEC) {
 			putchar('\n');
-			fprintf(stderr, "%s: main: storage is orphaned\n",
+			fprintf(stderr, "%s: error: storage is orphaned\n",
 					error_get_program_name());
 
 			exit(-STORAGE_ORPHANED);
