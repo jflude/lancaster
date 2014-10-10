@@ -18,7 +18,11 @@ const char* error_get_program_name(void)
 
 void error_set_program_name(const char* name)
 {
-	strncpy(prog_name, name, sizeof(prog_name) - 2);
+	const char* slash = strrchr(name, '/');
+	if (slash)
+		name = slash + 1;
+
+	strncpy(prog_name, name, sizeof(prog_name) - 1);
 	prog_name[sizeof(prog_name) - 1] = '\0';
 }
 
