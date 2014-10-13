@@ -82,6 +82,9 @@ struct tcp_client
 	struct sequence_range reply_range;
 	identifier reply_id;
 	sequence min_seq_found;
+#ifdef DEBUG_PROTOCOL
+	char peer_name[256];
+#endif
 };
 
 #ifdef DEBUG_PROTOCOL
@@ -280,8 +283,8 @@ static status tcp_read_buf(struct tcp_client* clnt)
 	}
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(clnt->sndr->debug_file, "%s   tcp recv %lu bytes\n",
-			debug_time(), recv_sz);
+	fprintf(clnt->sndr->debug_file, "%s   %s tcp recv %lu bytes\n",
+			debug_time(), clnt->peer_name, recv_sz);
 #endif
 	return st;
 }
@@ -314,8 +317,8 @@ static status tcp_write_buf(struct tcp_client* clnt)
 	}
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(clnt->sndr->debug_file, "%s   tcp sent %lu bytes\n",
-			debug_time(), sent_sz);
+	fprintf(clnt->sndr->debug_file, "%s   %s tcp sent %lu bytes\n",
+			debug_time(), clnt->peer_name, sent_sz);
 #endif
 	return st;
 }
@@ -383,6 +386,17 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 		sndr->last_q_idx = storage_get_queue_head(sndr->store);
 	}
 
+#ifdef DEBUG_PROTOCOL
+	if (!FAILED(st)) {
+		sock_addr_handle sa;
+		if (FAILED(st = sock_addr_create(&sa, NULL, 0)) ||
+			FAILED(st = sock_get_remote_address(clnt->sock, sa)) ||
+			FAILED(st = sock_addr_get_text(sa, clnt->peer_name,
+										   sizeof(clnt->peer_name), TRUE)) ||
+			FAILED(st = sock_addr_destroy(&sa)))
+			return st;
+	}
+#endif
 	return st;
 }
 
@@ -449,8 +463,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 	status st;
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file, "%s   tcp write ready, %lu bytes remain\n",
-			debug_time(), clnt->out_remain);
+	fprintf(sndr->debug_file, "%s   %s tcp write ready, %lu bytes remain\n",
+			debug_time(), clnt->peer_name, clnt->out_remain);
 #endif
 
 	st = tcp_write_buf(clnt);
@@ -496,8 +510,9 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					++clnt->reply_id;
 #ifdef DEBUG_PROTOCOL
 					fprintf(sndr->debug_file,
-							"%s     tcp gap response seq %07ld, id #%07ld\n",
-							debug_time(), seq, clnt->reply_id - 1);
+							"%s     %s tcp gap response seq %07ld, id #%07ld\n",
+							debug_time(), clnt->peer_name,
+							seq, clnt->reply_id - 1);
 #endif
 					return OK;
 				}
@@ -506,6 +521,11 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 			sndr->min_seq = clnt->min_seq_found;
 			INVALIDATE_RANGE(clnt->reply_range);
+
+#ifdef DEBUG_PROTOCOL
+			fprintf(sndr->debug_file, "%s   %s tcp gap request DONE\n",
+					debug_time(), clnt->peer_name);
+#endif
 		} else if (!FAILED(st = clock_time(&now)) &&
 				   (now - clnt->tcp_send_time) >= sndr->heartbeat_usec) {
 			*out_seq_ref = htonll(HEARTBEAT_SEQ);
@@ -513,7 +533,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 			clnt->out_remain = sizeof(sequence);
 
 #ifdef DEBUG_PROTOCOL
-			fprintf(sndr->debug_file, "%s   tcp heartbeat\n", debug_time());
+			fprintf(sndr->debug_file, "%s   %s tcp heartbeat\n",
+					debug_time(), clnt->peer_name);
 #endif
 		}
 	}
@@ -526,7 +547,8 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 	struct tcp_client* clnt = sock_get_property_ref(sock);
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file, "%s   tcp read blocked\n", debug_time());
+	fprintf(sndr->debug_file, "%s   %s tcp read blocked\n",
+			debug_time(), clnt->peer_name);
 #endif
 
 	if (clnt->in_next == clnt->in_buf) {
@@ -541,8 +563,8 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 
 #ifdef DEBUG_PROTOCOL
 			fprintf(sndr->debug_file,
-					"%s   tcp gap request seq %07ld --> %07ld\n",
-					debug_time(), clnt->reply_range.low,
+					"%s   %s tcp gap request seq %07ld --> %07ld\n",
+					debug_time(), clnt->peer_name, clnt->reply_range.low,
 					clnt->reply_range.high);
 #endif
 		}
@@ -557,8 +579,8 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	status st;
 
 #ifdef DEBUG_PROTOCOL
-	fprintf(sndr->debug_file, "%s   tcp read ready, %lu bytes remain\n",
-			debug_time(), clnt->in_remain);
+	fprintf(sndr->debug_file, "%s   %s tcp read ready, %lu bytes remain\n",
+			debug_time(), clnt->peer_name, clnt->in_remain);
 #endif
 
 	st = tcp_read_buf(clnt);
