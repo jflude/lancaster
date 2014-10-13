@@ -150,10 +150,10 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 }
 
 static status get_sock_addr_text(sock_addr_handle addr, char* text,
-								 size_t text_sz)
+								 size_t text_sz, boolean with_port)
 {
 	status st;
-	if (FAILED(st = sock_addr_get_text(addr, text, text_sz)))
+	if (FAILED(st = sock_addr_get_text(addr, text, text_sz, with_port)))
 		sprintf(text, "sock_addr_get_text failed: error #%d", (int) st);
 
 	return st;
@@ -181,10 +181,13 @@ static status mcast_on_read(receiver_handle recv)
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
 
 	if (mcast_ip != tcp_ip) {
-		char src_text[256], tcp_text[256], pub_text[256];
-		get_sock_addr_text(recv->mcast_pub_addr, pub_text, sizeof(pub_text));
-		get_sock_addr_text(recv->mcast_src_addr, src_text, sizeof(src_text));
-		get_sock_addr_text(recv->tcp_addr, tcp_text, sizeof(tcp_text));
+		char pub_text[256], src_text[256], tcp_text[256];
+		get_sock_addr_text(recv->mcast_pub_addr, pub_text,
+						   sizeof(pub_text), TRUE);
+		get_sock_addr_text(recv->mcast_src_addr, src_text,
+						   sizeof(src_text), FALSE);
+		get_sock_addr_text(recv->tcp_addr, tcp_text,
+						   sizeof(tcp_text), FALSE);
 
 		return error_msg("mcast_on_read: error: unexpected source: "
 						 "%s from %s, not %s",

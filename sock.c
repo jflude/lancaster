@@ -74,7 +74,8 @@ unsigned short sock_addr_get_port(sock_addr_handle addr)
 	return ntohs(addr->sa.sin_port);
 }
 
-status sock_addr_get_text(sock_addr_handle addr, char* text, size_t text_sz)
+status sock_addr_get_text(sock_addr_handle addr, char* text,
+						  size_t text_sz, boolean with_port)
 {
 	char a_buf[256], p_buf[16];
 	if (!text || text_sz < INET_ADDRSTRLEN)
@@ -84,7 +85,9 @@ status sock_addr_get_text(sock_addr_handle addr, char* text, size_t text_sz)
 				   a_buf, sizeof(a_buf)))
 		return error_errno("inet_ntop");
 
-	if (sprintf(p_buf, ":%d", (int) ntohs(addr->sa.sin_port)) < 0)
+	if (!with_port)
+		p_buf[0] = '\0';
+	else if (sprintf(p_buf, ":%d", (int) ntohs(addr->sa.sin_port)) < 0)
 		return error_errno("sock_addr_get_text");
 
 	if (strlen(a_buf) + strlen(p_buf) >= text_sz)
