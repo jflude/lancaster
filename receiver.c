@@ -187,7 +187,7 @@ static status mcast_on_read(receiver_handle recv)
 		get_sock_addr_text(recv->mcast_src_addr, src_text,
 						   sizeof(src_text), FALSE);
 		get_sock_addr_text(recv->tcp_addr, tcp_text,
-						   sizeof(tcp_text), FALSE);
+						   sizeof(tcp_text), TRUE);
 
 		return error_msg("mcast_on_read: error: unexpected source: "
 						 "%s from %s, not %s",
