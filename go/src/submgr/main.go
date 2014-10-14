@@ -29,6 +29,7 @@ var subscriberPath = "../subscriber"
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
+var clientInterface = "bond0";
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -56,6 +57,7 @@ func (si *SubscriberInstance) String() string {
 
 func init() {
 	var err error
+        flag.StringVar(&clientInterface, "i", clientInterface, "Client side interface")
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +106,7 @@ func main() {
 }
 
 func discoveryLoop() error {
-	iface, err := net.InterfaceByName("bond0")
+	iface, err := net.InterfaceByName(clientInterface)
 	chkFatal(err)
 	advertAddrHostPort := strings.Split(advertAddr, ":")
 	advertAddrHost := advertAddrHostPort[0]
