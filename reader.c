@@ -40,7 +40,7 @@ static status update(q_index qi)
 	record_handle rec = NULL;
 	identifier id;
 	microsec now, when;
-	struct datum* d;
+	struct datum *d;
 	revision rev;
 	long xyz;
 	status st;
@@ -71,7 +71,7 @@ static status update(q_index qi)
 	return st;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	status st = OK;
 	size_t q_capacity;
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 	int opt;
 	boolean stg_stats = FALSE;
 	microsec last_print, created_time, delay;
-	const char* eol_seq;
+	const char *eol_seq;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
 			if (FAILED(st = clock_sleep(1)))
 				break;
 		} else {
-			if ((size_t) (new_head - old_head) > q_capacity) {
+			if ((size_t)(new_head - old_head) > q_capacity) {
 				old_head = new_head - q_capacity;
 				event |= 4;
 			}

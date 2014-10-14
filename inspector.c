@@ -22,10 +22,10 @@
 
 static revision rev_copy;
 static microsec ts_copy;
-static void* val_copy;
-static const void* val_base;
-static void* prop_copy;
-static const void* prop_base;
+static void *val_copy;
+static const void *val_base;
+static void *prop_copy;
+static const void *prop_base;
 
 static void show_syntax(void)
 {
@@ -47,7 +47,7 @@ static status print_attributes(storage_handle store)
 	status st;
 	microsec when;
 	char created[64], touched[64];
-	const char* seg_base = (const char*) storage_get_segment(store);
+	const char *seg_base = (const char *)storage_get_segment(store);
 	unsigned short file_ver = storage_get_file_version(store),
 		data_ver = storage_get_data_version(store);
 
@@ -78,10 +78,10 @@ static status print_attributes(storage_handle store)
 			   "touched time:     %s\n",
 			   storage_get_file(store),
 			   storage_get_description(store),
-			   (int) file_ver >> 8,
-			   (int) file_ver & 0xFF,
-			   (int) data_ver >> 8,
-			   (int) data_ver & 0xFF,
+			   (int)file_ver >> 8,
+			   (int)file_ver & 0xFF,
+			   (int)data_ver >> 8,
+			   (int)data_ver & 0xFF,
 			   storage_get_base_id(store),
 			   storage_get_max_id(store),
 			   storage_get_record_size(store),
@@ -90,11 +90,11 @@ static status print_attributes(storage_handle store)
 			   storage_get_value_offset(store),
 			   storage_get_property_offset(store),
 			   storage_get_timestamp_offset(store),
-			   (const char*) storage_get_queue_base_ref(store) - seg_base,
+			   (const char *)storage_get_queue_base_ref(store) - seg_base,
 			   storage_get_queue_capacity(store),
-			   (const char*) storage_get_queue_head_ref(store) - seg_base,
+			   (const char *)storage_get_queue_head_ref(store) - seg_base,
 			   storage_get_queue_head(store),
-			   (const char*) storage_get_array(store) - seg_base,
+			   (const char *)storage_get_array(store) - seg_base,
 			   created,
 			   touched) < 0)
 		return (feof(stdin) ? error_eof : error_errno)("printf");
@@ -119,7 +119,7 @@ static status print_queue(storage_handle store)
 	q_index q_head = storage_get_queue_head(store) & (cap - 1);
 	static char head[] = " <--";
 
-	for (i = 0; (size_t) i < cap; ++i) {
+	for (i = 0; (size_t)i < cap; ++i) {
 		if (FAILED(st = storage_read_queue(store, i, &id)))
 			return st;
 
@@ -135,7 +135,7 @@ static status copy_record(storage_handle store, record_handle rec)
 	status st;
 	size_t val_sz = storage_get_value_size(store);
 	size_t prop_sz = storage_get_property_size(store);
-	size_t offset = (char*) rec - (char*) storage_get_segment(store);
+	size_t offset = (char *)rec - (char *)storage_get_segment(store);
 
 	if (!val_copy) {
 		val_copy = xmalloc(val_sz);
@@ -143,7 +143,7 @@ static status copy_record(storage_handle store, record_handle rec)
 			return NO_MEMORY;
 	}
 
-	val_base = (char*) val_copy - offset - storage_get_value_offset(store);
+	val_base = (char *)val_copy - offset - storage_get_value_offset(store);
 
 	if (prop_sz > 0 && !prop_copy) {
 		prop_copy = xmalloc(prop_sz);
@@ -151,7 +151,7 @@ static status copy_record(storage_handle store, record_handle rec)
 			return NO_MEMORY;
 	}
 
-	prop_base = (char*) prop_copy - offset - storage_get_property_offset(store);
+	prop_base = (char *)prop_copy - offset - storage_get_property_offset(store);
 
 	do {
 		if (FAILED(st = record_read_lock(rec, &rev_copy)))
@@ -180,7 +180,7 @@ static status print_record_header(storage_handle store, record_handle rec)
 		return st;
 
 	st = sprintf(buf, " #%08ld [0x%012lX] rev %08ld %s",
-				 id, (char*) rec - (char*) storage_get_array(store),
+				 id, (char *)rec - (char *)storage_get_array(store),
 				 rev_copy, ts_text);
 	if (st < 0)
 		error_errno("sprintf");
@@ -220,10 +220,10 @@ static status print_property(storage_handle store)
 	return OK;
 }
 
-static status iter_func(storage_handle store, record_handle rec, void* param)
+static status iter_func(storage_handle store, record_handle rec, void *param)
 {
 	status st;
-	int show = (long) param;
+	int show = (long)param;
 
 	if (FAILED(st = copy_record(store, rec)) ||
 		FAILED(st = print_record_header(store, rec)) ||
@@ -235,7 +235,7 @@ static status iter_func(storage_handle store, record_handle rec, void* param)
 	return TRUE;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	storage_handle store;
 	int show = 0;
@@ -276,7 +276,7 @@ int main(int argc, char* argv[])
 
 	if (argc > optind && strcmp(argv[optind], "all") == 0) {
 		if (FAILED(storage_iterate(store, iter_func, NULL,
-								   (void*) (long) show)))
+								   (void *)(long)show)))
 			error_report_fatal();
 	} else {
 		for (; optind < argc; ++optind) {
@@ -284,7 +284,7 @@ int main(int argc, char* argv[])
 			identifier id = atoi(argv[optind]);
 
 			if (FAILED(storage_get_record(store, id, &rec)) ||
-				FAILED(iter_func(store, rec, (void*) (long) show)))
+				FAILED(iter_func(store, rec, (void *)(long)show)))
 				error_report_fatal();
 		}
 	}

@@ -4,8 +4,7 @@
 #include "xalloc.h"
 #include <math.h>
 
-struct stats
-{
+struct stats {
 	long count;
 	double min;
 	double max;
@@ -14,14 +13,13 @@ struct stats
 	double stddev;
 };
 
-struct latency
-{
-	struct stats* curr;
-	struct stats* next;
+struct latency {
+	struct stats *curr;
+	struct stats *next;
 	volatile spin_lock lock;
 };
 
-status latency_create(latency_handle* plat)
+status latency_create(latency_handle *plat)
 {
 	if (!plat)
 		return error_invalid_arg("latency_create");
@@ -45,7 +43,7 @@ status latency_create(latency_handle* plat)
 	return OK;
 }
 
-status latency_destroy(latency_handle* plat)
+status latency_destroy(latency_handle *plat)
 {
 	if (!plat || !*plat)
 		return OK;
@@ -80,7 +78,7 @@ status latency_on_sample(latency_handle lat, double new_val)
 status latency_roll(latency_handle lat)
 {
 	status st;
-	struct stats* tmp;
+	struct stats *tmp;
 	if (FAILED(st = spin_write_lock(&lat->lock, NULL)))
 		return st;
 

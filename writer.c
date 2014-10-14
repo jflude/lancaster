@@ -35,7 +35,7 @@ static void show_version(void)
 static status update(identifier id, long n)
 {
 	record_handle rec = NULL;
-	struct datum* d;
+	struct datum *d;
 	revision rev;
 	microsec now;
 	status st = OK;
@@ -64,7 +64,7 @@ static status update(identifier id, long n)
 	return OK;
 }
 
-static void* touch_func(thread_handle thr)
+static void *touch_func(thread_handle thr)
 {
 	status st = OK;
 	while (!thread_is_stopping(thr)) {
@@ -75,15 +75,15 @@ static void* touch_func(thread_handle thr)
 			break;
 	}
 
-	return (void*) (long) st;
+	return (void *)(long)st;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	status st = OK;
 	thread_handle touch_thread;
 	twist_handle twister;
-	const char* mmap_file;
+	const char *mmap_file;
 	size_t q_capacity;
 	boolean at_random = FALSE;
 	long xyz = 0;
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 		if (FAILED(twist_create(&twister)))
 			error_report_fatal();
 
-		twist_seed(twister, (unsigned) time(NULL));
+		twist_seed(twister, (unsigned)time(NULL));
 
 		for (;;)
 			if (FAILED(st = update(twist_rand(twister) % MAX_ID, xyz++)))

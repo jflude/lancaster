@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-const char* version_get_source(void);
+const char *version_get_source(void);
 
 #ifdef __cplusplus
 }

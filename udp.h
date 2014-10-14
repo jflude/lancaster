@@ -14,15 +14,14 @@
 extern "C" {
 #endif
     
-struct udp_conn_info
-{
+struct udp_conn_info {
     sock_handle sock_fd_;
     sock_addr_handle server_sock_addr_;
 };
 
-typedef struct udp_conn_info* udp_conn_handle;
+typedef struct udp_conn_info *udp_conn_handle;
 
-status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char* a_url);
+status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char *a_url);
 status close_udp_sock_conn(udp_conn_handle a_udp_conn);
 
 #ifdef	__cplusplus

@@ -8,29 +8,27 @@
 
 #define SEND_DELAY_USEC (3 * 1000000)
 
-struct notice
-{
+struct notice {
 	sender_handle sender;
-	char* json_desc;
-	struct notice* next;
+	char *json_desc;
+	struct notice *next;
 };
 
-struct advert
-{
+struct advert {
 	sock_handle mcast_sock;
 	sock_addr_handle mcast_addr;
 	thread_handle mcast_thr;
-	char* json_msg;
-	char* env;
+	char *json_msg;
+	char *env;
 	size_t json_sz;
-	struct notice* notices;
+	struct notice *notices;
 	volatile spin_lock lock;
 };
 
-static const char* escape_quotes(const char* in)
+static const char *escape_quotes(const char *in)
 {
 	static char buf[512];
-	char* out = buf;
+	char *out = buf;
 
 	while (*in) {
 		if (*in == '"')
@@ -46,8 +44,8 @@ static const char* escape_quotes(const char* in)
 static status make_json_map(advert_handle advert)
 {
 	char buf[8192], hostname[256];
-	struct notice* it;
-	char* new_msg;
+	struct notice *it;
+	char *new_msg;
 
 	status st;
 	if (FAILED(st = sock_get_hostname(buf, sizeof(buf))))
@@ -83,7 +81,7 @@ static status make_json_map(advert_handle advert)
 	return OK;
 }
 
-static status make_json_notice(sender_handle sender, char** pjson)
+static status make_json_notice(sender_handle sender, char **pjson)
 {
 	char buf[512];
 	int n = sprintf(buf, "{\"port\":%d, \"description\":\"%s\"}",
@@ -97,7 +95,7 @@ static status make_json_notice(sender_handle sender, char** pjson)
 	return *pjson ? OK : NO_MEMORY;
 }
 
-static void* mcast_func(thread_handle thr)
+static void *mcast_func(thread_handle thr)
 {
 	advert_handle advert = thread_get_param(thr);
 	status st = OK, st2;
@@ -119,12 +117,12 @@ static void* mcast_func(thread_handle thr)
 	if (!FAILED(st))
 		st = st2;
 
-	return (void*) (long) st;
+	return (void *)(long)st;
 }
 
-status advert_create(advert_handle* padvert, const char* mcast_address,
+status advert_create(advert_handle *padvert, const char *mcast_address,
 					 unsigned short mcast_port, short mcast_ttl,
-					 boolean mcast_loopback, const char* env)
+					 boolean mcast_loopback, const char *env)
 {
 	status st;
 	if (!mcast_address)
@@ -160,10 +158,10 @@ status advert_create(advert_handle* padvert, const char* mcast_address,
 	return st;
 }
 
-status advert_destroy(advert_handle* padvert)
+status advert_destroy(advert_handle *padvert)
 {
 	status st = OK;
-	struct notice* it;
+	struct notice *it;
 
 	if (!padvert || !*padvert ||
 		FAILED(st = thread_destroy(&(*padvert)->mcast_thr)) ||
@@ -172,7 +170,7 @@ status advert_destroy(advert_handle* padvert)
 		return st;
 
 	for (it = (*padvert)->notices; it; ) {
-		struct notice* next = it->next;
+		struct notice *next = it->next;
 		XFREE(it->json_desc);
 		xfree(it);
 		it = next;
@@ -191,10 +189,10 @@ boolean advert_is_running(advert_handle advert)
 
 status advert_stop(advert_handle advert)
 {
-	void* p;
+	void *p;
 	status st2, st = thread_stop(advert->mcast_thr, &p);
 	if (!FAILED(st))
-		st = (long) p;
+		st = (long)p;
 
 	st2 = sock_close(advert->mcast_sock);
 	if (!FAILED(st))
@@ -205,7 +203,7 @@ status advert_stop(advert_handle advert)
 
 status advert_publish(advert_handle advert, sender_handle sender)
 {
-	struct notice* it;
+	struct notice *it;
 	status st;
 
 	if (!sender)
@@ -233,8 +231,8 @@ status advert_publish(advert_handle advert, sender_handle sender)
 
 status advert_retract(advert_handle advert, sender_handle sender)
 {
-	struct notice* it;
-	struct notice** prev;
+	struct notice *it;
+	struct notice **prev;
 
 	if (!sender)
 		return error_invalid_arg("advert_retract");

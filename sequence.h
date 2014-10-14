@@ -23,7 +23,7 @@ struct sequence_range { sequence low; sequence high; };
 #define IS_WITHIN_RANGE(r, n) ((n) >= (r).low && (n) < (r).high)
 
 #define INVALIDATE_RANGE(r) \
-	((void) ((r).low = SEQUENCE_MAX, (r).high = SEQUENCE_MIN))
+	((void)((r).low = SEQUENCE_MAX, (r).high = SEQUENCE_MIN))
 
 #ifdef __cplusplus
 }

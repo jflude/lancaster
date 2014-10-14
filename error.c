@@ -11,14 +11,14 @@ static volatile spin_lock msg_lock;
 static char prog_name[256], last_msg[512], saved_msg[512];
 static int last_code, saved_code, saved_errno;
 
-const char* error_get_program_name(void)
+const char *error_get_program_name(void)
 {
 	return prog_name;
 }
 
-void error_set_program_name(const char* name)
+void error_set_program_name(const char *name)
 {
-	const char* slash = strrchr(name, '/');
+	const char *slash = strrchr(name, '/');
 	if (slash)
 		name = slash + 1;
 
@@ -31,7 +31,7 @@ int error_last_code(void)
 	return last_code;
 }
 
-const char* error_last_msg(void)
+const char *error_last_msg(void)
 {
 	return last_msg;
 }
@@ -50,7 +50,7 @@ void error_report_fatal(void)
 	exit(-last_code);
 }
 
-int error_msg(const char* msg, int code, ...)
+int error_msg(const char *msg, int code, ...)
 {
 	char buf[256];
 	va_list ap;
@@ -81,12 +81,12 @@ int error_msg(const char* msg, int code, ...)
 	return code;
 }
 
-static int format(const char* func, const char* desc, int code)
+static int format(const char *func, const char *desc, int code)
 {
 	return error_msg("%s: %s", code, func, desc);
 }
 
-int error_eof(const char* func)
+int error_eof(const char *func)
 {
 	if (!func) {
 		error_invalid_arg("error_eof");
@@ -96,7 +96,7 @@ int error_eof(const char* func)
 	return format(func, "end of file", EOF + CACHESTER_ERROR_BASE);
 }
 
-int error_errno(const char* func)
+int error_errno(const char *func)
 {
 	if (!func) {
 		error_invalid_arg("error_errno");
@@ -108,13 +108,13 @@ int error_errno(const char* func)
 										? errno : errno + ERRNO_ERROR_BASE_2));
 }
 
-int error_invalid_arg(const char* func)
+int error_invalid_arg(const char *func)
 {
 	errno = EINVAL;
 	return error_errno(func);
 }
 
-int error_unimplemented(const char* func)
+int error_unimplemented(const char *func)
 {
 	errno = ENOSYS;
 	return error_errno(func);

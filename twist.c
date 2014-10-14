@@ -2,13 +2,12 @@
 #include "error.h"
 #include "xalloc.h"
 
-struct twist
-{
+struct twist {
 	int index;
 	unsigned buffer[624];
 };
 
-status twist_create(twist_handle* ptwist)
+status twist_create(twist_handle *ptwist)
 {
 	if (!ptwist)
 		return error_invalid_arg("twist_create");
@@ -20,7 +19,7 @@ status twist_create(twist_handle* ptwist)
 	return OK;
 }
 
-status twist_destroy(twist_handle* ptwist)
+status twist_destroy(twist_handle *ptwist)
 {
 	if (!ptwist || !*ptwist)
 		return OK;

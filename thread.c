@@ -4,25 +4,24 @@
 #include <errno.h>
 #include <pthread.h>
 
-struct thread
-{
+struct thread {
 	pthread_t sys_thr;
 	thread_func func;
-	void* param;
-	void* property;
+	void *param;
+	void *property;
 	volatile boolean running;
 	volatile boolean stopping;
 };
 
-static void* wrapper_fn(void* param)
+static void *wrapper_fn(void *param)
 {
 	thread_handle thr = param;
-	void* result = thr->func(thr);
+	void *result = thr->func(thr);
 	thr->running = FALSE;
 	return result;
 }
 
-status thread_create(thread_handle* pthr, thread_func fn, void* param)
+status thread_create(thread_handle *pthr, thread_func fn, void *param)
 {
 	int e;
 	if (!pthr || !fn)
@@ -51,7 +50,7 @@ status thread_create(thread_handle* pthr, thread_func fn, void* param)
 	return OK;
 }
 
-status thread_destroy(thread_handle* pthr)
+status thread_destroy(thread_handle *pthr)
 {
 	status st = OK;
 	if (!pthr || !*pthr)
@@ -64,22 +63,22 @@ status thread_destroy(thread_handle* pthr)
 	return st;
 }
 
-void* thread_get_param(thread_handle thr)
+void *thread_get_param(thread_handle thr)
 {
 	return thr->param;
 }
 
-void* thread_get_property(thread_handle thr)
+void *thread_get_property(thread_handle thr)
 {
 	return thr->property;
 }
 
-void thread_set_property(thread_handle thr, void* prop)
+void thread_set_property(thread_handle thr, void *prop)
 {
 	thr->property = prop;
 }
 
-status thread_stop(thread_handle thr, void** presult)
+status thread_stop(thread_handle thr, void **presult)
 {
 	int e;
 	thr->stopping = TRUE;

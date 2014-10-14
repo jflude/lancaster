@@ -37,29 +37,29 @@ static void show_version(void)
 	exit(0);
 }
 
-static void* stats_func(thread_handle thr)
+static void *stats_func(thread_handle thr)
 {
 	sender_handle sender = thread_get_param(thr);
 	storage_handle store = sender_get_storage(sender);
 	char hostname[256];
 	microsec last_print;
-	const char* eol_seq;
+	const char *eol_seq;
 	status st;
     struct udp_conn_info udp_stat_conn;
-    const char* udp_stat_url = getenv("UDP_STATS_URL");
+    const char *udp_stat_url = getenv("UDP_STATS_URL");
     boolean udp_stat_pub_enabled = FALSE;
     int stats_buff_used = 0;
     
     if (udp_stat_url != NULL) {
         if (FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url)))
-            return (void*) (long) st;
+            return (void *)(long)st;
 
         udp_stat_pub_enabled = TRUE;
     }
     
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
 		FAILED(st = clock_time(&last_print)))
-		return (void*) (long) st;
+		return (void *)(long)st;
 
 	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
@@ -165,10 +165,10 @@ static void* stats_func(thread_handle thr)
 	}
     
 	putchar('\n');
-	return (void*) (long) st;
+	return (void *)(long)st;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	advert_handle adv;
 	sender_handle sender = NULL;
@@ -176,12 +176,12 @@ int main(int argc, char* argv[])
 	int hb, opt, ttl = DEFAULT_TTL;
 	const char *mmap_file, *mcast_addr, *tcp_addr;
 	const char *mcast_iface = NULL, *adv_addr = NULL;
-	char* colon;
+	char *colon;
 	int mcast_port, tcp_port, adv_port = 0;
 	boolean loopback = FALSE;
 	microsec max_pkt_age;
-	void* stats_result;
-	char* env = "";
+	void *stats_result;
+	char *env = "";
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
@@ -269,13 +269,13 @@ int main(int argc, char* argv[])
 		error_report_fatal();
 
 	if (!as_json && tcp_port == 0)
-		printf("listening on port %d\n", (int) sender_get_listen_port(sender));
+		printf("listening on port %d\n", (int)sender_get_listen_port(sender));
 
 	if (FAILED(thread_create(&stats_thread, stats_func, sender)) ||
 		FAILED(sender_run(sender)) ||
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
-		FAILED((status) (long) stats_result) ||
+		FAILED((status)(long)stats_result) ||
 		(adv_addr && FAILED(advert_destroy(&adv))) ||
 		FAILED(sender_destroy(&sender)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||

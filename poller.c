@@ -4,15 +4,14 @@
 #include <errno.h>
 #include <poll.h>
 
-struct poller
-{
+struct poller {
 	nfds_t count;
 	nfds_t free_idx;
-	struct pollfd* fds;
-	sock_handle* socks;
+	struct pollfd *fds;
+	sock_handle *socks;
 };
 
-status poller_create(poller_handle* ppoller, int nsock)
+status poller_create(poller_handle *ppoller, int nsock)
 {
 	if (!ppoller || nsock <= 0)
 		return error_invalid_arg("poller_create");
@@ -40,7 +39,7 @@ status poller_create(poller_handle* ppoller, int nsock)
 	return OK;
 }
 
-status poller_destroy(poller_handle* ppoller)
+status poller_destroy(poller_handle *ppoller)
 {
 	if (!ppoller || !*ppoller)
 		return OK;
@@ -58,13 +57,13 @@ int poller_get_count(poller_handle poller)
 
 status poller_add(poller_handle poller, sock_handle sock, short events)
 {
-	struct pollfd* fds;
+	struct pollfd *fds;
 	if (!sock)
 		return error_invalid_arg("poller_add");
 
 	if (poller->free_idx == poller->count) {
-		struct pollfd* new_fds;
-		sock_handle* new_socks;
+		struct pollfd *new_fds;
+		sock_handle *new_socks;
 		int n = 2 * poller->count;
 
 		new_fds = xrealloc(poller->fds, n * sizeof(struct pollfd));
@@ -144,7 +143,7 @@ loop:
 	return st;
 }
 
-status poller_process(poller_handle poller, poller_func fn, void* param)
+status poller_process(poller_handle poller, poller_func fn, void *param)
 {
 	int i;
 	status st = OK;
@@ -160,7 +159,7 @@ status poller_process(poller_handle poller, poller_func fn, void* param)
 }
 
 status poller_process_events(poller_handle poller, poller_func event_fn,
-							 void* param)
+							 void *param)
 {
 	int i;
 	status st = OK;

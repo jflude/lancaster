@@ -20,18 +20,16 @@
 #define ifr_mtu ifr_metric
 #endif
 
-struct sock
-{
+struct sock {
 	int fd;
-	void* prop_ref;
+	void *prop_ref;
 };
 
-struct sock_addr
-{
+struct sock_addr {
 	struct sockaddr_in sa;
 };
 
-status sock_addr_create(sock_addr_handle* paddr, const char* address,
+status sock_addr_create(sock_addr_handle *paddr, const char *address,
 						unsigned short port)
 {
 	if (!paddr)
@@ -56,7 +54,7 @@ status sock_addr_create(sock_addr_handle* paddr, const char* address,
 	return OK;
 }
 
-status sock_addr_destroy(sock_addr_handle* paddr)
+status sock_addr_destroy(sock_addr_handle *paddr)
 {
 	if (paddr && *paddr)
 		XFREE(*paddr);
@@ -74,7 +72,7 @@ unsigned short sock_addr_get_port(sock_addr_handle addr)
 	return ntohs(addr->sa.sin_port);
 }
 
-status sock_addr_get_text(sock_addr_handle addr, char* text,
+status sock_addr_get_text(sock_addr_handle addr, char *text,
 						  size_t text_sz, boolean with_port)
 {
 	char a_buf[256], p_buf[16];
@@ -87,7 +85,7 @@ status sock_addr_get_text(sock_addr_handle addr, char* text,
 
 	if (!with_port)
 		p_buf[0] = '\0';
-	else if (sprintf(p_buf, ":%d", (int) ntohs(addr->sa.sin_port)) < 0)
+	else if (sprintf(p_buf, ":%d", (int)ntohs(addr->sa.sin_port)) < 0)
 		return error_errno("sock_addr_get_text");
 
 	if (strlen(a_buf) + strlen(p_buf) >= text_sz)
@@ -117,7 +115,7 @@ void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
 	dest->sa = src->sa;
 }
 
-status sock_create(sock_handle* psock, int type, int protocol)
+status sock_create(sock_handle *psock, int type, int protocol)
 {
 	if (!psock)
 		return error_invalid_arg("sock_create");
@@ -139,7 +137,7 @@ status sock_create(sock_handle* psock, int type, int protocol)
 	return OK;
 }
 
-status sock_destroy(sock_handle* psock)
+status sock_destroy(sock_handle *psock)
 {
 	status st = OK;
 	if (!psock || !*psock)
@@ -151,7 +149,7 @@ status sock_destroy(sock_handle* psock)
 	return st;
 }
 
-status sock_get_hostname(char* name, size_t name_sz)
+status sock_get_hostname(char *name, size_t name_sz)
 {
 	if (!name || name_sz == 0)
 		return error_invalid_arg("sock_get_hostname");
@@ -163,12 +161,12 @@ status sock_get_hostname(char* name, size_t name_sz)
 	return OK;
 }
 
-void* sock_get_property_ref(sock_handle sock)
+void *sock_get_property_ref(sock_handle sock)
 {
 	return sock->prop_ref;
 }
 
-void sock_set_property_ref(sock_handle sock, void* prop)
+void sock_set_property_ref(sock_handle sock, void *prop)
 {
 	sock->prop_ref = prop;
 }
@@ -185,7 +183,7 @@ status sock_get_local_address(sock_handle sock, sock_addr_handle addr)
 		return error_invalid_arg("sock_get_local_address");
 
 	len = sizeof(addr->sa);
-	if (getsockname(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1)
+	if (getsockname(sock->fd, (struct sockaddr *) &addr->sa, &len) == -1)
 		return error_errno("getsockname");
 
 	return OK;
@@ -198,13 +196,13 @@ status sock_get_remote_address(sock_handle sock, sock_addr_handle addr)
 		return error_invalid_arg("sock_get_remote_address");
 
 	len = sizeof(addr->sa);
-	if (getpeername(sock->fd, (struct sockaddr*) &addr->sa, &len) == -1)
+	if (getpeername(sock->fd, (struct sockaddr *) &addr->sa, &len) == -1)
 		return error_errno("getpeername");
 
 	return OK;
 }
 
-status sock_get_interface_address(sock_handle sock, const char* device,
+status sock_get_interface_address(sock_handle sock, const char *device,
 								  sock_addr_handle addr)
 {
 	struct ifreq ifr;
@@ -217,11 +215,11 @@ status sock_get_interface_address(sock_handle sock, const char* device,
 	if (ioctl(sock->fd, SIOCGIFADDR, &ifr) == -1)
 		return error_errno("ioctl");
 
-	addr->sa.sin_addr = ((struct sockaddr_in*) &ifr.ifr_addr)->sin_addr;
+	addr->sa.sin_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
 	return OK;
 }
 
-status sock_get_mtu(sock_handle sock, const char* device, size_t* pmtu)
+status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
 {
 	struct ifreq ifr;
 	if (!device || !pmtu)
@@ -309,7 +307,7 @@ status sock_bind(sock_handle sock, sock_addr_handle addr)
 	if (!addr)
 		return error_invalid_arg("sock_bind");
 
-	if (bind(sock->fd, (struct sockaddr*) &addr->sa, sizeof(addr->sa)) == -1)
+	if (bind(sock->fd, (struct sockaddr *) &addr->sa, sizeof(addr->sa)) == -1)
 		return error_errno("bind");
 
 	return OK;
@@ -323,7 +321,7 @@ status sock_listen(sock_handle sock, int backlog)
 	return OK;
 }
 
-status sock_accept(sock_handle sock, sock_handle* new_sock)
+status sock_accept(sock_handle sock, sock_handle *new_sock)
 {
 	struct sock accpt;
 	if (!new_sock)
@@ -365,7 +363,7 @@ status sock_connect(sock_handle sock, sock_addr_handle addr)
 	if (!addr)
 		return error_invalid_arg("sock_connect");
 
-	if (connect(sock->fd, (const struct sockaddr*) &addr->sa,
+	if (connect(sock->fd, (const struct sockaddr *) &addr->sa,
 				sizeof(addr->sa)) == -1)
 		return error_errno("connect");
 
@@ -406,7 +404,7 @@ status sock_mcast_drop(sock_handle sock, sock_addr_handle multi_addr,
 	return OK;
 }
 
-status sock_write(sock_handle sock, const void* data, size_t data_sz)
+status sock_write(sock_handle sock, const void *data, size_t data_sz)
 {
 	ssize_t count;
 	if (!data || data_sz == 0)
@@ -434,7 +432,7 @@ loop:
 	return count;
 }
 
-status sock_read(sock_handle sock, void* data, size_t data_sz)
+status sock_read(sock_handle sock, void *data, size_t data_sz)
 {
 	ssize_t count;
 	if (!data || data_sz == 0)
@@ -466,7 +464,7 @@ loop:
 }
 
 status sock_sendto(sock_handle sock, sock_addr_handle addr,
-				   const void* data, size_t data_sz)
+				   const void *data, size_t data_sz)
 {
 	ssize_t count;
 	if (!addr || !data || data_sz == 0)
@@ -474,7 +472,7 @@ status sock_sendto(sock_handle sock, sock_addr_handle addr,
 
 loop:
 	count = sendto(sock->fd, data, data_sz, 0,
-				   (const struct sockaddr*) &addr->sa, sizeof(addr->sa));
+				   (const struct sockaddr *) &addr->sa, sizeof(addr->sa));
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;
@@ -496,7 +494,7 @@ loop:
 }
 
 status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
-					 void* data, size_t data_sz)
+					 void *data, size_t data_sz)
 {
 	ssize_t count;
 	socklen_t addrlen;
@@ -506,7 +504,7 @@ status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
 loop:
 	addrlen = sizeof(addr->sa);
 	count = recvfrom(sock->fd, data, data_sz, 0,
-					 (struct sockaddr*) &addr->sa, &addrlen);
+					 (struct sockaddr *) &addr->sa, &addrlen);
 	if (count == -1) {
 		if (errno == EINTR)
 			goto loop;

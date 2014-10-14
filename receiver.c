@@ -26,30 +26,28 @@
 #include <unistd.h>
 #endif
 
-struct receiver_stats
-{
+struct receiver_stats {
 	long tcp_gap_count;
 	long tcp_bytes_recv;
 	long mcast_bytes_recv;
 };
 
-struct receiver
-{
+struct receiver {
 	storage_handle store;
 	poller_handle poller;
 	sock_handle mcast_sock;
 	sock_handle tcp_sock;
 	sock_addr_handle tcp_addr;
-	sequence* record_seqs;
+	sequence *record_seqs;
 	sequence next_seq;
 	size_t mcast_mtu;
 	identifier base_id;
 	size_t val_size;
-	char* in_buf;
-	char* in_next;
+	char *in_buf;
+	char *in_next;
 	size_t in_remain;
-	char* out_buf;
-	char* out_next;
+	char *out_buf;
+	char *out_next;
 	size_t out_remain;
 	microsec mcast_recv_time;
 	microsec tcp_recv_time;
@@ -58,17 +56,17 @@ struct receiver
 	sock_addr_handle mcast_src_addr;
 	sock_addr_handle mcast_pub_addr;
 	latency_handle mcast_latency;
-	struct receiver_stats* curr_stats;
-	struct receiver_stats* next_stats;
+	struct receiver_stats *curr_stats;
+	struct receiver_stats *next_stats;
 	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
 #ifdef DEBUG_PROTOCOL
-	FILE* debug_file;
+	FILE *debug_file;
 #endif
 };
 
 #ifdef DEBUG_PROTOCOL
-static const char* debug_time(void)
+static const char *debug_time(void)
 {
 	microsec now;
 	static char buf[64];
@@ -94,7 +92,7 @@ static status update_stats(receiver_handle recv, size_t pkt_sz, microsec delay)
 }
 
 static status update_record(receiver_handle recv, sequence seq, identifier id,
-							void* new_val, microsec when)
+							void *new_val, microsec when)
 {
 	status st;
 	revision rev;
@@ -125,7 +123,7 @@ static status update_record(receiver_handle recv, sequence seq, identifier id,
 
 static status request_gap(receiver_handle recv, sequence low, sequence high)
 {
-	struct sequence_range* r = (struct sequence_range*) recv->out_buf;
+	struct sequence_range *r = (struct sequence_range *)recv->out_buf;
 	status st;
 
 	r->low = htonll(low);
@@ -149,12 +147,12 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	return st;
 }
 
-static status get_sock_addr_text(sock_addr_handle addr, char* text,
+static status get_sock_addr_text(sock_addr_handle addr, char *text,
 								 size_t text_sz, boolean with_port)
 {
 	status st;
 	if (FAILED(st = sock_addr_get_text(addr, text, text_sz, with_port)))
-		sprintf(text, "sock_addr_get_text failed: error #%d", (int) st);
+		sprintf(text, "sock_addr_get_text failed: error #%d", (int)st);
 
 	return st;
 }
@@ -165,16 +163,16 @@ static status mcast_on_read(receiver_handle recv)
 	microsec now;
 	unsigned long mcast_ip, tcp_ip;
 
-	char* buf = alloca(recv->mcast_mtu);
-	sequence* in_seq_ref = (sequence*) buf;
-	microsec* in_stamp_ref = (microsec*) (in_seq_ref + 1);
+	char *buf = alloca(recv->mcast_mtu);
+	sequence *in_seq_ref = (sequence *)buf;
+	microsec *in_stamp_ref = (microsec *)(in_seq_ref + 1);
 
 	if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->mcast_src_addr,
 										buf, recv->mcast_mtu)) ||
 		FAILED(st = clock_time(&now)))
 		return st;
 
-	if ((size_t) st2 < (sizeof(sequence) + sizeof(microsec)))
+	if ((size_t)st2 < (sizeof(sequence) + sizeof(microsec)))
 		return error_msg("mcast_on_read: packet truncated", PROTOCOL_ERROR);
 
 	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
@@ -222,7 +220,7 @@ static status mcast_on_read(receiver_handle recv)
 		last = buf + st2;
 
 		for (; p < last; p += sizeof(identifier) + recv->val_size) {
-			identifier* id = (identifier*) p;
+			identifier *id = (identifier *)p;
 			if (FAILED(st = update_record(recv, *in_seq_ref, ntohll(*id),
 										  id + 1, now)))
 				break;
@@ -320,8 +318,8 @@ static status tcp_on_read(receiver_handle recv)
 		return st;
 
 	if (recv->in_remain == 0) {
-		sequence* in_seq_ref = (sequence*) recv->in_buf;
-		identifier* id = (identifier*) (in_seq_ref + 1);
+		sequence *in_seq_ref = (sequence *)recv->in_buf;
+		identifier *id = (identifier *)(in_seq_ref + 1);
 
 		if ((recv->in_next - recv->in_buf) == sizeof(sequence)) {
 			*in_seq_ref = ntohll(*in_seq_ref);
@@ -369,11 +367,11 @@ static status tcp_on_read(receiver_handle recv)
 }
 
 static status event_func(poller_handle poller, sock_handle sock,
-						 short* revents, void* param)
+						 short *revents, void *param)
 {
 	receiver_handle recv = param;
 	status st = OK;
-	(void) poller;
+	(void)poller;
 
 	if (sock == recv->mcast_sock)
 		return mcast_on_read(recv);
@@ -387,9 +385,9 @@ static status event_func(poller_handle poller, sock_handle sock,
 	return st;
 }
 
-static status init(receiver_handle* precv, const char* mmap_file,
+static status init(receiver_handle *precv, const char *mmap_file,
 				   unsigned q_capacity, size_t property_size,
-				   const char* tcp_address, unsigned short tcp_port)
+				   const char *tcp_address, unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -500,7 +498,7 @@ static status init(receiver_handle* precv, const char* mmap_file,
 
 #ifdef DEBUG_PROTOCOL
 		sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
-				tcp_address, (int) tcp_port, (int) getpid());
+				tcp_address, (int)tcp_port, (int)getpid());
 
 		(*precv)->debug_file = fopen(debug_name, "w");
 		if (!(*precv)->debug_file)
@@ -513,9 +511,9 @@ static status init(receiver_handle* precv, const char* mmap_file,
 	return st;
 }
 
-status receiver_create(receiver_handle* precv, const char* mmap_file,
+status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   unsigned q_capacity, size_t property_size,
-					   const char* tcp_address, unsigned short tcp_port)
+					   const char *tcp_address, unsigned short tcp_port)
 {
 	status st;
 	if (!precv || !mmap_file || !tcp_address)
@@ -535,7 +533,7 @@ status receiver_create(receiver_handle* precv, const char* mmap_file,
 	return st;
 }
 
-status receiver_destroy(receiver_handle* precv)
+status receiver_destroy(receiver_handle *precv)
 {
 	status st = OK;
 	if (!precv || !*precv ||
@@ -659,7 +657,7 @@ double receiver_get_mcast_stddev_latency(receiver_handle recv)
 status receiver_roll_stats(receiver_handle recv)
 {
 	status st;
-	struct receiver_stats* tmp;
+	struct receiver_stats *tmp;
 	if (FAILED(st = spin_write_lock(&recv->stats_lock, NULL)))
 		return st;
 

@@ -3,9 +3,9 @@
 #include <errno.h>
 #include <stdlib.h>
 
-void* xmalloc(size_t sz)
+void *xmalloc(size_t sz)
 {
-	void* p;
+	void *p;
 	if (sz == 0)
 		return NULL;
 
@@ -19,9 +19,9 @@ void* xmalloc(size_t sz)
 	return p;
 }
 
-void* xcalloc(size_t n, size_t sz)
+void *xcalloc(size_t n, size_t sz)
 {
-	void* p;
+	void *p;
 	if (sz == 0)
 		return NULL;
 
@@ -35,7 +35,7 @@ void* xcalloc(size_t n, size_t sz)
 	return p;
 }
 
-void* xrealloc(void* p, size_t sz)
+void *xrealloc(void *p, size_t sz)
 {
 	p = realloc(p, sz);
 
@@ -47,15 +47,15 @@ void* xrealloc(void* p, size_t sz)
 	return p;
 }
 
-void xfree(void* p)
+void xfree(void *p)
 {
 	if (p)
 		free(p);
 }
 
-char* xstrdup(const char* p)
+char *xstrdup(const char *p)
 {
-	char* q;
+	char *q;
 	if (!p)
 		return NULL;
 

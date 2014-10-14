@@ -40,7 +40,7 @@ loop:
 	return OK;
 }
 
-status clock_time(microsec* pusec)
+status clock_time(microsec *pusec)
 {
 	struct timespec ts;
 	if (!pusec)
@@ -86,7 +86,7 @@ status clock_sleep(microsec usec)
 	return usleep2(qr.quot + qr.rem);
 }
 
-status clock_time(microsec* pusec)
+status clock_time(microsec *pusec)
 {
 	struct timeval tv;
 	if (!pusec)
@@ -101,10 +101,10 @@ status clock_time(microsec* pusec)
 
 #endif
 
-status clock_get_text(microsec usec, int precision, char* text, size_t text_sz)
+status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
 {
 	time_t t;
-	struct tm* ptm;
+	struct tm *ptm;
 	char fract[32];
 
 	if (!text || text_sz == 0 || precision < 0)

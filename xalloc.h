@@ -10,12 +10,12 @@
 extern "C" {
 #endif
 
-void* xmalloc(size_t sz);
-void* xcalloc(size_t n, size_t sz);
-void* xrealloc(void* p, size_t sz);
-void xfree(void* p);
+void *xmalloc(size_t sz);
+void *xcalloc(size_t n, size_t sz);
+void *xrealloc(void *p, size_t sz);
+void xfree(void *p);
 
-char* xstrdup(const char* p);
+char *xstrdup(const char *p);
 
 #define BZERO(p) (memset((p), 0, sizeof(*(p))))
 #define COUNTOF(a) (sizeof(a) / sizeof((a)[0]))

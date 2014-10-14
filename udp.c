@@ -14,14 +14,14 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char* a_url)
+status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char *a_url)
 {
-    status st = OK;
+    status st;
     char ip[64];
-    int port = 0;
+    int port;
 
     /* tokenize string */
-    char* colon = strchr(a_url, ':');
+    char *colon = strchr(a_url, ':');
     if (colon == NULL) {
         return error_msg("Bad UDP_STAT_URL specified: %s", BAD_UDP_STATS_URL, 
 						 a_url);
@@ -50,13 +50,12 @@ status close_udp_sock_conn(udp_conn_handle a_udp_conn)
 }
 
 #if 0
-int send_udp_msg(udp_conn_handle a_udp_conn, const char* a_buffer,
+int send_udp_msg(udp_conn_handle a_udp_conn, const char *a_buffer,
 				 size_t a_buffer_size)
 {
-    status st = OK;
-    st = sendto(a_udp_conn->sock_fd_->fd, a_buffer, a_buffer_size, 0, 
-        (struct sockaddr*)a_udp_conn->server_sock_addr_->sa, 
-        sizeof(struct sockaddr));
-     return st;
+    status st = sendto(a_udp_conn->sock_fd_->fd, a_buffer, a_buffer_size, 0, 
+					   (struct sockaddr *)a_udp_conn->server_sock_addr_->sa,
+					   sizeof(struct sockaddr));
+	return st;
 }
 #endif

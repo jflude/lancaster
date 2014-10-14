@@ -31,7 +31,7 @@ static void show_version(void)
 	exit(0);
 }
 
-static void* stats_func(thread_handle thr)
+static void *stats_func(thread_handle thr)
 {
 	receiver_handle recv = thread_get_param(thr);
 	status st;
@@ -39,13 +39,13 @@ static void* stats_func(thread_handle thr)
 	const char *storage_desc, *delim_pos, *eol_seq;
 	microsec last_print;
 	struct udp_conn_info udp_stat_conn;
-    const char* udp_stat_url = getenv("UDP_STATS_URL");
+    const char *udp_stat_url = getenv("UDP_STATS_URL");
     boolean udp_stat_pub_enabled = FALSE;
     int stats_buff_used = 0;
 
     if (udp_stat_url) {
         if (FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url)))
-            return (void*) (long) st;
+            return (void *)(long)st;
 
         udp_stat_pub_enabled = TRUE;
     }
@@ -59,7 +59,7 @@ static void* stats_func(thread_handle thr)
 	
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
 		FAILED(st = clock_time(&last_print)))
-		return (void*) (long) st;
+		return (void *)(long)st;
 
 	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
@@ -156,19 +156,19 @@ static void* stats_func(thread_handle thr)
 	}
     
 	putchar('\n');
-	return (void*) (long) st;
+	return (void *)(long)st;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	receiver_handle recv;
 	thread_handle stats_thread;
 	const char *mmap_file, *tcp_addr;
-	char* colon;
+	char *colon;
 	int tcp_port;
 	size_t q_capacity;
 	int opt;
-	void* stats_result;
+	void *stats_result;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
@@ -213,7 +213,7 @@ int main(int argc, char* argv[])
 		FAILED(receiver_run(recv)) ||
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
-		FAILED((status) (long) stats_result) ||
+		FAILED((status)(long)stats_result) ||
 		FAILED(receiver_destroy(&recv)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||

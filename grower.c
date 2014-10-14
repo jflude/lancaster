@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define PARSE(n, f) \
-	(strcmp(argv[n], "=") == 0 ? f(old_store) : (unsigned) atoi(argv[n]))
+	(strcmp(argv[n], "=") == 0 ? f(old_store) : (unsigned)atoi(argv[n]))
 
 static void show_syntax(void)
 {
@@ -26,7 +26,7 @@ static void show_version(void)
 	exit(0);
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	storage_handle old_store, new_store;
 	identifier new_base_id, new_max_id;

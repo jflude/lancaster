@@ -17,10 +17,10 @@ typedef long spin_lock;
 
 #define SPIN_MASK (0x80ul << (CHAR_BIT * (sizeof(spin_lock) - 1)))
 
-void spin_create(volatile spin_lock* lock);
-status spin_read_lock(volatile spin_lock* lock, spin_lock* old_rev);
-status spin_write_lock(volatile spin_lock* lock, spin_lock* old_rev);
-void spin_unlock(volatile spin_lock* lock, spin_lock new_rev);
+void spin_create(volatile spin_lock *lock);
+status spin_read_lock(volatile spin_lock *lock, spin_lock *old_rev);
+status spin_write_lock(volatile spin_lock *lock, spin_lock *old_rev);
+void spin_unlock(volatile spin_lock *lock, spin_lock new_rev);
 
 #ifdef __cplusplus
 }

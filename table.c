@@ -2,23 +2,21 @@
 #include "error.h"
 #include "xalloc.h"
 
-struct chain
-{
+struct chain {
 	table_key key;
 	table_value val;
-	struct chain* next;
+	struct chain *next;
 };
 
-struct table
-{
-	struct chain** array;
+struct table {
+	struct chain **array;
 	size_t size;
 	table_hash_func h_fn;
 	table_equality_func eq_fn;
 	table_destroy_func dtor_fn;
 };
 
-status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
+status table_create(table_handle *ptab, size_t tab_sz, table_hash_func h_fn,
 					table_equality_func eq_fn, table_destroy_func dtor_fn)
 {
 	if (!ptab || tab_sz == 0)
@@ -33,7 +31,7 @@ status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
 	(*ptab)->eq_fn = eq_fn;
 	(*ptab)->dtor_fn = dtor_fn;
 
-	(*ptab)->array = xcalloc(tab_sz, sizeof(struct chain_t*));
+	(*ptab)->array = xcalloc(tab_sz, sizeof(struct chain_t *));
 	if (!(*ptab)->array) {
 		table_destroy(ptab);
 		return NO_MEMORY;
@@ -42,16 +40,16 @@ status table_create(table_handle* ptab, size_t tab_sz, table_hash_func h_fn,
 	return OK;
 }
 
-status table_destroy(table_handle* ptab)
+status table_destroy(table_handle *ptab)
 {
 	size_t i;
 	if (!ptab || !*ptab)
 		return OK;
 
 	for (i = 0; i < (*ptab)->size; ++i) {
-		struct chain* c = (*ptab)->array[i];
+		struct chain *c = (*ptab)->array[i];
 		while (c) {
-			struct chain* next;
+			struct chain *next;
 			if ((*ptab)->dtor_fn)
 				(*ptab)->dtor_fn(c->key, c->val);
 
@@ -66,14 +64,14 @@ status table_destroy(table_handle* ptab)
 	return OK;
 }
 
-status table_lookup(table_handle tab, table_key key, table_value* pval)
+status table_lookup(table_handle tab, table_key key, table_value *pval)
 {
-	struct chain* c;
+	struct chain *c;
 	size_t hash;
 	if (!pval)
 		return error_invalid_arg("table_lookup");
 
-	hash = (tab->h_fn ? tab->h_fn(key) : (long) key) % tab->size;
+	hash = (tab->h_fn ? tab->h_fn(key) : (long)key) % tab->size;
 
 	for (c = tab->array[hash]; c; c = c->next) {
 		if (tab->eq_fn) {
@@ -91,8 +89,8 @@ status table_lookup(table_handle tab, table_key key, table_value* pval)
 
 status table_insert(table_handle tab, table_key key, table_value val)
 {
-	struct chain* c = NULL;
-	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long) key) % tab->size;
+	struct chain *c = NULL;
+	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) % tab->size;
 
 	if (!tab->array[hash]) {
 		c = XMALLOC(struct chain);
@@ -130,9 +128,9 @@ status table_insert(table_handle tab, table_key key, table_value val)
 
 status table_remove(table_handle tab, table_key key)
 {
-	struct chain* c;
-	struct chain* prev = NULL;
-	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long) key) % tab->size;
+	struct chain *c;
+	struct chain *prev = NULL;
+	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) % tab->size;
 
 	for (c = tab->array[hash]; c; prev = c, c = c->next) {
 		if (tab->eq_fn) {
@@ -164,7 +162,7 @@ status table_iterate(table_handle tab, table_iterate_func iter_fn)
 		return error_invalid_arg("table_iterate");
 
 	for (i = 0; i < tab->size; ++i) {
-		struct chain* c;
+		struct chain *c;
 		for (c = tab->array[i]; c; c = c->next) {
 			st = iter_fn(c->key, c->val);
 			if (FAILED(st) || !st)

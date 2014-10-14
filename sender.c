@@ -18,20 +18,18 @@
 
 #ifdef DEBUG_PROTOCOL
 #include "dump.h"
-#include <sys/types.h>
 #include <unistd.h>
+#include <sys/types.h>
 #endif
 
-struct sender_stats
-{
+struct sender_stats {
 	long tcp_gap_count;
 	long tcp_bytes_sent;
 	long mcast_bytes_sent;
 	long mcast_packets_sent;
 };
 
-struct sender
-{
+struct sender {
 	sock_handle listen_sock;
 	sock_addr_handle listen_addr;
 	sock_handle mcast_sock;
@@ -42,7 +40,7 @@ struct sender
 	identifier max_id;
 	size_t val_size;
 	size_t client_count;
-	sequence* record_seqs;
+	sequence *record_seqs;
 	sequence next_seq;
 	sequence min_seq;
 	microsec store_created_time;
@@ -52,30 +50,29 @@ struct sender
 	microsec heartbeat_usec;
 	microsec max_pkt_age_usec;
 	size_t mcast_mtu;
-	char* pkt_buf;
-	char* pkt_next;
+	char *pkt_buf;
+	char *pkt_next;
 	q_index last_q_idx;
 	latency_handle stg_latency;
-	struct sender_stats* curr_stats;
-	struct sender_stats* next_stats;
+	struct sender_stats *curr_stats;
+	struct sender_stats *next_stats;
 	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
 	char hello_str[128];
 #ifdef DEBUG_PROTOCOL
-	FILE* debug_file;
+	FILE *debug_file;
 #endif
 };
 
-struct tcp_client
-{
+struct tcp_client {
 	sender_handle sndr;
 	sock_handle sock;
 	size_t pkt_size;
-	char* in_buf;
-	char* in_next;
+	char *in_buf;
+	char *in_next;
 	size_t in_remain;
-	char* out_buf;
-	char* out_next;
+	char *out_buf;
+	char *out_next;
 	size_t out_remain;
 	microsec tcp_send_time;
 	struct sequence_range union_range;
@@ -88,7 +85,7 @@ struct tcp_client
 };
 
 #ifdef DEBUG_PROTOCOL
-static const char* debug_time(void)
+static const char *debug_time(void)
 {
 	microsec now;
 	static char buf[64];
@@ -108,7 +105,7 @@ static status mcast_send_pkt(sender_handle sndr)
 	if (FAILED(st = clock_time(&now)))
 		return st;
 
-	*((microsec*) (sndr->pkt_buf + sizeof(sequence))) = htonll(now);
+	*((microsec *)(sndr->pkt_buf + sizeof(sequence))) = htonll(now);
 
 	if (FAILED(st2 = sock_sendto(sndr->mcast_sock,
 								 sndr->sendto_addr, sndr->pkt_buf,
@@ -122,7 +119,7 @@ static status mcast_send_pkt(sender_handle sndr)
 						 SEQUENCE_OVERFLOW);
 #ifdef DEBUG_PROTOCOL
 	fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
-			debug_time(), ntohll(*((sequence*) sndr->pkt_buf)));
+			debug_time(), ntohll(*((sequence *)sndr->pkt_buf)));
 #endif
 
 	sndr->pkt_next = sndr->pkt_buf;
@@ -158,14 +155,14 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	}
 		
 	if (used_sz == 0) {
-		*((sequence*) sndr->pkt_buf) = htonll(sndr->next_seq);
+		*((sequence *)sndr->pkt_buf) = htonll(sndr->next_seq);
 		sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 	}
 
 	if (FAILED(st = storage_get_record(sndr->store, id, &rec)))
 		return st;
 
-	*((identifier*) sndr->pkt_next) = htonll(id);
+	*((identifier *)sndr->pkt_next) = htonll(id);
 	sndr->pkt_next += sizeof(identifier);
 
 	do {
@@ -206,7 +203,7 @@ static status mcast_on_empty_queue(sender_handle sndr)
 		else {
 			if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
 				if (sndr->pkt_next == sndr->pkt_buf) {
-					*((sequence*) sndr->pkt_buf) = htonll(-sndr->next_seq);
+					*((sequence *)sndr->pkt_buf) = htonll(-sndr->next_seq);
 					sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 #ifdef DEBUG_PROTOCOL
 					fprintf(sndr->debug_file, "%s mcast heartbeat\n",
@@ -240,7 +237,7 @@ static status mcast_on_write(sender_handle sndr)
 	if (qi == 0)
 		st = mcast_on_empty_queue(sndr);
 	else {
-		if ((size_t) qi > storage_get_queue_capacity(sndr->store)) {
+		if ((size_t)qi > storage_get_queue_capacity(sndr->store)) {
 #ifdef DEBUG_PROTOCOL
 			fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
 #endif
@@ -263,7 +260,7 @@ static status mcast_on_write(sender_handle sndr)
 	return st;
 }
 
-static status tcp_read_buf(struct tcp_client* clnt)
+static status tcp_read_buf(struct tcp_client *clnt)
 {
 	status st = OK;
 #ifdef DEBUG_PROTOCOL
@@ -289,7 +286,7 @@ static status tcp_read_buf(struct tcp_client* clnt)
 	return st;
 }
 
-static status tcp_write_buf(struct tcp_client* clnt)
+static status tcp_write_buf(struct tcp_client *clnt)
 {
 	status st = OK;
 	size_t sent_sz = 0;
@@ -325,7 +322,7 @@ static status tcp_write_buf(struct tcp_client* clnt)
 
 static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt;
+	struct tcp_client *clnt;
 	sock_handle accepted;
 	status st;
 
@@ -401,11 +398,11 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 }
 
 static status close_sock_func(poller_handle poller, sock_handle sock,
-							  short* events, void* param)
+							  short *events, void *param)
 {
-	struct tcp_client* clnt = sock_get_property_ref(sock);
+	struct tcp_client *clnt = sock_get_property_ref(sock);
 	status st;
-	(void) events; (void) param;
+	(void)events; (void)param;
 
 	if (clnt) {
 		XFREE(clnt->out_buf);
@@ -432,17 +429,17 @@ static status tcp_on_hup(sender_handle sndr, sock_handle sock)
 }
 
 static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
-								 short* events, void* param)
+								 short *events, void *param)
 {
-	struct tcp_client* clnt = sock_get_property_ref(sock);
-	sequence* out_seq_ref;
+	struct tcp_client *clnt = sock_get_property_ref(sock);
+	sequence *out_seq_ref;
 	status st;
-	(void) poller; (void) events; (void) param;
+	(void)poller; (void)events; (void)param;
 
 	if ( !clnt)
 		return OK;
 
-	out_seq_ref = (sequence*) clnt->out_buf;
+	out_seq_ref = (sequence *)clnt->out_buf;
 	*out_seq_ref = htonll(WILL_QUIT_SEQ);
 	clnt->out_next = clnt->out_buf;
 	clnt->out_remain = sizeof(sequence);
@@ -458,7 +455,7 @@ static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
 
 static status tcp_on_write(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property_ref(sock);
+	struct tcp_client *clnt = sock_get_property_ref(sock);
 	microsec now;
 	status st;
 
@@ -474,8 +471,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 		return st;
 
 	if (clnt->out_remain == 0) {
-		sequence* out_seq_ref = (sequence*) clnt->out_buf;
-		identifier* out_id_ref = (identifier*) (out_seq_ref + 1);
+		sequence *out_seq_ref = (sequence *)clnt->out_buf;
+		identifier *out_id_ref = (identifier *)(out_seq_ref + 1);
 
 		if (IS_VALID_RANGE(clnt->reply_range)) {
 			for (; clnt->reply_id < sndr->max_id; ++clnt->reply_id) {
@@ -486,7 +483,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 				if (IS_WITHIN_RANGE(clnt->reply_range, seq)) {
 					record_handle rec = NULL;
 					revision rev;
-					void* val_at;
+					void *val_at;
 					if (FAILED(st = storage_get_record(sndr->store,
 													   clnt->reply_id, &rec)))
 						return st;
@@ -544,7 +541,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 
 static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property_ref(sock);
+	struct tcp_client *clnt = sock_get_property_ref(sock);
 
 #ifdef DEBUG_PROTOCOL
 	fprintf(sndr->debug_file, "%s   %s tcp read blocked\n",
@@ -575,7 +572,7 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 
 static status tcp_on_read(sender_handle sndr, sock_handle sock)
 {
-	struct tcp_client* clnt = sock_get_property_ref(sock);
+	struct tcp_client *clnt = sock_get_property_ref(sock);
 	status st;
 
 #ifdef DEBUG_PROTOCOL
@@ -590,7 +587,7 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		return st;
 
 	if (clnt->in_remain == 0) {
-		struct sequence_range* r = (struct sequence_range*) clnt->in_buf;
+		struct sequence_range *r = (struct sequence_range *)clnt->in_buf;
 		r->low = ntohll(r->low);
 		r->high = ntohll(r->high);
 
@@ -618,11 +615,11 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 }
 
 static status event_func(poller_handle poller, sock_handle sock,
-						 short* revents, void* param)
+						 short *revents, void *param)
 {
 	sender_handle sndr = param;
 	status st = OK;
-	(void) poller;
+	(void)poller;
 
 	if (sock == sndr->listen_sock)
 		return tcp_on_accept(sndr, sock);
@@ -642,10 +639,10 @@ static status event_func(poller_handle poller, sock_handle sock,
 	return FAILED(st) ? tcp_on_hup(sndr, sock) : st;
 }
 
-static status init(sender_handle* psndr, const char* mmap_file,
-				   const char* tcp_address, unsigned short tcp_port,
-				   const char* mcast_address, unsigned short mcast_port,
-				   const char* mcast_interface, short mcast_ttl,
+static status init(sender_handle *psndr, const char *mmap_file,
+				   const char *tcp_address, unsigned short tcp_port,
+				   const char *mcast_address, unsigned short mcast_port,
+				   const char *mcast_interface, short mcast_ttl,
 				   boolean mcast_loopback, microsec heartbeat_usec,
 				   microsec max_pkt_age_usec)
 {
@@ -737,12 +734,12 @@ static status init(sender_handle* psndr, const char* mmap_file,
 				 "%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
 				 (CACHESTER_WIRE_MAJOR_VERSION << 8)
 				     | CACHESTER_WIRE_MINOR_VERSION,
-				 (int) storage_get_data_version((*psndr)->store),
+				 (int)storage_get_data_version((*psndr)->store),
 				 mcast_address,
 				 mcast_port,
 				 (*psndr)->mcast_mtu,
-				 (long) (*psndr)->base_id,
-				 (long) (*psndr)->max_id,
+				 (long)(*psndr)->base_id,
+				 (long)(*psndr)->max_id,
 				 storage_get_value_size((*psndr)->store),
 				 max_pkt_age_usec,
 				 (*psndr)->heartbeat_usec);
@@ -764,7 +761,7 @@ static status init(sender_handle* psndr, const char* mmap_file,
 
 #ifdef DEBUG_PROTOCOL
 	sprintf(debug_name, "SEND-%s-%d-%d.DEBUG", tcp_address,
-			(int) sock_addr_get_port((*psndr)->listen_addr), (int) getpid());
+			(int)sock_addr_get_port((*psndr)->listen_addr), (int)getpid());
 
 	(*psndr)->debug_file = fopen(debug_name, "w");
 	if (!(*psndr)->debug_file)
@@ -774,10 +771,10 @@ static status init(sender_handle* psndr, const char* mmap_file,
 	return st;
 }
 
-status sender_create(sender_handle* psndr, const char* mmap_file,
-					 const char* tcp_address, unsigned short tcp_port,
-					 const char* mcast_address, unsigned short mcast_port,
-					 const char* mcast_interface, short mcast_ttl,
+status sender_create(sender_handle *psndr, const char *mmap_file,
+					 const char *tcp_address, unsigned short tcp_port,
+					 const char *mcast_address, unsigned short mcast_port,
+					 const char *mcast_interface, short mcast_ttl,
 					 boolean mcast_loopback, microsec heartbeat_usec,
 					 microsec max_pkt_age_usec)
 {
@@ -802,7 +799,7 @@ status sender_create(sender_handle* psndr, const char* mmap_file,
 	return st;
 }
 
-status sender_destroy(sender_handle* psndr)
+status sender_destroy(sender_handle *psndr)
 {
 	status st = OK;
 	if (!psndr || !*psndr ||
@@ -952,7 +949,7 @@ double sender_get_storage_stddev_latency(sender_handle sndr)
 status sender_roll_stats(sender_handle sndr)
 {
 	status st;
-	struct sender_stats* tmp;
+	struct sender_stats *tmp;
 	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
 		return st;
 

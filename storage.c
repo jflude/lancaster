@@ -11,15 +11,13 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-struct record
-{
+struct record {
 	volatile revision rev;
 	microsec ts;
 	char val[1];
 };
 
-struct segment
-{
+struct segment {
 	unsigned magic;
 	unsigned short file_version;
 	unsigned short data_version;
@@ -43,12 +41,11 @@ struct segment
 	identifier change_q[1];
 };
 
-struct storage
-{
-	struct segment* seg;
+struct storage {
+	struct segment *seg;
 	record_handle first;
 	record_handle limit;
-	char* mmap_file;
+	char *mmap_file;
 	size_t mmap_size;
 	int seg_fd;
 	boolean is_read_only;
@@ -58,9 +55,9 @@ struct storage
 #define MAGIC_NUMBER 0x0C0FFEE0
 
 #define STORAGE_RECORD(stg, base, idx) \
-	((record_handle) ((char*) base + (idx) * (stg)->seg->rec_size))
+	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
 
-static status init_create(storage_handle* pstore, const char* mmap_file,
+static status init_create(storage_handle *pstore, const char *mmap_file,
 						  boolean persist, int open_flags, identifier base_id,
 						  identifier max_id, size_t value_size,
 						  size_t property_size, size_t q_capacity)
@@ -126,7 +123,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 			return error_errno("fstat");
 
-		if ((size_t) file_stat.st_size != seg_sz)
+		if ((size_t)file_stat.st_size != seg_sz)
 			return error_msg("storage_create: storage is unequal size",
 							 STORAGE_CORRUPTED);
 	}
@@ -177,7 +174,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 		return error_msg("storage_create: storage is unequal structure",
 						 STORAGE_CORRUPTED);
 
-	(*pstore)->first = (void*) (((char*) (*pstore)->seg) + hdr_sz);
+	(*pstore)->first = (void *)(((char *)(*pstore)->seg) + hdr_sz);
 	(*pstore)->limit =
 		STORAGE_RECORD(*pstore, (*pstore)->first, max_id - base_id);
 
@@ -201,7 +198,7 @@ static status init_create(storage_handle* pstore, const char* mmap_file,
 	return st;
 }
 
-static status init_open(storage_handle* pstore, const char* mmap_file,
+static status init_open(storage_handle *pstore, const char *mmap_file,
 						int open_flags)
 {
 	int mmap_flags = PROT_READ;
@@ -240,7 +237,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 			return error_errno("fstat");
 
-		if ((size_t) file_stat.st_size < sizeof(struct segment))
+		if ((size_t)file_stat.st_size < sizeof(struct segment))
 			return error_msg("storage_open: storage is truncated",
 							 STORAGE_CORRUPTED);
 	}
@@ -281,7 +278,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 		return NO_MEMORY;
 
 	(*pstore)->first = 
-		(void*) (((char*) (*pstore)->seg) + (*pstore)->seg->hdr_size);
+		(void *)(((char *)(*pstore)->seg) + (*pstore)->seg->hdr_size);
 
 	(*pstore)->limit = 
 		STORAGE_RECORD(*pstore, (*pstore)->first,
@@ -289,7 +286,7 @@ static status init_open(storage_handle* pstore, const char* mmap_file,
 	return OK;
 }
 
-status storage_create(storage_handle* pstore, const char* mmap_file,
+status storage_create(storage_handle *pstore, const char *mmap_file,
 					  boolean persist, int open_flags, identifier base_id,
 					  identifier max_id, size_t value_size,
 					  size_t property_size, size_t q_capacity)
@@ -317,7 +314,7 @@ status storage_create(storage_handle* pstore, const char* mmap_file,
 	return st;
 }
 
-status storage_open(storage_handle* pstore, const char* mmap_file,
+status storage_open(storage_handle *pstore, const char *mmap_file,
 					int open_flags)
 {
 	status st;
@@ -338,7 +335,7 @@ status storage_open(storage_handle* pstore, const char* mmap_file,
 	return st;
 }
 
-status storage_destroy(storage_handle* pstore)
+status storage_destroy(storage_handle *pstore)
 {
 	status st = OK;
 	if (!pstore || !*pstore)
@@ -409,7 +406,7 @@ status storage_set_data_version(storage_handle store, unsigned short data_ver)
 	return OK;
 }
 
-const void* storage_get_segment(storage_handle store)
+const void *storage_get_segment(storage_handle store)
 {
 	return store->seg;
 }
@@ -459,17 +456,17 @@ size_t storage_get_timestamp_offset(storage_handle store)
 	return store->seg->ts_offset;
 }
 
-const char* storage_get_file(storage_handle store)
+const char *storage_get_file(storage_handle store)
 {
 	return store->mmap_file;
 }
 
-const char* storage_get_description(storage_handle store)
+const char *storage_get_description(storage_handle store)
 {
 	return store->seg->description;
 }
 
-status storage_set_description(storage_handle store, const char* desc)
+status storage_set_description(storage_handle store, const char *desc)
 {
 	if (!desc)
 		return error_invalid_arg("storage_set_description");
@@ -486,7 +483,7 @@ status storage_set_description(storage_handle store, const char* desc)
 	return OK;
 }
 
-status storage_get_created_time(storage_handle store, microsec* when)
+status storage_get_created_time(storage_handle store, microsec *when)
 {
 	if (!when)
 		return error_invalid_arg("storage_get_created_time");
@@ -495,7 +492,7 @@ status storage_get_created_time(storage_handle store, microsec* when)
 	return OK;
 }
 
-status storage_get_touched_time(storage_handle store, microsec* when)
+status storage_get_touched_time(storage_handle store, microsec *when)
 {
 	status st;
 	revision rev;
@@ -532,12 +529,12 @@ status storage_touch(storage_handle store, microsec when)
 	return OK;
 }
 
-const identifier* storage_get_queue_base_ref(storage_handle store)
+const identifier *storage_get_queue_base_ref(storage_handle store)
 {
 	return store->seg->change_q;
 }
 
-const q_index* storage_get_queue_head_ref(storage_handle store)
+const q_index *storage_get_queue_head_ref(storage_handle store)
 {
 	return &store->seg->q_head;
 }
@@ -567,7 +564,7 @@ status storage_write_queue(storage_handle store, identifier id)
 }
 
 status storage_read_queue(storage_handle store, q_index idx,
-						  identifier* pident)
+						  identifier *pident)
 {
 	if (!pident)
 		return error_invalid_arg("storage_read_queue");
@@ -581,7 +578,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 }
 
 status storage_get_id(storage_handle store, record_handle rec,
-					  identifier* pident)
+					  identifier *pident)
 {
 	if (!pident)
 		return error_invalid_arg("storage_get_id");
@@ -590,12 +587,12 @@ status storage_get_id(storage_handle store, record_handle rec,
 		return error_msg("storage_get_id: invalid record address",
 						 INVALID_SLOT);
 
-	*pident = ((char*) rec - (char*) store->first) / store->seg->rec_size;
+	*pident = ((char *)rec - (char *)store->first) / store->seg->rec_size;
 	return OK;
 }
 
 status storage_get_record(storage_handle store, identifier id,
-						  record_handle* prec)
+						  record_handle *prec)
 {
 	if (!prec)
 		return error_invalid_arg("storage_get_record");
@@ -609,7 +606,7 @@ status storage_get_record(storage_handle store, identifier id,
 }
 
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
-					   record_handle prev, void* param)
+					   record_handle prev, void *param)
 {
 	status st = TRUE;
 	if (!iter_fn)
@@ -643,7 +640,7 @@ status storage_reset(storage_handle store)
 		return error_msg("storage_reset: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	memset(store->first, 0, (char*) store->limit - (char*) store->first);
+	memset(store->first, 0, (char *)store->limit - (char *)store->first);
 
 	store->seg->q_head = 0;
 	if (store->seg->q_mask != -1u)
@@ -654,8 +651,8 @@ status storage_reset(storage_handle store)
 	return OK;
 }
 
-status storage_grow(storage_handle store, storage_handle* pnewstore,
-					const char* new_mmap_file, identifier new_base_id,
+status storage_grow(storage_handle store, storage_handle *pnewstore,
+					const char *new_mmap_file, identifier new_base_id,
 					identifier new_max_id, size_t new_value_size,
 					size_t new_property_size, size_t new_q_capacity)
 {
@@ -693,8 +690,8 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 			 old_r < store->limit && new_r < (*pnewstore)->limit;
 			 old_r = STORAGE_RECORD(store, old_r, 1),
 				 new_r = STORAGE_RECORD(*pnewstore, new_r, 1))
-			memcpy((char*) new_r + (*pnewstore)->seg->prop_offset,
-				   (char*) old_r + store->seg->prop_offset, copy_sz);
+			memcpy((char *)new_r + (*pnewstore)->seg->prop_offset,
+				   (char *)old_r + store->seg->prop_offset, copy_sz);
 	}
 
 	(*pnewstore)->seg->data_version = store->seg->data_version;
@@ -711,13 +708,13 @@ status storage_grow(storage_handle store, storage_handle* pnewstore,
 	return OK;
 }
 
-void* storage_get_property_ref(storage_handle store, record_handle rec)
+void *storage_get_property_ref(storage_handle store, record_handle rec)
 {
 	return store->seg->prop_offset
-		? ((char*) rec + store->seg->prop_offset) : NULL;
+		? ((char *)rec + store->seg->prop_offset) : NULL;
 }
 
-void* record_get_value_ref(record_handle rec)
+void *record_get_value_ref(record_handle rec)
 {
 	return rec->val;
 }
@@ -742,12 +739,12 @@ void record_set_revision(record_handle rec, revision rev)
 	spin_unlock(&rec->rev, rev);
 }
 
-status record_read_lock(record_handle rec, revision* old_rev)
+status record_read_lock(record_handle rec, revision *old_rev)
 {
 	return spin_read_lock(&rec->rev, old_rev);
 }
 
-status record_write_lock(record_handle rec, revision* old_rev)
+status record_write_lock(record_handle rec, revision *old_rev)
 {
 	return spin_write_lock(&rec->rev, old_rev);
 }
