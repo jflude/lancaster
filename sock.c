@@ -48,7 +48,8 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
 		(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
 	else if (!inet_aton(address, &(*paddr)->sa.sin_addr)) {
 		sock_addr_destroy(paddr);
-		return error_msg("inet_aton: invalid address", INVALID_ADDRESS);
+		return error_msg("inet_aton: invalid address: \"%s:%d\"",
+						 INVALID_ADDRESS, address, (int) port);
 	}
 
 	return OK;

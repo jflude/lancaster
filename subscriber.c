@@ -40,14 +40,11 @@ static void *stats_func(thread_handle thr)
 	microsec last_print;
 	struct udp_conn_info udp_stat_conn;
     const char *udp_stat_url = getenv("UDP_STATS_URL");
-    boolean udp_stat_pub_enabled = FALSE;
-    int stats_buff_used = 0;
 
-    if (udp_stat_url) {
-        if (FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url)))
-            return (void *)(long)st;
-
-        udp_stat_pub_enabled = TRUE;
+    if (udp_stat_url &&
+		FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url))) {
+		receiver_stop(recv);
+		return (void *)(long)st;
     }
     
 	storage_desc = storage_get_description(receiver_get_storage(recv));
@@ -58,8 +55,10 @@ static void *stats_func(thread_handle thr)
 		strncpy(alias, storage_desc, delim_pos - storage_desc);
 	
 	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
-		FAILED(st = clock_time(&last_print)))
+		FAILED(st = clock_time(&last_print))) {
+		receiver_stop(recv);
 		return (void *)(long)st;
+	}
 
 	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
@@ -76,8 +75,8 @@ static void *stats_func(thread_handle thr)
 		secs = (now - last_print) / 1000000.0;
 
 		if (as_json) {
-			char ts[64];
-			char stats_buf[1024];
+			int stats_buff_used;
+			char ts[64], stats_buf[1024];
 			if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
                 break;
 
@@ -115,47 +114,49 @@ static void *stats_func(thread_handle thr)
 				break;
 			}
             
-            if (!udp_stat_pub_enabled)
-                puts(stats_buf);
-			else {
+            if (udp_stat_url) {
                 if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
 											udp_stat_conn.server_sock_addr_,
 											stats_buf, stats_buff_used)))
                     break;
-            }
-        } else
-			printf("\"%.20s\", PKT/s: %.2f, GAP/s: %.2f, "
-				   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
-				   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
-				   "STD/us: %.2f%s",
-				   storage_desc,
-				   receiver_get_mcast_packets_recv(recv) / secs,
-				   receiver_get_tcp_gap_count(recv) / secs,
-				   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
-				   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
-				   receiver_get_mcast_min_latency(recv),
-				   receiver_get_mcast_mean_latency(recv),
-				   receiver_get_mcast_max_latency(recv),
-				   receiver_get_mcast_stddev_latency(recv),
-				   eol_seq);
+			} else
+                puts(stats_buf);
+        } else {
+			if (printf("\"%.20s\", PKT/s: %.2f, GAP/s: %.2f, "
+					   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
+					   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
+					   "STD/us: %.2f%s",
+					   storage_desc,
+					   receiver_get_mcast_packets_recv(recv) / secs,
+					   receiver_get_tcp_gap_count(recv) / secs,
+					   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
+					   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
+					   receiver_get_mcast_min_latency(recv),
+					   receiver_get_mcast_mean_latency(recv),
+					   receiver_get_mcast_max_latency(recv),
+					   receiver_get_mcast_stddev_latency(recv),
+					   eol_seq) < 0) {
+				st = error_errno("printf");
+				break;
+			}
+		}
 
 		if (FAILED(st = receiver_roll_stats(recv)))
 			break;
 
 		last_print = now;
-		if (!udp_stat_pub_enabled)
+		if (!udp_stat_url)
 			fflush(stdout);
 	}
 
-	receiver_stop(recv);
-
-    if (udp_stat_pub_enabled) {
+    if (udp_stat_url) {
 		status st2 = close_udp_sock_conn(&udp_stat_conn);
 		if (!FAILED(st))
 			st = st2;
-	}
-    
-	putchar('\n');
+	} else
+		putchar('\n');
+
+	receiver_stop(recv);
 	return (void *)(long)st;
 }
 
