@@ -86,7 +86,6 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		(hdr_sz + (rec_sz * (max_id - base_id)) + page_sz - 1) & ~(page_sz - 1);
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
-		open_flags &= ~O_TRUNC;
 	shm_loop:
 		(*pstore)->seg_fd =
 			shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
