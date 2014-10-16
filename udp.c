@@ -20,19 +20,16 @@ status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char *a_url)
     char ip[64];
     int port;
 
-    /* tokenize string */
     char *colon = strchr(a_url, ':');
-    if (colon == NULL) {
-        return error_msg("Bad UDP_STAT_URL specified: %s", BAD_UDP_STATS_URL, 
-						 a_url);
-    }
+    if (!colon)
+        return error_msg("open_udp_sock_conn: error: invalid address: \"%s\"",
+						 BAD_UDP_STATS_URL, a_url);
 
-    /* get ip and port from url */
-    memcpy(ip, a_url, colon - a_url);
-    ip[colon - a_url + 1] = 0;
-    port = atoi(++colon);
+	strncpy(ip, a_url, colon - a_url);
+	ip[colon - a_url] = '\0';
 
-    /* create socket */
+	port = atoi(colon + 1);
+
     if (!FAILED(st = sock_create(&a_udp_conn->sock_fd_,
 								 SOCK_DGRAM, IPPROTO_UDP)))
         st = sock_addr_create(&a_udp_conn->server_sock_addr_, ip, port);

@@ -175,11 +175,10 @@ int main(int argc, char *argv[])
 	sender_handle sender = NULL;
 	thread_handle stats_thread;
 	int hb, opt, ttl = DEFAULT_TTL;
-	const char *mmap_file, *mcast_addr, *tcp_addr;
-	const char *mcast_iface = NULL, *adv_addr = NULL;
-	char *colon;
+	const char *mmap_file, *colon, *mcast_iface = NULL;
+	char adv_addr[64], mcast_addr[64], tcp_addr[64];
 	int mcast_port, tcp_port, adv_port = 0;
-	boolean loopback = FALSE;
+	boolean pub_advert = FALSE, loopback = FALSE;
 	microsec max_pkt_age;
 	void *stats_result;
 	char *env = "";
@@ -191,13 +190,15 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "a:e:i:jlp:st:v")) != -1)
 		switch (opt) {
 		case 'a':
-			adv_addr = optarg;
-			colon = strchr(adv_addr, ':');
+			colon = strchr(optarg, ':');
 			if (!colon)
 				show_syntax();
 
-			*colon = '\0';
+			strncpy(adv_addr, optarg, colon - optarg);
+			adv_addr[colon - optarg] = '\0';
+
 			adv_port = atoi(colon + 1);
+			pub_advert = TRUE;
 			break;
 		case 'e':
 			env = optarg;
@@ -239,20 +240,22 @@ int main(int argc, char *argv[])
 
 	mmap_file = argv[optind++];
 
-	tcp_addr = argv[optind++];
-	colon = strchr(tcp_addr, ':');
+	colon = strchr(argv[optind], ':');
 	if (!colon)
 		show_syntax();
 
-	*colon = '\0';
+	strncpy(tcp_addr, argv[optind], colon - argv[optind]);
+	tcp_addr[colon - argv[optind++]] = '\0';
+
 	tcp_port = atoi(colon + 1);
 
-	mcast_addr = argv[optind++];
-	colon = strchr(mcast_addr, ':');
+	colon = strchr(argv[optind], ':');
 	if (!colon)
 		show_syntax();
 
-	*colon = '\0';
+	strncpy(mcast_addr, argv[optind], colon - argv[optind]);
+	mcast_addr[colon - argv[optind++]] = '\0';
+
 	mcast_port = atoi(colon + 1);
 
 	hb = atoi(argv[optind++]);
@@ -264,7 +267,7 @@ int main(int argc, char *argv[])
 		FAILED(sender_create(&sender, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_iface,
 							 ttl, loopback, hb, max_pkt_age)) ||
-		(adv_addr &&
+		(pub_advert &&
 		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl, loopback, env)) ||
 		  FAILED(advert_publish(adv, sender)))))
 		error_report_fatal();
@@ -277,7 +280,7 @@ int main(int argc, char *argv[])
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
 		FAILED((status)(long)stats_result) ||
-		(adv_addr && FAILED(advert_destroy(&adv))) ||
+		(pub_advert && FAILED(advert_destroy(&adv))) ||
 		FAILED(sender_destroy(&sender)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||

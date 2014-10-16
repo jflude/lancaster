@@ -164,8 +164,8 @@ int main(int argc, char *argv[])
 {
 	receiver_handle recv;
 	thread_handle stats_thread;
-	const char *mmap_file, *tcp_addr;
-	char *colon;
+	const char *mmap_file, *colon;
+	char tcp_addr[64];
 	int tcp_port;
 	size_t q_capacity;
 	int opt;
@@ -197,12 +197,13 @@ int main(int argc, char *argv[])
 	mmap_file = argv[optind++];
 	q_capacity = atoi(argv[optind++]);
 
-	tcp_addr = argv[optind++];
-	colon = strchr(tcp_addr, ':');
+	colon = strchr(argv[optind], ':');
 	if (!colon)
 		show_syntax();
 
-	*colon = '\0';
+	strncpy(tcp_addr, argv[optind], colon - argv[optind]);
+	tcp_addr[colon - argv[optind++]] = '\0';
+
 	tcp_port = atoi(colon + 1);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
