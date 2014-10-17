@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -19,6 +20,9 @@
 #if !defined(ifr_mtu) && defined(ifr_metric)
 #define ifr_mtu ifr_metric
 #endif
+
+#define PROCFS_RX_DROPS_COLUMN 5
+#define PROCFS_TX_DROPS_COLUMN 13
 
 struct sock {
 	int fd;
@@ -236,6 +240,100 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
 	return OK;
 }
 
+#ifdef LINUX_OS
+
+static status parse_procfs(const char *device, int col, long *pval)
+{
+	FILE *f;
+	long v[16];
+	char buf[256];
+
+	static char header[] =
+		" face |bytes    packets errs drop fifo frame compressed multicast"
+		"|bytes    packets errs drop fifo colls carrier compressed\n";
+
+	if (col < 2 || col > 17)
+		return error_invalid_arg("parse_procfs");
+
+	if (!(f = fopen("/proc/net/dev", "r")))
+		return error_errno("parse_procfs");
+
+	if (!fgets(buf, sizeof(buf), f) ||
+		!fgets(buf, sizeof(buf), f))
+		return feof(f)
+			? error_msg("parse_procfs: error: truncated procfs format",
+						INVALID_FORMAT)
+			: error_errno("parse_procfs");
+
+	if (strcmp(buf, header) != 0)
+		return error_msg("parse_procfs: error: invalid procfs header",
+						 INVALID_FORMAT);
+
+	for (;;) {
+		const char* name = buf;
+		if (!fgets(buf, sizeof(buf), f))
+			return feof(f)
+				? error_msg("parse_procfs: error: invalid device: \"%s\"",
+							INVALID_DEVICE, device)
+				: error_errno("parse_procfs");
+
+		for (;;) {
+			if (!*name)
+				return error_msg("parse_procfs: error: invalid procfs field",
+								 INVALID_FORMAT);
+			if (*name != ' ')
+				break;
+
+			++name;
+		}
+
+		if (strncmp(name, device, strlen(device)) == 0) {
+			if (sscanf(buf, " %*s %ld %ld %ld %ld %ld %ld %ld "
+					   "%ld %ld %ld %ld %ld %ld %ld %ld %ld",
+					   &v[0], &v[1], &v[2], &v[3],
+					   &v[4], &v[5], &v[6], &v[7],
+					   &v[8], &v[9], &v[10], &v[11],
+					   &v[12], &v[13], &v[14], &v[15]) != 16)
+				return error_msg("parse_procfs: error: invalid procfs entry",
+								 INVALID_FORMAT);
+			*pval = v[col - 2];
+			break;
+		}
+	}
+
+	if (fclose(f) == EOF)
+		return error_errno("parse_procfs");
+
+	return OK;
+}
+
+#else
+
+static status parse_procfs(const char *device, int col, long *pval)
+{
+	(void)device; (void)col;
+	*pval = 0;
+	return OK;
+}
+
+#endif
+
+status sock_get_rx_drops(const char *device, long *pdrops)
+{
+	if (!device || !pdrops)
+		return error_invalid_arg("sock_get_rx_drops");
+
+	return parse_procfs(device, PROCFS_RX_DROPS_COLUMN, pdrops);
+}
+
+status sock_get_tx_drops(const char *device, long *pdrops)
+{
+	if (!device || !pdrops)
+		return error_invalid_arg("sock_get_tx_drops");
+
+	return parse_procfs(device, PROCFS_TX_DROPS_COLUMN, pdrops);
+}
+
 status sock_set_nonblock(sock_handle sock)
 {
 	int flags;
@@ -294,7 +392,7 @@ status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr)
 	return OK;
 }
 
-status sock_set_rcvbuf(sock_handle sock, size_t buf_sz)
+status sock_set_rx_buf(sock_handle sock, size_t buf_sz)
 {
 	int val = buf_sz;
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1)

@@ -23,7 +23,7 @@ status open_udp_sock_conn(udp_conn_handle a_udp_conn, const char *a_url)
     char *colon = strchr(a_url, ':');
     if (!colon)
         return error_msg("open_udp_sock_conn: error: invalid address: \"%s\"",
-						 BAD_UDP_STATS_URL, a_url);
+						 INVALID_ADDRESS, a_url);
 
 	strncpy(ip, a_url, colon - a_url);
 	ip[colon - a_url] = '\0';

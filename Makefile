@@ -41,7 +41,7 @@ OBJS := $(SRCS:.c=.o)
 BIN_DIR := "bin"
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
-CFLAGS += -D_DARWIN_C_SOURCE
+CFLAGS += -DDARWIN_OS -D_DARWIN_C_SOURCE
 else
 CFLAGS += -pthread
 LDFLAGS += -pthread
@@ -49,12 +49,13 @@ LDLIBS += -lrt
 endif
 
 ifneq (,$(findstring CYGWIN,$(shell uname -s)))
+CFLAGS += -DCYGWIN_OS
 SO_EXT := .dll
 DEPFLAGS += \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 else
+CFLAGS += -DLINUX_OS -fPIC
 SO_EXT := .so
-CFLAGS += -fPIC
 DEPFLAGS += \
 -I/usr/include/linux \
 -I/usr/include/x86_64-linux-gnu \

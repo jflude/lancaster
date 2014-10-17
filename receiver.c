@@ -476,7 +476,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 											 buf + proto_len)) &&
 	    !FAILED(st = sock_create(&(*precv)->mcast_sock,
 								 SOCK_DGRAM, IPPROTO_UDP)) &&
-		!FAILED(st = sock_set_rcvbuf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
+		!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
 		!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
 		!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
 		!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
