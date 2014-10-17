@@ -84,6 +84,7 @@ static void *stats_func(thread_handle thr)
 				sprintf(stats_buf,
 						"{\"@timestamp\":\"%s\", "
                         "\"host\":\"%s\", "
+                        "\"type\":\"subscriber\", "
 						"\"app\":\"subscriber\", "
 						"\"cat\":\"data_feed\", "
 						"\"alias\":\"%s\", "
