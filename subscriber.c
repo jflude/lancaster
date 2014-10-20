@@ -3,10 +3,10 @@
 #include "error.h"
 #include "clock.h"
 #include "receiver.h"
+#include "reporter.h"
 #include "signals.h"
 #include "sock.h"
 #include "thread.h"
-#include "udp.h"
 #include "version.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,8 +14,10 @@
 #include <unistd.h>
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
+#define STATS_ENV_VAR "UDP_STATS_URL"
 
-boolean as_json = FALSE;
+static receiver_handle rcvr;
+static boolean as_json = FALSE;
 
 static void show_syntax(void)
 {
@@ -23,6 +25,75 @@ static void show_syntax(void)
 			"CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT\n", error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
+}
+
+static status output_json(double secs, microsec now, const char *hostname,
+						  const char *alias, reporter_handle reporter)
+{
+	status st;
+	char ts[64], buf[1024];
+	if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
+		return st;
+
+	if (sprintf(buf,
+				"{\"@timestamp\":\"%s\", "
+				"\"host\":\"%s\", "
+				"\"type\":\"subscriber\", "
+				"\"app\":\"subscriber\", "
+				"\"cat\":\"data_feed\", "
+				"\"alias\":\"%s\", "
+				"\"storage\":\"%s\", "
+				"\"pkt/s\":%.2f, "
+				"\"gap/s\":%.2f, "
+				"\"tcp_kb/s\":%.2f, "
+				"\"mcast_kb/s\":%.2f, "
+				"\"min/us\":%.2f, "
+				"\"avg/us\":%.2f, "
+				"\"max/us\":%.2f, "
+				"\"std/us\":%.2f}",
+				ts,
+				hostname,
+				alias,
+				storage_get_file(receiver_get_storage(rcvr)),
+				receiver_get_mcast_packets_recv(rcvr) / secs,
+				receiver_get_tcp_gap_count(rcvr) / secs,
+				receiver_get_tcp_bytes_recv(rcvr) / secs / 1024,
+				receiver_get_mcast_bytes_recv(rcvr) / secs / 1024,
+				receiver_get_mcast_min_latency(rcvr),
+				receiver_get_mcast_mean_latency(rcvr),
+				receiver_get_mcast_max_latency(rcvr),
+				receiver_get_mcast_stddev_latency(rcvr)) < 0)
+		return error_errno("sprintf");
+
+	if (reporter) {
+		if (FAILED(st = reporter_send(reporter, buf)))
+			return st;
+	} else if (puts(buf) == EOF)
+		return error_errno("puts");
+
+	return OK;
+}
+
+static status output_std(double secs)
+{
+	status st = OK;
+	if (printf("\"%.20s\", PKT/s: %.2f, GAP/s: %.2f, "
+			   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
+			   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
+			   "STD/us: %.2f%s",
+			   storage_get_description(receiver_get_storage(rcvr)),
+			   receiver_get_mcast_packets_recv(rcvr) / secs,
+			   receiver_get_tcp_gap_count(rcvr) / secs,
+			   receiver_get_tcp_bytes_recv(rcvr) / secs / 1024,
+			   receiver_get_mcast_bytes_recv(rcvr) / secs / 1024,
+			   receiver_get_mcast_min_latency(rcvr),
+			   receiver_get_mcast_mean_latency(rcvr),
+			   receiver_get_mcast_max_latency(rcvr),
+			   receiver_get_mcast_stddev_latency(rcvr),
+			   (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
+		st = error_errno("printf");
+
+	return st;
 }
 
 static void show_version(void)
@@ -33,34 +104,36 @@ static void show_version(void)
 
 static void *stats_func(thread_handle thr)
 {
-	receiver_handle recv = thread_get_param(thr);
-	status st;
-	char hostname[256], alias[32];
-	const char *storage_desc, *delim_pos, *eol_seq;
+	reporter_handle reporter = NULL;
+	char hostname[256], alias[32], udp_address[64];
+	unsigned short udp_port;
+	const char *storage_desc =
+		storage_get_description(receiver_get_storage(rcvr));
 	microsec last_print;
-	struct udp_conn_info udp_stat_conn;
-    const char *udp_stat_url = getenv("UDP_STATS_URL");
+	status st;
 
-    if (udp_stat_url &&
-		FAILED(st = open_udp_sock_conn(&udp_stat_conn, udp_stat_url))) {
-		receiver_stop(recv);
-		return (void *)(long)st;
-    }
-    
-	storage_desc = storage_get_description(receiver_get_storage(recv));
+    if (as_json) {
+		const char* delim_pos;
+		if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
+			(getenv(STATS_ENV_VAR) &&
+			 (FAILED(st = sock_addr_split(getenv(STATS_ENV_VAR), udp_address,
+										  sizeof(udp_address), &udp_port)) ||
+			  FAILED(st = reporter_create(&reporter, udp_address, udp_port))))) {
+			receiver_stop(rcvr);
+			return (void *)(long)st;
+		}
 
-	if ((delim_pos = strchr(storage_desc, '.')) == NULL)
-		strncpy(alias, "unknown", sizeof(alias));
-	else
-		strncpy(alias, storage_desc, delim_pos - storage_desc);
-	
-	if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
-		FAILED(st = clock_time(&last_print))) {
-		receiver_stop(recv);
-		return (void *)(long)st;
+		if (!(delim_pos = strchr(storage_desc, '.')))
+			strncpy(alias, "unknown", sizeof(alias));
+		else
+			strncpy(alias, storage_desc, delim_pos - storage_desc);
 	}
 
-	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
+	if (FAILED(st = clock_time(&last_print))) {
+		reporter_destroy(&reporter);
+		receiver_stop(rcvr);
+		return (void *)(long)st;
+	}
 
 	while (!thread_is_stopping(thr)) {
 		microsec now;
@@ -74,100 +147,36 @@ static void *stats_func(thread_handle thr)
 
 		secs = (now - last_print) / 1000000.0;
 
-		if (as_json) {
-			int stats_buff_used;
-			char ts[64], stats_buf[1024];
-			if (FAILED(st = clock_get_text(now, 3, ts, sizeof(ts))))
-                break;
+		if (as_json)
+			output_json(secs, now, hostname, alias, reporter);
+		else
+			output_std(secs);
 
-            stats_buff_used =
-				sprintf(stats_buf,
-						"{\"@timestamp\":\"%s\", "
-                        "\"host\":\"%s\", "
-                        "\"type\":\"subscriber\", "
-						"\"app\":\"subscriber\", "
-						"\"cat\":\"data_feed\", "
-						"\"alias\":\"%s\", "
-						"\"storage\":\"%s\", "
-						"\"pkt/s\":%.2f, "
-						"\"gap/s\":%.2f, "
-						"\"tcp_kb/s\":%.2f, "
-						"\"mcast_kb/s\":%.2f, "
-						"\"min/us\":%.2f, "
-						"\"avg/us\":%.2f, "
-						"\"max/us\":%.2f, "
-						"\"std/us\":%.2f}",
-						ts,
-                        hostname,
-						alias,
-						storage_get_file(receiver_get_storage(recv)),
-						receiver_get_mcast_packets_recv(recv) / secs,
-						receiver_get_tcp_gap_count(recv) / secs,
-						receiver_get_tcp_bytes_recv(recv) / secs / 1024,
-						receiver_get_mcast_bytes_recv(recv) / secs / 1024,
-						receiver_get_mcast_min_latency(recv),
-						receiver_get_mcast_mean_latency(recv),
-						receiver_get_mcast_max_latency(recv),
-						receiver_get_mcast_stddev_latency(recv));
-
-			if (stats_buff_used < 0) {
-				st = error_errno("sprintf");
-				break;
-			}
-            
-            if (udp_stat_url) {
-                if (FAILED(st = sock_sendto(udp_stat_conn.sock_fd_,
-											udp_stat_conn.server_sock_addr_,
-											stats_buf, stats_buff_used)))
-                    break;
-			} else
-                puts(stats_buf);
-        } else {
-			if (printf("\"%.20s\", PKT/s: %.2f, GAP/s: %.2f, "
-					   "TCP KB/s: %.2f, MCAST KB/s: %.2f, "
-					   "MIN/us: %.2f, AVG/us: %.2f, MAX/us: %.2f, "
-					   "STD/us: %.2f%s",
-					   storage_desc,
-					   receiver_get_mcast_packets_recv(recv) / secs,
-					   receiver_get_tcp_gap_count(recv) / secs,
-					   receiver_get_tcp_bytes_recv(recv) / secs / 1024,
-					   receiver_get_mcast_bytes_recv(recv) / secs / 1024,
-					   receiver_get_mcast_min_latency(recv),
-					   receiver_get_mcast_mean_latency(recv),
-					   receiver_get_mcast_max_latency(recv),
-					   receiver_get_mcast_stddev_latency(recv),
-					   eol_seq) < 0) {
-				st = error_errno("printf");
-				break;
-			}
-		}
-
-		if (FAILED(st = receiver_roll_stats(recv)))
+		if (FAILED(st = receiver_roll_stats(rcvr)))
 			break;
 
 		last_print = now;
-		if (!udp_stat_url)
+		if (!reporter)
 			fflush(stdout);
 	}
 
-    if (udp_stat_url) {
-		status st2 = close_udp_sock_conn(&udp_stat_conn);
+    if (reporter) {
+		status st2 = reporter_destroy(&reporter);
 		if (!FAILED(st))
 			st = st2;
 	} else
 		putchar('\n');
 
-	receiver_stop(recv);
+	receiver_stop(rcvr);
 	return (void *)(long)st;
 }
 
 int main(int argc, char *argv[])
 {
-	receiver_handle recv;
 	thread_handle stats_thread;
-	const char *mmap_file, *colon;
+	const char *mmap_file;
 	char tcp_addr[64];
-	int tcp_port;
+	unsigned short tcp_port;
 	size_t q_capacity;
 	int opt;
 	void *stats_result;
@@ -198,26 +207,19 @@ int main(int argc, char *argv[])
 	mmap_file = argv[optind++];
 	q_capacity = atoi(argv[optind++]);
 
-	colon = strchr(argv[optind], ':');
-	if (!colon)
-		show_syntax();
-
-	strncpy(tcp_addr, argv[optind], colon - argv[optind]);
-	tcp_addr[colon - argv[optind++]] = '\0';
-
-	tcp_port = atoi(colon + 1);
-
-	if (FAILED(signal_add_handler(SIGHUP)) ||
+	if (FAILED(sock_addr_split(argv[optind++], tcp_addr,
+							   sizeof(tcp_addr), &tcp_port)) ||
+		FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(receiver_create(&recv, mmap_file, q_capacity,
+		FAILED(receiver_create(&rcvr, mmap_file, q_capacity,
 							   0, tcp_addr, tcp_port)) ||
-		FAILED(thread_create(&stats_thread, stats_func, recv)) ||
-		FAILED(receiver_run(recv)) ||
+		FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
+		FAILED(receiver_run(rcvr)) ||
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
 		FAILED((status)(long)stats_result) ||
-		FAILED(receiver_destroy(&recv)) ||
+		FAILED(receiver_destroy(&rcvr)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM))) {

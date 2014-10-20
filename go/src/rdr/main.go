@@ -11,19 +11,20 @@ import "C"
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	_ "github.com/lib/pq"
 	"log"
-        "fmt"
 )
 
 // conStr := "user=pslchi6dpgsql1 port=5432 dbname=trading_defs user=td password=td"
 var conStr = "postgres://td:td@pslchi6dpgsql1:5432/trading_defs?sslmode=disable"
 var store C.storage_handle
 var qCapacity C.size_t
+
 //O_RDWR  C.int = 2
 
 func main() {
-        var cs *C.char
+	var cs *C.char
 	for securityKey, _ := range getValidSecurityKeys() {
 		log.Println("Security Key: ", securityKey)
 	}

@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -99,6 +100,31 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 
 	strcpy(text, a_buf);
 	strcat(text, p_buf);
+	return OK;
+}
+
+status sock_addr_split(const char *addr_and_port, char* paddr,
+					   size_t addr_sz, unsigned short *pport)
+{
+	size_t sz;
+	const char *colon;
+	if (!addr_and_port || !paddr || addr_sz == 0 || !pport)
+		return error_invalid_arg("sock_addr_split");
+
+	colon = strchr(addr_and_port, ':');
+	if (!colon)
+		return error_msg("sock_addr_split: error: invalid address: \"%s\"",
+						 INVALID_ADDRESS, addr_and_port);
+
+	sz = colon - addr_and_port;
+	if (sz >= addr_sz)
+		return error_msg("sock_addr_split: error: buffer too small",
+						 BUFFER_TOO_SMALL);
+
+	strncpy(paddr, addr_and_port, sz);
+	paddr[sz] = '\0';
+
+	*pport = atoi(colon + 1);
 	return OK;
 }
 
@@ -238,100 +264,6 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
 
 	*pmtu = ifr.ifr_mtu;
 	return OK;
-}
-
-#ifdef LINUX_OS
-
-static status parse_procfs(const char *device, int col, long *pval)
-{
-	FILE *f;
-	long v[16];
-	char buf[256];
-
-	static char header[] =
-		" face |bytes    packets errs drop fifo frame compressed multicast"
-		"|bytes    packets errs drop fifo colls carrier compressed\n";
-
-	if (col < 2 || col > 17)
-		return error_invalid_arg("parse_procfs");
-
-	if (!(f = fopen("/proc/net/dev", "r")))
-		return error_errno("parse_procfs");
-
-	if (!fgets(buf, sizeof(buf), f) ||
-		!fgets(buf, sizeof(buf), f))
-		return feof(f)
-			? error_msg("parse_procfs: error: truncated procfs format",
-						INVALID_FORMAT)
-			: error_errno("parse_procfs");
-
-	if (strcmp(buf, header) != 0)
-		return error_msg("parse_procfs: error: invalid procfs header",
-						 INVALID_FORMAT);
-
-	for (;;) {
-		const char* name = buf;
-		if (!fgets(buf, sizeof(buf), f))
-			return feof(f)
-				? error_msg("parse_procfs: error: invalid device: \"%s\"",
-							INVALID_DEVICE, device)
-				: error_errno("parse_procfs");
-
-		for (;;) {
-			if (!*name)
-				return error_msg("parse_procfs: error: invalid procfs field",
-								 INVALID_FORMAT);
-			if (*name != ' ')
-				break;
-
-			++name;
-		}
-
-		if (strncmp(name, device, strlen(device)) == 0) {
-			if (sscanf(buf, " %*s %ld %ld %ld %ld %ld %ld %ld "
-					   "%ld %ld %ld %ld %ld %ld %ld %ld %ld",
-					   &v[0], &v[1], &v[2], &v[3],
-					   &v[4], &v[5], &v[6], &v[7],
-					   &v[8], &v[9], &v[10], &v[11],
-					   &v[12], &v[13], &v[14], &v[15]) != 16)
-				return error_msg("parse_procfs: error: invalid procfs entry",
-								 INVALID_FORMAT);
-			*pval = v[col - 2];
-			break;
-		}
-	}
-
-	if (fclose(f) == EOF)
-		return error_errno("parse_procfs");
-
-	return OK;
-}
-
-#else
-
-static status parse_procfs(const char *device, int col, long *pval)
-{
-	(void)device; (void)col;
-	*pval = 0;
-	return OK;
-}
-
-#endif
-
-status sock_get_rx_drops(const char *device, long *pdrops)
-{
-	if (!device || !pdrops)
-		return error_invalid_arg("sock_get_rx_drops");
-
-	return parse_procfs(device, PROCFS_RX_DROPS_COLUMN, pdrops);
-}
-
-status sock_get_tx_drops(const char *device, long *pdrops)
-{
-	if (!device || !pdrops)
-		return error_invalid_arg("sock_get_tx_drops");
-
-	return parse_procfs(device, PROCFS_TX_DROPS_COLUMN, pdrops);
 }
 
 status sock_set_nonblock(sock_handle sock)

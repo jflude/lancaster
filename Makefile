@@ -7,13 +7,13 @@ SRCS := \
 	latency.c \
 	poller.c \
 	receiver.c \
+	reporter.c \
 	sender.c \
 	signals.c \
 	sock.c \
 	spin.c \
 	storage.c \
 	table.c \
-	udp.c \
 	thread.c \
 	twist.c \
 	version.c \

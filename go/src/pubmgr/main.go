@@ -48,8 +48,8 @@ func (pi *PublisherInstance) String() string {
 }
 
 func makeFilePattern(pattern string) filePattern {
-    aFilePattern := filePattern{}
-    return append(aFilePattern, regexp.MustCompile(pattern))
+	aFilePattern := filePattern{}
+	return append(aFilePattern, regexp.MustCompile(pattern))
 }
 
 func init() {
@@ -57,7 +57,7 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
-        flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
+	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in millis)")
 	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
@@ -221,14 +221,14 @@ func (pi *PublisherInstance) run() {
 	)
 	pi.commander.Name = pi.name
 	if err != nil {
-		log.Fatalln("Failed to create commander for:", pi, "error:", err)
+		log.Fatalln("Failed to create commander for: ", pi, ", error: ", err)
 	}
-        if udpStatsAddr != "" {
+	if udpStatsAddr != "" {
 		pi.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	pi.commander.AutoRestart = false
 	err = pi.commander.Run()
-	log.Println("Commander for:", pi, "exited:", err)
+	log.Println("Commander for: ", pi, " exited: ", err)
 }
 
 func chkFatal(err error) {

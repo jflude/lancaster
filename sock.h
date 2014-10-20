@@ -26,6 +26,8 @@ unsigned long sock_addr_get_ip(sock_addr_handle addr);
 unsigned short sock_addr_get_port(sock_addr_handle addr);
 status sock_addr_get_text(sock_addr_handle addr, char *text, size_t
 						  text_sz, boolean with_port);
+status sock_addr_split(const char *addr_and_port, char* paddr,
+					   size_t addr_sz, unsigned short *pport);
 
 boolean sock_addr_is_equal(sock_addr_handle lhs, sock_addr_handle rhs);
 
@@ -51,9 +53,6 @@ status sock_get_interface_address(sock_handle sock, const char *device,
 status sock_get_device(const char *dest_address, char *pdevice,
 					   size_t device_sz);
 status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu);
-
-status sock_get_rx_drops(const char *device, long *pdrops);
-status sock_get_tx_drops(const char *device, long *pdrops);
 
 status sock_set_nonblock(sock_handle sock);
 status sock_set_reuseaddr(sock_handle sock, boolean reuse);

@@ -35,6 +35,24 @@ static void show_version(void)
 	exit(0);
 }
 
+static status output_stg(double secs)
+{
+	if (printf("\"%.20s\", STG.REC/s: %.2f, STG.MIN/us: %.2f, "
+			   "STG.AVG/us: %.2f, STG.MAX/us: %.2f, STG.STD/us: %.2f "
+			   "[%c]%s",
+			   storage_get_description(store),
+			   latency_get_count(stg_latency) / secs,
+			   latency_get_min(stg_latency),
+			   latency_get_mean(stg_latency),
+			   latency_get_max(stg_latency),
+			   latency_get_stddev(stg_latency),
+			   event + (event > 9 ? 'A' - 10 : '0'),
+			   (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
+		return error_errno("printf");
+
+	return OK;
+}
+
 static status update(q_index qi)
 {
 	record_handle rec = NULL;
@@ -79,7 +97,6 @@ int main(int argc, char *argv[])
 	int opt;
 	boolean stg_stats = FALSE;
 	microsec last_print, created_time, delay;
-	const char *eol_seq;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
@@ -122,8 +139,6 @@ int main(int argc, char *argv[])
 
 	if (!stg_stats)
 		printf("\"%.20s\", ", storage_get_description(store));
-
-	eol_seq = (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n");
 
 	q_capacity = storage_get_queue_capacity(store);
 	old_head = storage_get_queue_head(store);
@@ -177,20 +192,8 @@ int main(int argc, char *argv[])
 
 		if ((now - last_print) >= delay) {
 			if (stg_stats) {
-				double secs = (now - last_print) / 1000000.0;
-				printf("\"%.20s\", STG.REC/s: %.2f, STG.MIN/us: %.2f, "
-					   "STG.AVG/us: %.2f, STG.MAX/us: %.2f, STG.STD/us: %.2f "
-					   "[%c]%s",
-					   storage_get_description(store),
-					   latency_get_count(stg_latency) / secs,
-					   latency_get_min(stg_latency),
-					   latency_get_mean(stg_latency),
-					   latency_get_max(stg_latency),
-					   latency_get_stddev(stg_latency),
-					   event + (event > 9 ? 'A' - 10 : '0'),
-					   eol_seq);
-
-				if (FAILED(st = latency_roll(stg_latency)))
+				if (FAILED(st = output_stg((now - last_print) / 1000000.0)) ||
+					FAILED(st = latency_roll(stg_latency)))
 					break;
 			} else
 				putchar(event + (event > 9 ? 'A' - 10 : '0'));

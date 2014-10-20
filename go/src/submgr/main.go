@@ -29,7 +29,7 @@ var subscriberPath = "../subscriber"
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
-var clientInterface = "bond0";
+var clientInterface = "bond0"
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -57,7 +57,7 @@ func (si *SubscriberInstance) String() string {
 
 func init() {
 	var err error
-        flag.StringVar(&clientInterface, "i", clientInterface, "Client side interface")
+	flag.StringVar(&clientInterface, "i", clientInterface, "Client side interface")
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
@@ -112,11 +112,11 @@ func discoveryLoop() error {
 	advertAddrHost := advertAddrHostPort[0]
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
-		log.Fatal("Error parsing advertisement address ", advertAddr, " : ", err)
+		log.Fatal("Error parsing advert address ", advertAddr, ": ", err)
 	}
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
-	logln("Listening for advertisements on:", addr)
+	logln("Listening for adverts on: ", addr)
 	chkFatal(err)
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
@@ -140,24 +140,24 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disc)
 
 		if err != nil {
-			logln("Bad discovery format (", err, "), ignoring:", jsstr)
+			logln("Bad discovery format (", err, "), ignoring: ", jsstr)
 		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
-			logln("Wire version mismatch, expected:", wireProtocolVersion, "got:", jsstr)
+			logln("Wire version mismatch, expected: ", wireProtocolVersion, "got: ", jsstr)
 		} else if len(disc.Data) != 1 {
-			logln("Unsupported discovery message, wrong number of data elements:", jsstr)
+			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
 		} else {
 			desc := disc.Data[0].Description
 			if env != disc.Env {
-				logln("No match on env:", env, "ignoring:", jsstr)
+				logln("No match on env: ", env, ", ignoring: ", jsstr)
 			} else if !hp.MatchString(disc.Hostname) {
-				logln("No match on host pattern:", hostPattern, "ignoring:", jsstr)
+				logln("No match on host pattern: ", hostPattern, ", ignoring: ", jsstr)
 			} else if !fp.MatchString(desc) {
-				logln("No match on feed pattern:", feedPattern, "ignoring:", jsstr)
+				logln("No match on feed pattern: ", feedPattern, ", ignoring: ", jsstr)
 			} else if feeds[desc] != nil {
-				//logln("Already have a feed for:", desc, "ignoring:", jsstr)
+				//logln("Already have a feed for: ", desc, ", ignoring: ", jsstr)
 			} else {
-				logln("New Feed1:", desc, ", from:", from, "disc:", jsstr)
-				logln("New Feed2:", desc, ", from:", from, "disc:", jsstr)
+				logln("New Feed1:", desc, ", from: ", from, ", disc: ", jsstr)
+				logln("New Feed2:", desc, ", from: ", from, ", disc: ", jsstr)
 				si := &SubscriberInstance{name: desc, discovery: disc}
 				feeds[desc] = si
 				go si.run()
@@ -170,7 +170,7 @@ func discoveryLoop() error {
 func (si *SubscriberInstance) run() {
 	addr, err := net.LookupHost(si.discovery.Hostname)
 	chkFatal(err)
-        storePath := "shm:/client."+si.discovery.Data[0].Description
+	storePath := "shm:/client." + si.discovery.Data[0].Description
 
 	si.commander, err = commander.New(subscriberPath,
 		"-j",
@@ -183,20 +183,20 @@ func (si *SubscriberInstance) run() {
 		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
 	if err != nil {
-		log.Fatalln("Failed to create commander for:", si, "error:", err)
+		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
 	}
 	si.commander.Name = si.name
 	si.commander.AutoRestart = false
 	si.commander.BeforeStart = func(command *commander.Command) error {
 		storePathToDelete := storePath
-		if strings.HasPrefix(storePath,"shm:") {
+		if strings.HasPrefix(storePath, "shm:") {
 			storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
 		}
 		removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
 		return removeFileCommand.Start()
 	}
 	err = si.commander.Run()
-	logln("Commander for:", si, "exited:", err)
+	logln("Commander for: ", si, " exited: ", err)
 	delete(feeds, si.name)         // deregister this feed
 	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
 }
