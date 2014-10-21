@@ -66,6 +66,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	size_t rec_sz, hdr_sz, seg_sz, page_sz, prop_offset;
 
 	BZERO(*pstore);
+	(*pstore)->seg_fd = -1;
 	(*pstore)->is_persistent = persist;
 
 	rec_sz = offsetof(struct record, val) +
@@ -204,6 +205,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 	size_t seg_sz;
 
 	BZERO(*pstore);
+	(*pstore)->seg_fd = -1;
 	(*pstore)->is_persistent = TRUE;
 
 	if (open_flags == O_RDONLY)
@@ -340,12 +342,14 @@ status storage_destroy(storage_handle *pstore)
 	if (!pstore || !*pstore)
 		return st;
 
-loop:
-	if ((*pstore)->seg_fd != -1 && close((*pstore)->seg_fd) == -1) {
-		if (errno == EINTR)
-			goto loop;
+	if ((*pstore)->seg_fd != -1) {
+	loop:
+		if (close((*pstore)->seg_fd) == -1) {
+			if (errno == EINTR)
+				goto loop;
 
-		return error_errno("close");
+			return error_errno("close");
+		}
 	}
 
 	if ((*pstore)->seg) {
