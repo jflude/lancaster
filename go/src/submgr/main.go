@@ -193,7 +193,12 @@ func (si *SubscriberInstance) run() {
 			storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
 		}
 		removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
-		return removeFileCommand.Start()
+		removeFileCommand.Start()
+		err := removeFileCommand.Wait()
+		if err != nil {
+			log.Fatalln("Could not delete storage file at ", storePathToDelete)
+		}
+		return err;
 	}
 	err = si.commander.Run()
 	logln("Commander for: ", si, " exited: ", err)
