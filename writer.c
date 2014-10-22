@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 	thread_handle touch_thread;
 	twist_handle twister;
 	const char *mmap_file;
-	size_t q_capacity;
+	long q_capacity;
 	boolean at_random = FALSE;
 	long xyz = 0;
 	int opt;
@@ -114,6 +114,12 @@ int main(int argc, char *argv[])
 
 	mmap_file = argv[optind++];
 	q_capacity = atoi(argv[optind++]);
+
+	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
+		error_invalid_arg("error: change queue size not a non-zero power of 2");
+		error_report_fatal();
+	}
+
 	delay = atoi(argv[optind++]);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||

@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 	const char *mmap_file;
 	char tcp_addr[64];
 	unsigned short tcp_port;
-	size_t q_capacity;
+	long q_capacity;
 	int opt;
 	void *stats_result;
 
@@ -206,6 +206,11 @@ int main(int argc, char *argv[])
 
 	mmap_file = argv[optind++];
 	q_capacity = atoi(argv[optind++]);
+
+	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
+		error_invalid_arg("error: change queue size not a non-zero power of 2");
+		error_report_fatal();
+	}
 
 	if (FAILED(sock_addr_split(argv[optind++], tcp_addr,
 							   sizeof(tcp_addr), &tcp_port)) ||
