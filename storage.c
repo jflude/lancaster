@@ -668,9 +668,9 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 		return error_invalid_arg("storage_grow");
 
 	if (FAILED(st = storage_create(pnewstore, new_mmap_file, FALSE,
-								   O_CREAT | O_TRUNC, new_base_id, new_max_id,
-								   new_value_size, new_property_size,
-								   new_q_capacity)))
+								   O_RDWR | O_CREAT | O_TRUNC, new_base_id,
+								   new_max_id, new_value_size,
+								   new_property_size, new_q_capacity)))
 		return st;
 
 	copy_sz = sizeof(revision) +
