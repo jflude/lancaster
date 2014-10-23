@@ -11,6 +11,14 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#ifndef O_ACCMODE
+#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
+#endif
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
 struct record {
 	volatile revision rev;
 	microsec ts;
@@ -53,6 +61,7 @@ struct storage {
 };
 
 #define MAGIC_NUMBER 0x0C0FFEE0
+#define STORAGE_PERM (S_IRUSR | S_IWUSR)
 
 #define STORAGE_RECORD(stg, base, idx) \
 	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
@@ -88,9 +97,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
 	shm_loop:
-		(*pstore)->seg_fd =
-			shm_open(mmap_file + 4, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
-
+		(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, STORAGE_PERM);
 		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto shm_loop;
@@ -99,9 +106,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		}
 	} else {
 	open_loop:
-		(*pstore)->seg_fd =
-			open(mmap_file, open_flags | O_RDWR, S_IRUSR | S_IWUSR);
-
+		(*pstore)->seg_fd = open(mmap_file, open_flags, STORAGE_PERM);
 		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto open_loop;
@@ -201,14 +206,15 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 static status init_open(storage_handle *pstore, const char *mmap_file,
 						int open_flags)
 {
-	int mmap_flags = PROT_READ;
 	size_t seg_sz;
+	struct stat file_stat;
+	int mmap_flags = PROT_READ;
 
 	BZERO(*pstore);
 	(*pstore)->seg_fd = -1;
 	(*pstore)->is_persistent = TRUE;
 
-	if (open_flags == O_RDONLY)
+	if ((open_flags & O_ACCMODE) == O_RDONLY)
 		(*pstore)->is_read_only = TRUE;
 	else
 		mmap_flags |= PROT_WRITE;
@@ -216,7 +222,6 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
 	shm_loop:
 		(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, 0);
-
 		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto shm_loop;
@@ -224,24 +229,22 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 			return error_errno("shm_open");
 		}
 	} else {
-		struct stat file_stat;
 	open_loop:
 		(*pstore)->seg_fd = open(mmap_file, open_flags);
-
 		if ((*pstore)->seg_fd == -1) {
 			if (errno == EINTR)
 				goto open_loop;
 
 			return error_errno("open");
 		}
-
-		if (fstat((*pstore)->seg_fd, &file_stat) == -1)
-			return error_errno("fstat");
-
-		if ((size_t)file_stat.st_size < sizeof(struct segment))
-			return error_msg("storage_open: storage is truncated",
-							 STORAGE_CORRUPTED);
 	}
+
+	if (fstat((*pstore)->seg_fd, &file_stat) == -1)
+		return error_errno("fstat");
+
+	if ((size_t)file_stat.st_size < sizeof(struct segment))
+		return error_msg("storage_open: storage is truncated",
+						 STORAGE_CORRUPTED);
 
 	(*pstore)->seg = mmap(NULL, sizeof(struct segment), PROT_READ,
 						  MAP_SHARED, (*pstore)->seg_fd, 0);
@@ -295,10 +298,14 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 	/* NB. q_capacity must be a power of 2 */
 	status st;
 	if (!pstore || !mmap_file ||
-		open_flags & ~(O_CREAT | O_EXCL | O_TRUNC) ||
 		max_id <= base_id || value_size == 0 ||
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
 		return error_invalid_arg("storage_create");
+
+	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_TRUNC | O_NOFOLLOW) ||
+		(open_flags & O_RDWR) != O_RDWR)
+		return error_msg("storage_create: invalid open flags: 0x%X",
+						 INVALID_OPEN_FLAGS, open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
@@ -319,9 +326,14 @@ status storage_open(storage_handle *pstore, const char *mmap_file,
 					int open_flags)
 {
 	status st;
-	if (!pstore || !mmap_file ||
-		(open_flags != O_RDONLY && open_flags != O_RDWR))
+	if (!pstore || !mmap_file)
 		return error_invalid_arg("storage_open");
+
+	if (((open_flags & O_ACCMODE) != O_RDONLY &&
+		 (open_flags & O_ACCMODE) != O_RDWR) ||
+		(open_flags & ~(O_RDONLY | O_RDWR | O_NOFOLLOW)))
+		return error_msg("storage_open: invalid open flags: 0x%X",
+						 INVALID_OPEN_FLAGS, open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
