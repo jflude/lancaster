@@ -34,6 +34,7 @@ var maxIdle = 2
 var loopback = true
 var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
+var restartOnExit bool
 
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
@@ -65,6 +66,7 @@ func init() {
 	flag.Usage = usage
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
 	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher exeutable")
+	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart publisher instances when they exit")
 }
 
 func usage() {
@@ -226,7 +228,7 @@ func (pi *PublisherInstance) run() {
 	if udpStatsAddr != "" {
 		pi.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
-	pi.commander.AutoRestart = false
+	pi.commander.AutoRestart = restartOnExit
 	err = pi.commander.Run()
 	log.Println("Commander for: ", pi, " exited: ", err)
 }

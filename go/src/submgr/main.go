@@ -30,6 +30,7 @@ var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
 var clientInterface = "bond0"
+var restartOnExit bool
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -91,6 +92,7 @@ func main() {
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber exeutable")
+	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart subscriber instances when they exit")
 	flag.Parse()
 
 	if _, err := os.Stat(subscriberPath); err != nil {
@@ -200,6 +202,7 @@ func (si *SubscriberInstance) run() {
 		}
 		return err;
 	}
+	si.commander.AutoRestart = restartOnExit
 	err = si.commander.Run()
 	logln("Commander for: ", si, " exited: ", err)
 	delete(feeds, si.name)         // deregister this feed
