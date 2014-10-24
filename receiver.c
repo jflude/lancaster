@@ -221,9 +221,9 @@ static status mcast_on_read(receiver_handle recv)
 
 		for (; p < last; p += sizeof(identifier) + recv->val_size) {
 			identifier *id = (identifier *)p;
-			if (FAILED(st = update_record(recv, *in_seq_ref, ntohll(*id),
-										  id + 1, now)))
-				break;
+			if (FAILED(st = update_record(recv, *in_seq_ref,
+										  ntohll(*id), id + 1, now)))
+				return st;
 		}
 	}
 
