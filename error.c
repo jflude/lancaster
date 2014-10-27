@@ -83,7 +83,7 @@ int error_msg(const char *msg, int code, ...)
 
 static int format(const char *func, const char *desc, int code)
 {
-	return error_msg("%s: %s", code, func, desc);
+	return error_msg("error: %s: %s", code, func, desc);
 }
 
 int error_eof(const char *func)

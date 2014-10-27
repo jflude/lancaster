@@ -113,13 +113,12 @@ status sock_addr_split(const char *addr_and_port, char* paddr,
 
 	colon = strchr(addr_and_port, ':');
 	if (!colon)
-		return error_msg("sock_addr_split: error: invalid address: \"%s\"",
+		return error_msg("sock_addr_split: invalid address: \"%s\"",
 						 INVALID_ADDRESS, addr_and_port);
 
 	sz = colon - addr_and_port;
 	if (sz >= addr_sz)
-		return error_msg("sock_addr_split: error: buffer too small",
-						 BUFFER_TOO_SMALL);
+		return error_msg("sock_addr_split: buffer too small", BUFFER_TOO_SMALL);
 
 	strncpy(paddr, addr_and_port, sz);
 	paddr[sz] = '\0';

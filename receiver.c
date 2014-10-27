@@ -179,17 +179,12 @@ static status mcast_on_read(receiver_handle recv)
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
 
 	if (mcast_ip != tcp_ip) {
-		char pub_text[256], src_text[256], tcp_text[256];
-		get_sock_addr_text(recv->mcast_pub_addr, pub_text,
-						   sizeof(pub_text), TRUE);
-		get_sock_addr_text(recv->mcast_src_addr, src_text,
-						   sizeof(src_text), FALSE);
-		get_sock_addr_text(recv->tcp_addr, tcp_text,
-						   sizeof(tcp_text), TRUE);
-
-		return error_msg("mcast_on_read: error: unexpected source: "
-						 "%s from %s, not %s",
-						 UNEXPECTED_SOURCE, pub_text, src_text, tcp_text);
+		char pub[256], src[256], tcp[256];
+		get_sock_addr_text(recv->mcast_pub_addr, pub, sizeof(pub), TRUE);
+		get_sock_addr_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
+		get_sock_addr_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
+		return error_msg("mcast_on_read: unexpected source: %s from %s, not %s",
+						 UNEXPECTED_SOURCE, pub, src, tcp);
 	}
 
 	recv->mcast_recv_time = now;
