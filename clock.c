@@ -101,7 +101,8 @@ status clock_time(microsec *pusec)
 
 #endif
 
-status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
+status clock_get_text(microsec usec, int precision,
+					  char *text, size_t text_sz)
 {
 	time_t t;
 	struct tm *ptm;
@@ -115,10 +116,37 @@ status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
 		return error_errno("localtime");
 
 	if (!strftime(text, text_sz - precision - 7, "%Y-%m-%dT%H:%M:%S", ptm))
-		return error_msg("clock_get_text: buffer too small", BUFFER_TOO_SMALL);
+		return error_msg("clock_get_text: buffer too small",
+						 BUFFER_TOO_SMALL);
 
 	if (sprintf(fract, "%.*f%+03ld:00", precision,
 				(usec % 1000000) / 1000000.0, ptm->tm_gmtoff / (60 * 60)) < 0)
+		return error_errno("sprintf");
+
+	strcat(text, fract + 1);
+	return OK;
+}
+
+status clock_get_short_text(microsec usec, int precision,
+							char *text, size_t text_sz)
+{
+	time_t t;
+	struct tm *ptm;
+	char fract[32];
+
+	if (!text || text_sz == 0 || precision < 0)
+		return error_invalid_arg("clock_get_short_text");
+
+	t = usec / 1000000;
+	if (!(ptm = localtime(&t)))
+		return error_errno("localtime");
+
+	if (!strftime(text, text_sz - precision - 1, "%H:%M:%S", ptm))
+		return error_msg("clock_get_short_text: buffer too small",
+						 BUFFER_TOO_SMALL);
+
+	if (sprintf(fract, "%.*f", precision,
+				(usec % 1000000) / 1000000.0) < 0)
 		return error_errno("sprintf");
 
 	strcat(text, fract + 1);

@@ -72,7 +72,7 @@ static const char *debug_time(void)
 	static char buf[64];
 
 	if (FAILED(clock_time(&now)) ||
-		FAILED(clock_get_text(now, 6, buf, sizeof(buf))))
+		FAILED(clock_get_short_text(now, 6, buf, sizeof(buf))))
 		error_report_fatal();
 
 	return buf;
