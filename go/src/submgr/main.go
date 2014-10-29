@@ -96,7 +96,7 @@ func main() {
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber exeutable")
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart subscriber instances when they exit")
-	flag.BoolVar(&deleteOldStorages "deleteOldStorages", true, "Delete old storage files before (re)starting")
+	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Parse()
 
 	if _, err := os.Stat(subscriberPath); err != nil {
