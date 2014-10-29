@@ -31,6 +31,7 @@ var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
 var clientInterface = "bond0"
 var restartOnExit bool
+var deleteOldStorages bool
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -62,8 +63,8 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
-
 }
+
 func usage() {
 	v, err := exec.Command(subscriberPath, "-v").Output()
 	var subscriberVersion string
@@ -72,6 +73,7 @@ func usage() {
 	} else {
 		subscriberVersion = strings.TrimSpace(string(v))
 	}
+
 	fmt.Fprintln(os.Stderr, ""+
 		"         Source: "+sourceVersion+
 		"\n     Subscriber: "+subscriberVersion+
@@ -81,6 +83,7 @@ func usage() {
 	flag.PrintDefaults()
 	os.Exit(1)
 }
+
 func main() {
 	var err error
 	flag.Usage = usage
@@ -93,17 +96,20 @@ func main() {
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber exeutable")
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart subscriber instances when they exit")
+	flag.BoolVar(&deleteOldStorages "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Parse()
 
 	if _, err := os.Stat(subscriberPath); err != nil {
 		log.Fatalln(err)
 	}
+
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 	commander.SetDefaultStdIO(nil, os.Stderr, os.Stdout)
 	err = discoveryLoop()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	logln("Done")
 }
 
@@ -116,19 +122,23 @@ func discoveryLoop() error {
 	if err != nil {
 		log.Fatal("Error parsing advert address ", advertAddr, ": ", err)
 	}
+
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	logln("Listening for adverts on: ", addr)
 	chkFatal(err)
+
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
 	if err != nil {
 		return err
 	}
+
 	hp, err := regexp.Compile(hostPattern)
 	if err != nil {
 		return err
 	}
+
 	for run {
 		n, from, err := sock.ReadFrom(data)
 		chkFatal(err)
@@ -166,6 +176,7 @@ func discoveryLoop() error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -181,27 +192,35 @@ func (si *SubscriberInstance) run() {
 		strconv.Itoa(1024*1024),
 		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port),
 	)
+
 	if udpStatsAddr != "" {
 		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
+
 	if err != nil {
 		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
 	}
+
 	si.commander.Name = si.name
 	si.commander.AutoRestart = false
-	si.commander.BeforeStart = func(command *commander.Command) error {
-		storePathToDelete := storePath
-		if strings.HasPrefix(storePath, "shm:") {
-			storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
+
+	if deleteOldStorages {
+		si.commander.BeforeStart = func(command *commander.Command) error {
+			storePathToDelete := storePath
+			if strings.HasPrefix(storePath, "shm:") {
+				storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
+			}
+
+			removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
+			err := removeFileCommand.Run()
+			if err != nil {
+				log.Fatalln("Could not delete storage file at ", storePathToDelete)
+			}
+
+			return err;
 		}
-		removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
-		removeFileCommand.Start()
-		err := removeFileCommand.Wait()
-		if err != nil {
-			log.Fatalln("Could not delete storage file at ", storePathToDelete)
-		}
-		return err;
 	}
+
 	si.commander.AutoRestart = restartOnExit
 	err = si.commander.Run()
 	logln("Commander for: ", si, " exited: ", err)

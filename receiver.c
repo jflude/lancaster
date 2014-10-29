@@ -18,7 +18,8 @@
 
 #define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)
-#define INITIAL_MC_HB_USEC (5 * 1000000)
+#define INITIAL_MC_HB_USEC (10 * 1000000)
+#define MAX_MISSED_HB 5
 
 #ifdef DEBUG_PROTOCOL
 #include "dump.h"
@@ -442,7 +443,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->base_id = base_id;
 	(*precv)->val_size = val_size;
 	(*precv)->next_seq = 0;
-	(*precv)->timeout_usec = 5 * hb_usec / 2;
+	(*precv)->timeout_usec = hb_usec * MAX_MISSED_HB;
 
 	(*precv)->in_buf =
 		xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
