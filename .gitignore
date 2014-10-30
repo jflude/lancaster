@@ -15,12 +15,6 @@
 *.exe
 *.app
 a.out
-writer
-publisher
-subscriber
-reader
-inspector
-grower
 
 # Editor files
 *~
@@ -35,6 +29,7 @@ grower
 DEPEND.mk
 
 # etc
+bin/
 core
 core.*
 *.DEBUG
