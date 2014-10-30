@@ -1,8 +1,12 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
-BIN_DIR=../../../bin
-BIN=$(BIN_DIR)/rdr
+SRCS = main.go
+
+BIN_DIR = ../../../bin
+BIN = $(BIN_DIR)/rdr
+
+CACHESTER_LIB = $(BIN_DIR)/libcachester.a
 
 all: rdr
 
@@ -10,8 +14,10 @@ rdr: build
 
 release: build 
 
-build:
-	go build -o $(BIN)
+build: $(BIN)
+
+$(BIN): $(SRCS) $(CACHESTER_LIB)
+	go build -o $(BIN) .
 
 fetch: .installGoop
 

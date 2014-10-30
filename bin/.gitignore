@@ -1,5 +1,10 @@
+libcachester.*
+writer
+publisher
+subscriber
+reader
+inspector
+grower
 submgr
 pubmgr
 rdr
-subscriber
-publisher

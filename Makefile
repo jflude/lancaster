@@ -1,4 +1,4 @@
-SRCS := \
+SRCS = \
 	advert.c \
 	clock.c \
 	dump.c \
@@ -19,14 +19,16 @@ SRCS := \
 	version.c \
 	xalloc.c
 
-COMPONENTS := \
+COMPONENTS = \
 	go/src/submgr \
 	go/src/pubmgr \
 	go/src/rdr
 
+BIN_DIR = bin
+
 include VERSION.mk
 
-CFLAGS := \
+CFLAGS = \
 	-ansi -pedantic -Wall -Wextra -Werror -g \
 	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE \
 	-DCACHESTER_SOURCE_VERSION='$(CACHESTER_SOURCE_VERSION)' \
@@ -35,10 +37,8 @@ CFLAGS := \
 	-DCACHESTER_WIRE_MAJOR_VERSION=$(CACHESTER_WIRE_MAJOR_VERSION) \
 	-DCACHESTER_WIRE_MINOR_VERSION=$(CACHESTER_WIRE_MINOR_VERSION)
 
-LDLIBS := -lm
-OBJS := $(SRCS:.c=.o)
-
-BIN_DIR := "bin"
+LDLIBS = -lm
+OBJS = $(SRCS:.c=.o)
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -DDARWIN_OS -D_DARWIN_C_SOURCE
@@ -50,21 +50,29 @@ endif
 
 ifneq (,$(findstring CYGWIN,$(shell uname -s)))
 CFLAGS += -DCYGWIN_OS
-SO_EXT := .dll
+SO_EXT = .dll
 DEPFLAGS += \
 -I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 else
 CFLAGS += -DLINUX_OS -fPIC
-SO_EXT := .so
+SO_EXT = .so
 DEPFLAGS += \
 -I/usr/include/linux \
 -I/usr/include/x86_64-linux-gnu \
 -I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
-all: libcachester$(SO_EXT) publisher subscriber reader writer inspector grower
+all: \
+	$(BIN_DIR)/libcachester$(SO_EXT) \
+	$(BIN_DIR)/publisher \
+	$(BIN_DIR)/subscriber \
+	$(BIN_DIR)/reader \
+	$(BIN_DIR)/writer \
+	$(BIN_DIR)/inspector \
+	$(BIN_DIR)/grower
+
 all: 
-	for dir in $(COMPONENTS); do \
+	@for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir all; \
 	done
 
@@ -82,35 +90,40 @@ profile: CFLAGS += -pg
 profile: LDFLAGS += -pg
 profile: all
 
-publisher: publisher.o libcachester.a
+$(BIN_DIR)/publisher: publisher.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-subscriber: subscriber.o libcachester.a
+$(BIN_DIR)/subscriber: subscriber.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-reader: reader.o libcachester.a
+$(BIN_DIR)/reader: reader.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-writer: writer.o libcachester.a
+$(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-inspector: inspector.o libcachester.a
+$(BIN_DIR)/inspector: inspector.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-grower: grower.o libcachester.a
+$(BIN_DIR)/grower: grower.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-libcachester.a: $(OBJS)
-	ar -r libcachester.a $(OBJS)
+$(BIN_DIR)/libcachester.a: $(OBJS)
+	ar -r $(BIN_DIR)/libcachester.a $(OBJS)
 
-libcachester$(SO_EXT): $(OBJS)
+$(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 clean: 
-	rm -rf libcachester.a libcachester$(SO_EXT) \
-	    writer writer.o publisher publisher.o \
-	    subscriber subscriber.o reader reader.o \
-		inspector.o inspector grower.o grower \
-		reader.dSYM writer.dSYM \
-		publisher.dSYM subscriber.dSYM \
-		inspector.dSYM grower.dSYM \
-	    $(OBJS) \
-            $(BIN_DIR)/publisher $(BIN_DIR)/subscriber
-	for dir in $(COMPONENTS); do \
+	rm -rf $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT) \
+	    $(BIN_DIR)/writer writer.o writer.dSYM \
+		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
+	    $(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
+		$(BIN_DIR)/reader reader.o reader.dSYM \
+		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
+		$(BIN_DIR)/grower grower.o grower.dSYM \
+	    $(OBJS)
+	@for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir clean; \
 	done
 
@@ -128,7 +141,7 @@ depend: DEPEND.mk
 	    $(SRCS)
 
 fetch:
-	for dir in $(COMPONENTS); do \
+	@for dir in $(COMPONENTS); do \
 	   $(MAKE) -C $$dir fetch; \
 	done
 

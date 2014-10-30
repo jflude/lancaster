@@ -1,6 +1,8 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
+SRCS = main.go
+
 SUBSCRIBER_PATH = ../subscriber
 BIN_DIR = ../../../bin
 BIN = $(BIN_DIR)/submgr
@@ -17,7 +19,9 @@ build: LD_FLAGS = \
 	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION) \
 	-X main.subscriberPath $(SUBSCRIBER_PATH)
 
-build:
+build: $(BIN)
+
+$(BIN): $(SRCS)
 	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
 
 fetch: .installGoop

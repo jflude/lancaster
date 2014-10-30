@@ -1,9 +1,11 @@
 include ../../../VERSION.mk
 include ../../GOOP.mk
 
+SRCS = main.go addrs.go
+
 PUBLISHER_PATH = ../publisher
-BIN_DIR := ../../../bin
-BIN := $(BIN_DIR)/pubmgr
+BIN_DIR = ../../../bin
+BIN = $(BIN_DIR)/pubmgr
 
 all: pubmgr
 
@@ -18,7 +20,9 @@ build: LD_FLAGS = \
 	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION) \
 	-X main.publisherPath $(PUBLISHER_PATH)
 
-build: 
+build: $(BIN)
+
+$(BIN): $(SRCS)
 	go build -o $(BIN) -ldflags '$(LD_FLAGS)' .
 
 fetch: .installGoop

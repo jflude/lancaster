@@ -115,7 +115,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		}
 	}
 
-	if (open_flags & (O_CREAT | O_TRUNC)) {
+	if (open_flags & O_CREAT) {
 	trunc_loop:
 		if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
 			if (errno == EINTR)
@@ -146,7 +146,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (!(*pstore)->mmap_file)
 		return NO_MEMORY;
 
-	if (open_flags & (O_CREAT | O_TRUNC)) {
+	if (open_flags & O_CREAT) {
 		(*pstore)->seg->file_version =
 			(CACHESTER_FILE_MAJOR_VERSION << 8) | CACHESTER_FILE_MINOR_VERSION;
 		(*pstore)->seg->seg_size = seg_sz;
@@ -197,10 +197,10 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (FAILED(st = clock_time(&(*pstore)->seg->last_created)))
 		return st;
 
-	if (open_flags & (O_CREAT | O_TRUNC))
+	if (open_flags & O_CREAT)
 		(*pstore)->seg->magic = MAGIC_NUMBER;
 
-	return st;
+	return storage_sync(*pstore);
 }
 
 static status init_open(storage_handle *pstore, const char *mmap_file,
@@ -302,10 +302,10 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
 		return error_invalid_arg("storage_create");
 
-	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_TRUNC | O_NOFOLLOW) ||
+	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW) ||
 		(open_flags & O_RDWR) != O_RDWR)
-		return error_msg("storage_create: invalid open flags: 0x%X",
-						 INVALID_OPEN_FLAGS, open_flags);
+		return error_msg("storage_create: invalid open flags: 0%o",
+						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
@@ -332,8 +332,8 @@ status storage_open(storage_handle *pstore, const char *mmap_file,
 	if (((open_flags & O_ACCMODE) != O_RDONLY &&
 		 (open_flags & O_ACCMODE) != O_RDWR) ||
 		(open_flags & ~(O_RDONLY | O_RDWR | O_NOFOLLOW)))
-		return error_msg("storage_open: invalid open flags: 0x%X",
-						 INVALID_OPEN_FLAGS, open_flags);
+		return error_msg("storage_open: invalid open flags: 0%o",
+						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
@@ -666,6 +666,19 @@ status storage_reset(storage_handle store)
 	return OK;
 }
 
+status storage_delete(const char *mmap_file)
+{
+	if (strncmp(mmap_file, "shm:", 4) == 0) {
+		if (shm_unlink(mmap_file) == -1)
+			return error_errno("shm_unlink");
+	} else {
+		if (unlink(mmap_file) == -1)
+			return error_errno("unlink");
+	}
+
+	return OK;
+}
+
 status storage_grow(storage_handle store, storage_handle *pnewstore,
 					const char *new_mmap_file, identifier new_base_id,
 					identifier new_max_id, size_t new_value_size,
@@ -680,7 +693,7 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 		return error_invalid_arg("storage_grow");
 
 	if (FAILED(st = storage_create(pnewstore, new_mmap_file, FALSE,
-								   O_RDWR | O_CREAT | O_TRUNC, new_base_id,
+								   O_RDWR | O_CREAT, new_base_id,
 								   new_max_id, new_value_size,
 								   new_property_size, new_q_capacity)))
 		return st;

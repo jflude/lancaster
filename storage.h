@@ -81,6 +81,7 @@ status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
 
+status storage_delete(const char *mmap_file);
 status storage_grow(storage_handle store, storage_handle *pnewstore,
 					const char *new_mmap_file, identifier new_base_id,
 					identifier new_max_id, size_t new_value_size,

@@ -6,7 +6,7 @@ package main
 // #include "../../../receiver.h"
 // #include <fcntl.h>
 // #include <unistd.h>
-// #cgo LDFLAGS: ../../../libcachester.a -lrt -lm -w
+// #cgo LDFLAGS: ../../../bin/libcachester.a -lrt -lm -w
 import "C"
 import (
 	"database/sql"
