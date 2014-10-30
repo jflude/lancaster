@@ -1,5 +1,6 @@
 # Object files
 *.o
+bin/*
 
 # Libraries
 *.lib
@@ -29,7 +30,6 @@ a.out
 DEPEND.mk
 
 # etc
-bin/
 core
 core.*
 *.DEBUG
