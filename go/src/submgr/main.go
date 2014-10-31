@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,7 +26,7 @@ var feedPattern string
 var env string
 var run = true
 var wireProtocolVersion = "*"
-var subscriberPath = "../subscriber"
+var subscriberPath = getExecDir() + "subscriber"
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
@@ -63,6 +64,15 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getExecDir() string {
+	dir, _ := filepath.Split(os.Args[0])
+	if dir != "" {
+		strconv.AppendQuoteRune([]byte(dir), filepath.Separator)
+	}
+
+	return dir
 }
 
 func usage() {

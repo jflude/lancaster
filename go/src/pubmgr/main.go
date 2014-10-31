@@ -25,7 +25,7 @@ type PublisherInstance struct {
 var stop = make(chan struct{})
 var env string
 var run = true
-var publisherPath = "../publisher"
+var publisherPath = getExecDir() + "publisher"
 var sourceVersion = "<DEV>"
 var filePatternFlag filePattern = makeFilePattern("feed.*")
 var publishers = make(map[string]*commander.Command)
@@ -39,6 +39,7 @@ var restartOnExit bool
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
 }
+
 func (fp *filePattern) Set(v string) error {
 	*fp = append(*fp, regexp.MustCompile(v))
 	return nil
@@ -58,6 +59,7 @@ func init() {
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
+
 	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in millis)")
@@ -69,6 +71,15 @@ func init() {
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart publisher instances when they exit")
 }
 
+func getExecDir() string {
+	dir, _ := filepath.Split(os.Args[0])
+	if dir != "" {
+		strconv.AppendQuoteRune([]byte(dir), filepath.Separator)
+	}
+
+	return dir
+}
+
 func usage() {
 	v, err := exec.Command(publisherPath, "-v").Output()
 	var publisherVersion string
@@ -77,6 +88,7 @@ func usage() {
 	} else {
 		publisherVersion = strings.TrimSpace(string(v))
 	}
+
 	fmt.Fprintln(os.Stderr, ""+
 		"        Source: "+sourceVersion+
 		"\n     Publisher: "+publisherVersion+
@@ -90,15 +102,19 @@ func main() {
 	var err error
 	flag.Parse()
 	log.Println("Patterns:", filePatternFlag)
+
 	if _, err = os.Stat(publisherPath); err != nil {
 		log.Fatalln(err)
 	}
+
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 	commander.SetDefaultStdIO(nil, os.Stderr, os.Stdout)
+
 	err = discoveryLoop()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	log.Println("Done")
 }
 
@@ -109,6 +125,7 @@ func discoveryLoop() error {
 				return true
 			}
 		}
+
 		return false
 	}
 
@@ -116,28 +133,35 @@ func discoveryLoop() error {
 	if err != nil {
 		return err
 	}
+
 	defer watcher.Close()
+
 	filePaths := flag.Args()
 	if len(filePaths) == 0 {
 		filePaths = make([]string, 1)
 		filePaths[0] = defaultDirectory
 	}
+
 	for _, filePath := range filePaths {
 		filepath.Walk(filePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
+
 			if info.IsDir() || !pmatch(path) {
 				return nil
 			}
+
 			startIfNeeded(path)
 			return nil
 		})
+
 		err = watcher.Add(filePath)
 		if err != nil {
 			return err
 		}
 	}
+
 	for {
 		select {
 		case event := <-watcher.Events:
@@ -154,6 +178,7 @@ func discoveryLoop() error {
 			log.Println("error:", errMsg)
 		}
 	}
+
 	// log.Println("New Feed:", desc, ", from:", from, "disc:", jsstr)
 	// si := &PublisherInstance{name: desc, discovery: disc}
 	// feeds[desc] = si
@@ -173,7 +198,9 @@ func startIfNeeded(path string) {
 			log.Println(err)
 			return
 		}
+
 		log.Println("Starting publisher for:", name, "on", addr)
+
 		var state struct {
 			port int
 		}
@@ -182,21 +209,26 @@ func startIfNeeded(path string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		cmd.BeforeStart = func(*commander.Command) error {
 			state.port, err = reservePort()
 			if err != nil {
 				return err
 			}
+
 			log.Println("Reserving port", state.port, "for", name)
+
 			opts := []string{
 				"-j",             // show stats in JSON format
 				"-a", advertAddr, // advertize publisher presence
 				"-i", clientInterface, // mcast interface
 				"-e", env,
 				"-p", name} // error message prefix
+
 			if loopback {
 				opts = append(opts, "-l")
 			}
+
 			cmd.Args = append(opts,
 				path,
 				listenAddress+":"+strconv.Itoa(state.port), // tcp addr
@@ -204,13 +236,16 @@ func startIfNeeded(path string) {
 				fmt.Sprint(heartBeatMS*1000),
 				fmt.Sprint(maxIdle*1000),
 			)
+
 			return nil
 		}
+
 		cmd.AfterStop = func(*commander.Command) error {
 			releasePort(state.port)
 			state.port = 0
 			return nil
 		}
+
 		log.Println("CMD:", cmd)
 		go cmd.Run()
 	}
@@ -221,13 +256,17 @@ func (pi *PublisherInstance) run() {
 	pi.commander, err = commander.New("../../cachester/Publisher",
 		"-j",
 	)
+
 	pi.commander.Name = pi.name
+
 	if err != nil {
 		log.Fatalln("Failed to create commander for: ", pi, ", error: ", err)
 	}
+
 	if udpStatsAddr != "" {
 		pi.commander.Env["UDP_STATS_URL"] = udpStatsAddr
 	}
+
 	pi.commander.AutoRestart = restartOnExit
 	err = pi.commander.Run()
 	log.Println("Commander for: ", pi, " exited: ", err)
