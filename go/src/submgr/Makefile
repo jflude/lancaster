@@ -3,7 +3,6 @@ include ../../GOOP.mk
 
 SRCS = main.go
 
-SUBSCRIBER_PATH = ../subscriber
 BIN_DIR = ../../../bin
 BIN = $(BIN_DIR)/submgr
 
@@ -16,8 +15,7 @@ release: build
 build: LD_FLAGS = \
 	-X main.wireProtocolVersion \
 		"$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
-	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION) \
-	-X main.subscriberPath $(SUBSCRIBER_PATH)
+	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION)
 
 build: $(BIN)
 
@@ -27,6 +25,6 @@ $(BIN): $(SRCS)
 fetch: .installGoop
 
 clean:
-	rm -f $(BIN_DIR)/submgr
+	rm -f $(BIN)
 
 .PHONY: all release build fetch clean
