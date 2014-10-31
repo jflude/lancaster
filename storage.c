@@ -362,21 +362,19 @@ status storage_destroy(storage_handle *pstore)
 
 			return error_errno("close");
 		}
+
+		(*pstore)->seg_fd = -1;
 	}
 
 	if ((*pstore)->seg) {
 		if (munmap((*pstore)->seg, (*pstore)->mmap_size) == -1)
 			return error_errno("munmap");
 
-		if (!(*pstore)->is_persistent) {
-			if (strncmp((*pstore)->mmap_file, "shm:", 4) == 0) {
-				if (shm_unlink((*pstore)->mmap_file + 4) == -1)
-					return error_errno("shm_unlink");
-			} else {
-				if (unlink((*pstore)->mmap_file) == -1)
-					return error_errno("unlink");
-			}
-		}
+		(*pstore)->seg = NULL;
+
+		if (!(*pstore)->is_persistent &&
+			FAILED(st = storage_delete((*pstore)->mmap_file)))
+			return st;
 	}
 
 	XFREE((*pstore)->mmap_file);
@@ -669,7 +667,7 @@ status storage_reset(storage_handle store)
 status storage_delete(const char *mmap_file)
 {
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
-		if (shm_unlink(mmap_file) == -1)
+		if (shm_unlink(mmap_file + 4) == -1)
 			return error_errno("shm_unlink");
 	} else {
 		if (unlink(mmap_file) == -1)
