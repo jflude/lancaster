@@ -302,8 +302,8 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
 		return error_invalid_arg("storage_create");
 
-	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW) ||
-		(open_flags & O_RDWR) != O_RDWR)
+	if ((open_flags & O_ACCMODE) != O_RDWR ||
+		open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
 		return error_msg("storage_create: invalid open flags: 0%o",
 						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
 
