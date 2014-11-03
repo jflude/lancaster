@@ -104,7 +104,7 @@ func main() {
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
-	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber exeutable")
+	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber executable")
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart subscriber instances when they exit")
 	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Parse()
@@ -215,7 +215,7 @@ func (si *SubscriberInstance) run() {
 	si.commander.AutoRestart = false
 
 	if deleteOldStorages {
-		si.commander.BeforeStart = func(command *commander.Command) error {
+		si.commander.BeforeStart = func(*commander.Command) error {
 			storePathToDelete := storePath
 			if strings.HasPrefix(storePath, "shm:") {
 				storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
@@ -231,8 +231,28 @@ func (si *SubscriberInstance) run() {
 		}
 	}
 
+	si.commander.AfterStart = func(c *commander.Command) error {
+		// Linux - coredumps should include shared mmap segments
+		filt := fmt.Sprintf("/proc/%d/coredump_filter", c.Pid)
+		exist, err := fileExists(filt)
+		if exist {
+			var f *os.File
+			f, err = os.OpenFile(filt, os.O_WRONLY, 0644)
+			if err == nil {
+				_, err2 := f.WriteString("0x2F")
+				err = f.Close()
+				if err2 != nil {
+					err = err2
+				}
+			}
+		}
+
+		return err
+	}
+
 	si.commander.AutoRestart = restartOnExit
 	err = si.commander.Run()
+
 	logln("Commander for: ", si, " exited: ", err)
 	delete(feeds, si.name)         // deregister this feed
 	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
@@ -242,4 +262,17 @@ func chkFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func fileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
+	return false, err
 }

@@ -67,7 +67,7 @@ func init() {
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
 	flag.Usage = usage
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
-	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher exeutable")
+	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher executable")
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart publisher instances when they exit")
 }
 
@@ -210,7 +210,7 @@ func startIfNeeded(path string) {
 			log.Fatal(err)
 		}
 
-		cmd.BeforeStart = func(*commander.Command) error {
+		cmd.BeforeStart = func(c *commander.Command) error {
 			state.port, err = reservePort()
 			if err != nil {
 				return err
@@ -229,7 +229,7 @@ func startIfNeeded(path string) {
 				opts = append(opts, "-l")
 			}
 
-			cmd.Args = append(opts,
+			c.Args = append(opts,
 				path,
 				listenAddress+":"+strconv.Itoa(state.port), // tcp addr
 				addr+":"+strconv.Itoa(state.port),
@@ -238,6 +238,25 @@ func startIfNeeded(path string) {
 			)
 
 			return nil
+		}
+
+		cmd.AfterStart = func(c *commander.Command) error {
+			// Linux - coredumps should include shared mmap segments
+			filt := fmt.Sprintf("/proc/%d/coredump_filter", c.Pid)
+			exist, err := fileExists(filt)
+			if exist {
+				var f *os.File
+				f, err = os.OpenFile(filt, os.O_WRONLY, 0644)
+				if err == nil {
+					_, err2 := f.WriteString("0x2F")
+					err = f.Close()
+					if err2 != nil {
+						err = err2
+					}
+				}
+			}
+
+			return err
 		}
 
 		cmd.AfterStop = func(*commander.Command) error {
@@ -276,4 +295,17 @@ func chkFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func fileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
+	return false, err
 }
