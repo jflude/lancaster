@@ -1,11 +1,11 @@
-SELF_DIR := $(shell readlink -e $(dir $(lastword $(MAKEFILE_LIST))))
-CACHESTER_DIR := $(shell readlink -e $(SELF_DIR)/"..")
-SCRIPTS_DIR := "$(shell readlink -e $(CACHESTER_DIR)/scripts)"
+SELF_DIR := $(shell dirname $(CURDIR)/$(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST)))
+CACHESTER_DIR := $(SELF_DIR)/..
+SCRIPTS_DIR := $(CACHESTER_DIR)/scripts
 
 CACHESTER_VENDOR_DIR := $(SELF_DIR)/.vendor
-CACHESTER_GOOP_DIR=$(shell readlink -e $(CACHESTER_VENDOR_DIR)/..)
-export GOPATH:=$(CACHESTER_VENDOR_DIR)
-export PATH:=$(CACHESTER_VENDOR_DIR)/bin:$(PATH)
+CACHESTER_GOOP_DIR := $(CACHESTER_VENDOR_DIR)/..
+export GOPATH := $(CACHESTER_VENDOR_DIR):$(GOPATH)
+export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 
 .ensurePrivateGithubSSH:
 	git config --global url.ssh://git@github.peak6.net/.insteadOf https://github.peak6.net
