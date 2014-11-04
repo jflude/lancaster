@@ -6,7 +6,6 @@
 #include "clock.h"
 #include "spin.h"
 #include "status.h"
-#include <limits.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
