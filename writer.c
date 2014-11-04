@@ -125,9 +125,9 @@ int main(int argc, char *argv[])
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, mmap_file, FALSE, O_RDWR | O_CREAT,
-							  0, MAX_ID, sizeof(struct datum), 0,
-							  q_capacity)) ||
+		FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT,
+							  FALSE, 0, MAX_ID, sizeof(struct datum),
+							  0, q_capacity)) ||
 		FAILED(storage_set_persistence(store, FALSE)) ||
 		FAILED(storage_set_description(store, "TEST")) ||
 		FAILED(storage_reset(store)) ||

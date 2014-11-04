@@ -67,7 +67,7 @@ struct storage {
 	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
 
 static status init_create(storage_handle *pstore, const char *mmap_file,
-						  boolean persist, int open_flags, identifier base_id,
+						  int open_flags, boolean persist, identifier base_id,
 						  identifier max_id, size_t value_size,
 						  size_t property_size, size_t q_capacity)
 {
@@ -690,10 +690,10 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 		strcmp(new_mmap_file, store->mmap_file) == 0)
 		return error_invalid_arg("storage_grow");
 
-	if (FAILED(st = storage_create(pnewstore, new_mmap_file, FALSE,
-								   O_RDWR | O_CREAT, new_base_id,
-								   new_max_id, new_value_size,
-								   new_property_size, new_q_capacity)))
+	if (FAILED(st = storage_create(pnewstore, new_mmap_file, O_RDWR | O_CREAT,
+								   FALSE, new_base_id, new_max_id,
+								   new_value_size, new_property_size,
+								   new_q_capacity)))
 		return st;
 
 	copy_sz = sizeof(revision) +

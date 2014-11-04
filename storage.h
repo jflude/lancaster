@@ -27,7 +27,7 @@ typedef spin_lock revision;
 #define NEXT_REV(v) (((v) + 1) & SPIN_MAX)
 
 status storage_create(storage_handle *pstore, const char *mmap_file,
-					  boolean persist, int open_flags, identifier base_id,
+					  int open_flags, boolean persist, identifier base_id,
 					  identifier max_id, size_t value_size, size_t property_size,
 					  size_t q_capacity);
 status storage_open(storage_handle *pstore, const char *mmap_file,

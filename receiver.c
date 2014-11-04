@@ -464,8 +464,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 	memset((*precv)->record_seqs, -1, (max_id - base_id) * sizeof(sequence));
 
-	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file, TRUE,
-									O_RDWR | O_CREAT, base_id, max_id,
+	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
+									O_RDWR | O_CREAT, TRUE, base_id, max_id,
 									val_size, property_size, q_capacity)) &&
 		!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
 		!FAILED(st = storage_set_description((*precv)->store,
