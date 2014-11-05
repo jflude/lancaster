@@ -52,14 +52,14 @@ ifneq (,$(findstring CYGWIN,$(shell uname -s)))
 CFLAGS += -DCYGWIN_OS
 SO_EXT = .dll
 DEPFLAGS += \
--I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
+	-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 else
 CFLAGS += -DLINUX_OS -fPIC
 SO_EXT = .so
 DEPFLAGS += \
--I/usr/include/linux \
--I/usr/include/x86_64-linux-gnu \
--I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
+	-I/usr/include/linux \
+	-I/usr/include/x86_64-linux-gnu \
+	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
 all: \
@@ -71,7 +71,6 @@ all: \
 	$(BIN_DIR)/inspector \
 	$(BIN_DIR)/grower \
 	$(BIN_DIR)/deleter
-
 all: 
 	@for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir all; \
@@ -84,12 +83,59 @@ release:
 	    $(MAKE) -C $$dir release; \
 	done
 
-debug: CFLAGS += -DDEBUG_PROTOCOL
-debug: all
-
 profile: CFLAGS += -pg
 profile: LDFLAGS += -pg
 profile: all
+
+protocol: CFLAGS += -DDEBUG_PROTOCOL
+protocol: all
+
+gaps: CFLAGS += -DDEBUG_GAPS
+gaps: all
+
+depend: CFLAGS += -DDEBUG_PROTOCOL -DDEBUG_GAPS
+depend: DEPEND.mk
+	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
+		writer.c \
+		reader.c \
+		publisher.c \
+		subscriber.c \
+		inspector.c \
+		grower.c \
+		deleter.c \
+	    $(SRCS)
+
+fetch:
+	@for dir in $(COMPONENTS); do \
+	   $(MAKE) -C $$dir fetch; \
+	done
+
+deps: fetch depend
+
+clean: 
+	rm -rf $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT) \
+	    $(BIN_DIR)/writer writer.o writer.dSYM \
+		$(BIN_DIR)/reader reader.o reader.dSYM \
+		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
+	    $(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
+		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
+		$(BIN_DIR)/grower grower.o grower.dSYM \
+		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
+	    $(OBJS)
+	@for dir in $(COMPONENTS); do \
+	    $(MAKE) -C $$dir clean; \
+	done
+
+distclean: clean
+	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
+
+.PHONY: all release profile protocol gaps depend fetch deps clean distclean
+.PHONY: $(COMPONENTS)
+
+DEPEND.mk:
+	touch DEPEND.mk
+
+include DEPEND.mk
 
 $(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
@@ -117,46 +163,3 @@ $(BIN_DIR)/libcachester.a: $(OBJS)
 
 $(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
-
-clean: 
-	rm -rf $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT) \
-	    $(BIN_DIR)/writer writer.o writer.dSYM \
-		$(BIN_DIR)/reader reader.o reader.dSYM \
-		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
-	    $(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
-		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
-		$(BIN_DIR)/grower grower.o grower.dSYM \
-		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
-	    $(OBJS)
-	@for dir in $(COMPONENTS); do \
-	    $(MAKE) -C $$dir clean; \
-	done
-
-distclean: clean
-	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
-
-deps: fetch depend
-
-DEPEND.mk:
-	touch DEPEND.mk
-
-depend: DEPEND.mk
-	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-		writer.c \
-		reader.c \
-		publisher.c \
-		subscriber.c \
-		inspector.c \
-		grower.c \
-		deleter.c \
-	    $(SRCS)
-
-fetch:
-	@for dir in $(COMPONENTS); do \
-	   $(MAKE) -C $$dir fetch; \
-	done
-
-.PHONY: all release debug profile depend clean distclean
-.PHONY: deps fetch components $(COMPONENTS)
-
-include DEPEND.mk

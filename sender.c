@@ -16,10 +16,13 @@
 #define IDLE_TIMEOUT_USEC 100
 #define IDLE_SLEEP_USEC 10
 
-#ifdef DEBUG_PROTOCOL
-#include "dump.h"
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 #include <unistd.h>
+#endif
+
+#if defined(DEBUG_PROTOCOL)
 #include <sys/types.h>
+#include "dump.h"
 #endif
 
 struct sender_stats {
@@ -59,7 +62,7 @@ struct sender {
 	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
 	char hello_str[128];
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	FILE *debug_file;
 #endif
 };
@@ -79,12 +82,12 @@ struct tcp_client {
 	struct sequence_range reply_range;
 	identifier reply_id;
 	sequence min_seq_found;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	char peer_name[256];
 #endif
 };
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 static const char *debug_time(void)
 {
 	microsec now;
@@ -117,7 +120,7 @@ static status mcast_send_pkt(sender_handle sndr)
 	if (++sndr->next_seq < 0)
 		return error_msg("mcast_send_pkt: sequence overflow",
 						 SEQUENCE_OVERFLOW);
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
 			debug_time(), ntohll(*((sequence *)sndr->pkt_buf)));
 #endif
@@ -181,7 +184,7 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 									  sndr->mcast_insert_time - when)))
 		return st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file,
 			"%s       staging seq %07ld, id #%07ld, rev %07ld, ",
 			debug_time(), sndr->next_seq, id, rev);
@@ -205,7 +208,7 @@ static status mcast_on_empty_queue(sender_handle sndr)
 				if (sndr->pkt_next == sndr->pkt_buf) {
 					*((sequence *)sndr->pkt_buf) = htonll(-sndr->next_seq);
 					sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 					fprintf(sndr->debug_file, "%s mcast heartbeat\n",
 							debug_time());
 #endif
@@ -225,7 +228,7 @@ static status mcast_on_write(sender_handle sndr)
 	q_index new_q_idx = storage_get_queue_head(sndr->store);
 	q_index qi = new_q_idx - sndr->last_q_idx;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s mcast write %ld queued\n", debug_time(), qi);
 #endif
 
@@ -238,7 +241,7 @@ static status mcast_on_write(sender_handle sndr)
 		st = mcast_on_empty_queue(sndr);
 	else {
 		if ((size_t)qi > storage_get_queue_capacity(sndr->store)) {
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 			fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
 #endif
 			return error_msg("mcast_on_write: change queue overrun",
@@ -263,7 +266,7 @@ static status mcast_on_write(sender_handle sndr)
 static status tcp_read_buf(struct tcp_client *clnt)
 {
 	status st = OK;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	size_t recv_sz = 0;
 #endif
 
@@ -274,12 +277,12 @@ static status tcp_read_buf(struct tcp_client *clnt)
 		clnt->in_next += st;
 		clnt->in_remain -= st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		recv_sz += st;
 #endif
 	}
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(clnt->sndr->debug_file, "%s   %s tcp recv %lu bytes\n",
 			debug_time(), clnt->peer_name, recv_sz);
 #endif
@@ -313,7 +316,7 @@ static status tcp_write_buf(struct tcp_client *clnt)
 		spin_unlock(&clnt->sndr->stats_lock, 0);
 	}
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(clnt->sndr->debug_file, "%s   %s tcp sent %lu bytes\n",
 			debug_time(), clnt->peer_name, sent_sz);
 #endif
@@ -383,7 +386,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 		sndr->last_q_idx = storage_get_queue_head(sndr->store);
 	}
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	if (!FAILED(st)) {
 		sock_addr_handle sa;
 		if (FAILED(st = sock_addr_create(&sa, NULL, 0)) ||
@@ -459,7 +462,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 	microsec now;
 	status st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s   %s tcp write ready, %lu bytes remain\n",
 			debug_time(), clnt->peer_name, clnt->out_remain);
 #endif
@@ -505,7 +508,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 					clnt->out_next = clnt->out_buf;
 					clnt->out_remain = clnt->pkt_size;
 					++clnt->reply_id;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 					fprintf(sndr->debug_file,
 							"%s     %s tcp gap response seq %07ld, id #%07ld\n",
 							debug_time(), clnt->peer_name,
@@ -519,7 +522,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 			sndr->min_seq = clnt->min_seq_found;
 			INVALIDATE_RANGE(clnt->reply_range);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 			fprintf(sndr->debug_file, "%s   %s tcp gap request DONE\n",
 					debug_time(), clnt->peer_name);
 #endif
@@ -529,7 +532,7 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 			clnt->out_next = clnt->out_buf;
 			clnt->out_remain = sizeof(sequence);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 			fprintf(sndr->debug_file, "%s   %s tcp heartbeat\n",
 					debug_time(), clnt->peer_name);
 #endif
@@ -543,7 +546,7 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 {
 	struct tcp_client *clnt = sock_get_property_ref(sock);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s   %s tcp read blocked\n",
 			debug_time(), clnt->peer_name);
 #endif
@@ -558,7 +561,7 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 			clnt->reply_id = sndr->base_id;
 			clnt->min_seq_found = SEQUENCE_MAX;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 			fprintf(sndr->debug_file,
 					"%s   %s tcp gap request seq %07ld --> %07ld\n",
 					debug_time(), clnt->peer_name, clnt->reply_range.low,
@@ -575,7 +578,7 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	struct tcp_client *clnt = sock_get_property_ref(sock);
 	status st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s   %s tcp read ready, %lu bytes remain\n",
 			debug_time(), clnt->peer_name, clnt->in_remain);
 #endif
@@ -647,7 +650,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				   microsec max_pkt_age_usec)
 {
 	status st;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	char debug_name[256];
 #endif
 
@@ -759,15 +762,16 @@ static status init(sender_handle *psndr, const char *mmap_file,
 		FAILED(st = clock_time(&(*psndr)->last_active_time)))
 		return st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	sprintf(debug_name, "SEND-%s-%d-%d.DEBUG", tcp_address,
 			(int)sock_addr_get_port((*psndr)->listen_addr), (int)getpid());
 
 	(*psndr)->debug_file = fopen(debug_name, "w");
 	if (!(*psndr)->debug_file)
 		st = error_errno("fopen");
-#endif
 
+	setvbuf((*psndr)->debug_file, NULL, _IOLBF, 0);
+#endif
 	return st;
 }
 
@@ -818,7 +822,7 @@ status sender_destroy(sender_handle *psndr)
 	XFREE((*psndr)->record_seqs);
 	XFREE((*psndr)->pkt_buf);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	if ((*psndr)->debug_file && fclose((*psndr)->debug_file) == EOF)
 		st = error_errno("fclose");
 #endif
@@ -843,7 +847,7 @@ status sender_run(sender_handle sndr)
 
 	while (!sndr->is_stopping) {
 		microsec now, when;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		fprintf(sndr->debug_file, "%s ======================================\n",
 				debug_time());
 #endif

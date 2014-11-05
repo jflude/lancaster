@@ -21,10 +21,10 @@
 #define INITIAL_MC_HB_USEC (10 * 1000000)
 #define MAX_MISSED_HB 5
 
-#ifdef DEBUG_PROTOCOL
-#include "dump.h"
-#include <sys/types.h>
+#if defined(DEBUG_PROTOCOL)
 #include <unistd.h>
+#include <sys/types.h>
+#include "dump.h"
 #endif
 
 struct receiver_stats {
@@ -61,12 +61,12 @@ struct receiver {
 	struct receiver_stats *next_stats;
 	volatile spin_lock stats_lock;
 	volatile boolean is_stopping;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	FILE *debug_file;
 #endif
 };
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 static const char *debug_time(void)
 {
 	microsec now;
@@ -112,7 +112,7 @@ static status update_record(receiver_handle recv, sequence seq, identifier id,
 	if (FAILED(st = storage_write_queue(recv->store, id)))
 		return st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(recv->debug_file,
 			"%s       updating seq %07ld, id #%07ld, rev %07ld, ",
 			debug_time(), seq, id, NEXT_REV(rev));
@@ -141,7 +141,7 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
 	++recv->next_stats->tcp_gap_count;
 	spin_unlock(&recv->stats_lock, 0);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(recv->debug_file, "%s   tcp gap request seq %07ld --> %07ld\n",
 			debug_time(), low, high);
 #endif
@@ -195,7 +195,7 @@ static status mcast_on_read(receiver_handle recv)
 
 	*in_seq_ref = ntohll(*in_seq_ref);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	if (*in_seq_ref < 0) {
 		fprintf(recv->debug_file, "%s mcast heartbeat seq %07ld\n",
 				debug_time(), -*in_seq_ref);
@@ -259,7 +259,7 @@ static status tcp_read_buf(receiver_handle recv)
 		spin_unlock(&recv->stats_lock, 0);
 	}
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(recv->debug_file, "%s   tcp recv %lu bytes\n",
 			debug_time(), recv_sz);
 #endif
@@ -269,7 +269,7 @@ static status tcp_read_buf(receiver_handle recv)
 static status tcp_write_buf(receiver_handle recv)
 {
 	status st = OK;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	size_t sent_sz = 0;
 #endif
 
@@ -281,12 +281,12 @@ static status tcp_write_buf(receiver_handle recv)
 		recv->out_next += st;
 		recv->out_remain -= st;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		sent_sz += st;
 #endif
 	}
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	fprintf(recv->debug_file, "%s   tcp sent %lu bytes\n",
 			debug_time(), sent_sz);
 #endif
@@ -321,7 +321,7 @@ static status tcp_on_read(receiver_handle recv)
 			*in_seq_ref = ntohll(*in_seq_ref);
 
 			if (*in_seq_ref == WILL_QUIT_SEQ) {
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 				fprintf(recv->debug_file, "%s   tcp will quit\n", debug_time());
 #endif
 				recv->is_stopping = TRUE;
@@ -329,7 +329,7 @@ static status tcp_on_read(receiver_handle recv)
 			}
 
 			if (*in_seq_ref == HEARTBEAT_SEQ) {
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 				fprintf(recv->debug_file, "%s   tcp heartbeat\n", debug_time());
 #endif
 				recv->in_next = recv->in_buf;
@@ -343,7 +343,7 @@ static status tcp_on_read(receiver_handle recv)
 
 		*id = ntohll(*id);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		fprintf(recv->debug_file,
 				"%s     tcp gap response seq %07ld, id #%07ld\n",
 				debug_time(), *in_seq_ref, *id);
@@ -392,7 +392,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t val_size;
 	status st;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	char debug_name[256];
 #endif
 
@@ -492,13 +492,15 @@ static status init(receiver_handle *precv, const char *mmap_file,
 		!FAILED(st = clock_time(&(*precv)->mcast_recv_time))) {
 		(*precv)->tcp_recv_time = (*precv)->mcast_recv_time;
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
 				tcp_address, (int)tcp_port, (int)getpid());
 
 		(*precv)->debug_file = fopen(debug_name, "w");
 		if (!(*precv)->debug_file)
 			st = error_errno("fopen");
+
+		setvbuf((*precv)->debug_file, NULL, _IOLBF, 0);
 #endif
 	}
 
@@ -548,7 +550,7 @@ status receiver_destroy(receiver_handle *precv)
 	XFREE((*precv)->out_buf);
 	XFREE((*precv)->in_buf);
 
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 	if ((*precv)->debug_file && fclose((*precv)->debug_file) == EOF)
 		st = error_errno("fclose");
 #endif
@@ -568,7 +570,7 @@ status receiver_run(receiver_handle recv)
 
 	while (!recv->is_stopping) {
 		microsec now, mc_hb_usec;
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 		fprintf(recv->debug_file, "%s ======================================\n",
 				debug_time());
 #endif
@@ -585,7 +587,7 @@ status receiver_run(receiver_handle recv)
 			 ? INITIAL_MC_HB_USEC : recv->timeout_usec);
 
 		if ((now - recv->mcast_recv_time) >= mc_hb_usec) {
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 			fprintf(recv->debug_file, "%s mcast no heartbeat\n", debug_time());
 #endif
 			st = error_msg("receiver_run: no multicast heartbeat",
@@ -594,7 +596,7 @@ status receiver_run(receiver_handle recv)
 		}
 
 		if ((now - recv->tcp_recv_time) >= recv->timeout_usec) {
-#ifdef DEBUG_PROTOCOL
+#if defined(DEBUG_PROTOCOL)
 			fprintf(recv->debug_file, "%s   tcp no heartbeat\n", debug_time());
 #endif
 			st = error_msg("receiver_run: no TCP heartbeat", NO_HEARTBEAT);
