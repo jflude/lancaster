@@ -311,7 +311,7 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 	if (!*pstore)
 		return NO_MEMORY;
 
-	if (FAILED(st = init_create(pstore, mmap_file, persist, open_flags,
+	if (FAILED(st = init_create(pstore, mmap_file, open_flags, persist,
 								base_id, max_id, value_size, property_size,
 								q_capacity))) {
 		error_save_last();
