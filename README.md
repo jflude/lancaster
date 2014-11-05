@@ -2,7 +2,7 @@ CACHESTER - fast, reliable multicasting of ephemeral data
 =========================================================
 
 The software consists of a C library, libcachester, provided in both static and
-dynamic forms, together with six utility programs for use in production and
+dynamic forms, together with seven utility programs for use in production and
 development environments.
 
 Any questions, bug reports, suggested improvements etc. - please contact
@@ -105,7 +105,9 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
 		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
-These are utility programs to show and modify a storage.
+    deleter [-v] STORAGE-FILE
+
+These are utility programs to show, modify or delete a storage.
 
 INSPECTOR if given the -a option outputs the attribute values of a storage, such
 as the size of a record within it, the size of its change queue, the description
@@ -128,6 +130,8 @@ of 1024 records:-
 
 Expanding or contracting a storage can be done by specifying different values
 for the base and maximum identifiers.
+
+The DELETER program will delete the given storage.
 
 	  		   ===============================================
 
