@@ -1,11 +1,11 @@
-#include "error.h"
-#include "spin.h"
-#include "status.h"
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "error.h"
+#include "spin.h"
+#include "status.h"
 
 static volatile spin_lock msg_lock;
 static char prog_name[256], last_msg[512], saved_msg[512];

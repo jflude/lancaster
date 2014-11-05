@@ -1,5 +1,10 @@
 /* generic publisher */
 
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "advert.h"
 #include "clock.h"
 #include "error.h"
@@ -9,10 +14,6 @@
 #include "sock.h"
 #include "thread.h"
 #include "version.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 #define DEFAULT_TTL 1

@@ -1,10 +1,12 @@
+#include <stdio.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include "advert.h"
 #include "error.h"
+#include "sock.h"
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
-#include <stdio.h>
-#include <sys/socket.h>
 
 #define SEND_DELAY_USEC (3 * 1000000)
 

@@ -3,8 +3,8 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
-#include "status.h"
 #include <stddef.h>
+#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

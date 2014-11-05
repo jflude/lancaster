@@ -1,16 +1,16 @@
 /* show the attributes and records of a storage */
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "clock.h"
 #include "dump.h"
 #include "error.h"
 #include "storage.h"
 #include "version.h"
 #include "xalloc.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #define SHOW_ATTRIBUTES 1
 #define SHOW_QUEUE 2
@@ -48,6 +48,8 @@ static status print_attributes(storage_handle store)
 	microsec when;
 	char created[64], touched[64];
 	const char *seg_base = (const char *)storage_get_segment(store);
+	size_t q_capacity = storage_get_queue_capacity(store),
+		q_head = storage_get_queue_head(store);
 	unsigned short file_ver = storage_get_file_version(store),
 		data_ver = storage_get_data_version(store);
 
@@ -72,7 +74,7 @@ static status print_attributes(storage_handle store)
 			   "queue base ref:   0x%012lX\n"
 			   "queue capacity:   %lu\n"
 			   "queue head ref:   0x%012lX\n"
-			   "queue head:       %lu\n"
+			   "queue head:       %lu (%lu)\n"
 			   "array base ref:   0x%012lx\n"
 			   "created time:     %s\n"
 			   "touched time:     %s\n",
@@ -91,9 +93,10 @@ static status print_attributes(storage_handle store)
 			   storage_get_property_offset(store),
 			   storage_get_timestamp_offset(store),
 			   (const char *)storage_get_queue_base_ref(store) - seg_base,
-			   storage_get_queue_capacity(store),
+			   q_capacity,
 			   (const char *)storage_get_queue_head_ref(store) - seg_base,
-			   storage_get_queue_head(store),
+			   q_head,
+			   q_capacity > 0 ? (q_head % q_capacity) : 0,
 			   (const char *)storage_get_array(store) - seg_base,
 			   created,
 			   touched) < 0)

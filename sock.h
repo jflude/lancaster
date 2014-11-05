@@ -3,9 +3,8 @@
 #ifndef SOCK_H
 #define SOCK_H
 
-#include "status.h"
 #include <stddef.h>
-#include <netinet/in.h>
+#include "status.h"
 
 #define DEFAULT_MTU 1500
 #define IP_OVERHEAD 20

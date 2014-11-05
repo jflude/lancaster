@@ -64,12 +64,13 @@ endif
 
 all: \
 	$(BIN_DIR)/libcachester$(SO_EXT) \
+	$(BIN_DIR)/writer \
+	$(BIN_DIR)/reader \
 	$(BIN_DIR)/publisher \
 	$(BIN_DIR)/subscriber \
-	$(BIN_DIR)/reader \
-	$(BIN_DIR)/writer \
 	$(BIN_DIR)/inspector \
-	$(BIN_DIR)/grower
+	$(BIN_DIR)/grower \
+	$(BIN_DIR)/deleter
 
 all: 
 	@for dir in $(COMPONENTS); do \
@@ -90,22 +91,25 @@ profile: CFLAGS += -pg
 profile: LDFLAGS += -pg
 profile: all
 
+$(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(BIN_DIR)/reader: reader.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
 $(BIN_DIR)/publisher: publisher.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(BIN_DIR)/subscriber: subscriber.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-$(BIN_DIR)/reader: reader.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
 $(BIN_DIR)/inspector: inspector.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(BIN_DIR)/grower: grower.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(BIN_DIR)/deleter: deleter.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(BIN_DIR)/libcachester.a: $(OBJS)
@@ -117,11 +121,12 @@ $(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
 clean: 
 	rm -rf $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT) \
 	    $(BIN_DIR)/writer writer.o writer.dSYM \
+		$(BIN_DIR)/reader reader.o reader.dSYM \
 		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
 	    $(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
-		$(BIN_DIR)/reader reader.o reader.dSYM \
 		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
 		$(BIN_DIR)/grower grower.o grower.dSYM \
+		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
 	    $(OBJS)
 	@for dir in $(COMPONENTS); do \
 	    $(MAKE) -C $$dir clean; \
@@ -137,7 +142,13 @@ DEPEND.mk:
 
 depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-	    writer.c publisher.c subscriber.c reader.c inspector.c grower.c \
+		writer.c \
+		reader.c \
+		publisher.c \
+		subscriber.c \
+		inspector.c \
+		grower.c \
+		deleter.c \
 	    $(SRCS)
 
 fetch:

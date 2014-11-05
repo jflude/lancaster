@@ -1,7 +1,7 @@
-#include "xalloc.h"
-#include "error.h"
 #include <errno.h>
 #include <stdlib.h>
+#include "error.h"
+#include "xalloc.h"
 
 void *xmalloc(size_t sz)
 {

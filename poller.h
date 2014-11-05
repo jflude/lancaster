@@ -3,8 +3,8 @@
 #ifndef POLLER_H
 #define POLLER_H
 
-#include "status.h"
 #include "sock.h"
+#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

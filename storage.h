@@ -3,10 +3,10 @@
 #ifndef STORAGE_H
 #define STORAGE_H
 
+#include <stddef.h>
 #include "clock.h"
 #include "spin.h"
 #include "status.h"
-#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

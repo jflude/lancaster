@@ -1,15 +1,15 @@
-#include "storage.h"
-#include "clock.h"
-#include "error.h"
-#include "spin.h"
-#include "sync.h"
-#include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include "clock.h"
+#include "error.h"
+#include "spin.h"
+#include "storage.h"
+#include "sync.h"
+#include "xalloc.h"
 
 #ifndef O_ACCMODE
 #define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
@@ -291,7 +291,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 }
 
 status storage_create(storage_handle *pstore, const char *mmap_file,
-					  boolean persist, int open_flags, identifier base_id,
+					  int open_flags, boolean persist, identifier base_id,
 					  identifier max_id, size_t value_size,
 					  size_t property_size, size_t q_capacity)
 {
@@ -304,7 +304,7 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 
 	if ((open_flags & O_ACCMODE) != O_RDWR ||
 		open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
-		return error_msg("storage_create: invalid open flags: 0%o",
+		return error_msg("storage_create: invalid open flags: 0%07o",
 						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
 
 	*pstore = XMALLOC(struct storage);
@@ -332,7 +332,7 @@ status storage_open(storage_handle *pstore, const char *mmap_file,
 	if (((open_flags & O_ACCMODE) != O_RDONLY &&
 		 (open_flags & O_ACCMODE) != O_RDWR) ||
 		(open_flags & ~(O_RDONLY | O_RDWR | O_NOFOLLOW)))
-		return error_msg("storage_open: invalid open flags: 0%o",
+		return error_msg("storage_open: invalid open flags: 0%07o",
 						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
 
 	*pstore = XMALLOC(struct storage);

@@ -1,15 +1,15 @@
 /* modify the attributes of a storage */
 
-#include "error.h"
-#include "storage.h"
-#include "version.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
+#include "error.h"
+#include "storage.h"
+#include "version.h"
 
 #define PARSE(n, f) \
-	(strcmp(argv[n], "=") == 0 ? f(old_store) : (unsigned)atoi(argv[n]))
+	(*argv[n] == '=' ? f(old_store) : (unsigned)atoi(argv[n]))
 
 static void show_syntax(void)
 {
@@ -31,28 +31,33 @@ int main(int argc, char *argv[])
 	storage_handle old_store, new_store;
 	identifier new_base_id, new_max_id;
 	size_t new_val_size, new_prop_size, new_q_capacity;
+	const char *new_file;
+	int opt;
 
 	error_set_program_name(argv[0]);
 
-	if (argc < 2)
+	while ((opt = getopt(argc, argv, "v")) != -1)
+		switch (opt) {
+		case 'v':
+			show_version();
+		default:
+			show_syntax();
+		}
+
+	if ((argc - optind) != 7)
 		show_syntax();
 
-	if (strcmp(argv[1], "-v") == 0)
-		show_version();
-
-	if (argc != 8)
-		show_syntax();
-
-	if (FAILED(storage_open(&old_store, argv[1], O_RDONLY)))
+	if (FAILED(storage_open(&old_store, argv[optind++], O_RDONLY)))
 		error_report_fatal();
 
-	new_base_id = PARSE(3, storage_get_base_id);
-	new_max_id = PARSE(4, storage_get_max_id);
-	new_val_size = PARSE(5, storage_get_value_size);
-	new_prop_size = PARSE(6, storage_get_property_size);
-	new_q_capacity = PARSE(7, storage_get_queue_capacity);
+	new_file = argv[optind++];
+	new_base_id = PARSE(optind, storage_get_base_id); optind++;
+	new_max_id = PARSE(optind, storage_get_max_id); optind++;
+	new_val_size = PARSE(optind, storage_get_value_size); optind++;
+	new_prop_size = PARSE(optind, storage_get_property_size); optind++;
+	new_q_capacity = PARSE(optind, storage_get_queue_capacity);
 
-	if (FAILED(storage_grow(old_store, &new_store, argv[2], new_base_id,
+	if (FAILED(storage_grow(old_store, &new_store, new_file, new_base_id,
 							new_max_id, new_val_size, new_prop_size,
 							new_q_capacity)) ||
 		FAILED(storage_destroy(&old_store)) ||

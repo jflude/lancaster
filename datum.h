@@ -1,9 +1,7 @@
-/* data shared between servers and clients */
+/* test data shared between servers and clients */
 
 #ifndef DATUM_H
 #define DATUM_H
-
-#include "clock.h"
 
 #define MAX_ID 1000
 
@@ -11,12 +9,9 @@
 extern "C" {
 #endif
 
-struct datum
-{
+struct datum {
 	long xyz;
 };
-
-typedef struct datum datum_t;
 
 #ifdef __cplusplus
 }

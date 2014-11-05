@@ -4,7 +4,7 @@
 #define SENDER_H
 
 #include "clock.h"
-#include "sock.h"
+#include "status.h"
 #include "storage.h"
 
 #ifdef __cplusplus

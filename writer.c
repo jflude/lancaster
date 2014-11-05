@@ -1,5 +1,12 @@
 /* test writer */
 
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include "clock.h"
 #include "datum.h"
 #include "error.h"
@@ -8,12 +15,6 @@
 #include "thread.h"
 #include "twist.h"
 #include "version.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
 
 static storage_handle store;
 static microsec delay;

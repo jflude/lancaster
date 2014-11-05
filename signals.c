@@ -1,7 +1,8 @@
-#include "signals.h"
-#include "error.h"
+#include <signal.h>
 #include <string.h>
 #include <stddef.h>
+#include "error.h"
+#include "signals.h"
 
 #ifndef NSIG
 #define NSIG 65

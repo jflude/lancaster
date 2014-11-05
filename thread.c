@@ -1,8 +1,8 @@
-#include "thread.h"
-#include "error.h"
-#include "xalloc.h"
 #include <errno.h>
 #include <pthread.h>
+#include "error.h"
+#include "thread.h"
+#include "xalloc.h"
 
 struct thread {
 	pthread_t sys_thr;

@@ -3,8 +3,8 @@
 #ifndef DUMP_H
 #define DUMP_H
 
-#include "status.h"
 #include <stdio.h>
+#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

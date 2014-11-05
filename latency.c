@@ -1,8 +1,8 @@
-#include "latency.h"
+#include <math.h>
 #include "error.h"
+#include "latency.h"
 #include "spin.h"
 #include "xalloc.h"
-#include <math.h>
 
 struct stats {
 	long count;

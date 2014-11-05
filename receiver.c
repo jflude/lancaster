@@ -1,13 +1,3 @@
-#include "receiver.h"
-#include "clock.h"
-#include "error.h"
-#include "h2n2h.h"
-#include "latency.h"
-#include "poller.h"
-#include "sequence.h"
-#include "sock.h"
-#include "spin.h"
-#include "xalloc.h"
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,6 +5,16 @@
 #include <poll.h>
 #include <stdio.h>
 #include <time.h>
+#include "clock.h"
+#include "error.h"
+#include "h2n2h.h"
+#include "latency.h"
+#include "poller.h"
+#include "receiver.h"
+#include "sequence.h"
+#include "sock.h"
+#include "spin.h"
+#include "xalloc.h"
 
 #define RECV_BUFSIZ (1024 * 1024)
 #define TOUCH_PERIOD_USEC (1 * 1000000)

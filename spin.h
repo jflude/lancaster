@@ -3,8 +3,8 @@
 #ifndef SPIN_H
 #define SPIN_H
 
-#include "status.h"
 #include <limits.h>
+#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

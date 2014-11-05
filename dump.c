@@ -1,6 +1,6 @@
+#include <ctype.h>
 #include "dump.h"
 #include "error.h"
-#include <ctype.h>
 
 status fdump(const void *p, const void *base, size_t sz, FILE *f)
 {

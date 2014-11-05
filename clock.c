@@ -1,5 +1,3 @@
-#include "clock.h"
-#include "error.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "clock.h"
+#include "error.h"
 
 #if _POSIX_TIMERS && (_POSIX_TIMERS - 200112L) >= 0
 

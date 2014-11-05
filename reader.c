@@ -1,5 +1,11 @@
 /* test reader */
 
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "clock.h"
 #include "datum.h"
 #include "error.h"
@@ -7,11 +13,6 @@
 #include "signals.h"
 #include "storage.h"
 #include "version.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define DISPLAY_DELAY_USEC (0.2 * 1000000)

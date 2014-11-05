@@ -1,5 +1,5 @@
-#include "twist.h"
 #include "error.h"
+#include "twist.h"
 #include "xalloc.h"
 
 struct twist {

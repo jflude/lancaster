@@ -3,8 +3,8 @@
 #ifndef TABLE_H
 #define TABLE_H
 
-#include "status.h"
 #include <stddef.h>
+#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

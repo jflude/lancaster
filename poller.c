@@ -1,8 +1,8 @@
-#include "poller.h"
-#include "error.h"
-#include "xalloc.h"
 #include <errno.h>
 #include <poll.h>
+#include "error.h"
+#include "poller.h"
+#include "xalloc.h"
 
 struct poller {
 	nfds_t count;

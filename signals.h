@@ -4,7 +4,6 @@
 #define SIGNALS_H
 
 #include "status.h"
-#include <signal.h>
 
 #ifdef __cplusplus
 extern "C" {

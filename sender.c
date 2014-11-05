@@ -1,16 +1,16 @@
-#include "sender.h"
-#include "error.h"
-#include "h2n2h.h"
-#include "latency.h"
-#include "poller.h"
-#include "sequence.h"
-#include "spin.h"
-#include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
 #include <sys/socket.h>
+#include "error.h"
+#include "h2n2h.h"
+#include "latency.h"
+#include "poller.h"
+#include "sender.h"
+#include "sequence.h"
+#include "spin.h"
+#include "xalloc.h"
 
 #define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define IDLE_TIMEOUT_USEC 100

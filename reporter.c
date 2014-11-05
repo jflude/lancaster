@@ -1,8 +1,9 @@
-#include "reporter.h"
+#include <string.h>
+#include <netinet/in.h>
 #include "error.h"
+#include "reporter.h"
 #include "sock.h"
 #include "xalloc.h"
-#include <string.h>
 
 struct reporter {
 	sock_handle udp_sock;

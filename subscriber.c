@@ -1,5 +1,10 @@
 /* generic subscriber */
 
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "error.h"
 #include "clock.h"
 #include "receiver.h"
@@ -8,10 +13,6 @@
 #include "sock.h"
 #include "thread.h"
 #include "version.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 #define STATS_ENV_VAR "UDP_STATS_URL"

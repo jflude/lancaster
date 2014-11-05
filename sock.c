@@ -1,6 +1,3 @@
-#include "sock.h"
-#include "error.h"
-#include "xalloc.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -9,9 +6,13 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include "error.h"
+#include "sock.h"
+#include "xalloc.h"
 
 #if defined(SIOCRIPMTU) && defined(SIOCSIPMTU)
 #define SIOCGIFMTU SIOCRIPMTU

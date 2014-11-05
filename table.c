@@ -1,5 +1,5 @@
-#include "table.h"
 #include "error.h"
+#include "table.h"
 #include "xalloc.h"
 
 struct chain {

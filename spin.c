@@ -1,6 +1,6 @@
-#include "spin.h"
 #include "error.h"
 #include "clock.h"
+#include "spin.h"
 #include "sync.h"
 
 #define MAX_WAIT_USEC (1 * 1000000)

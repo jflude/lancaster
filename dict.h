@@ -3,9 +3,9 @@
 #ifndef DICT_H
 #define DICT_H
 
+#include <stddef.h>
 #include "status.h"
 #include "storage.h"
-#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
