@@ -8,7 +8,7 @@ development environments.
 Any questions, bug reports, suggested improvements etc. - please contact
 Justin Flude <jflude@peak6.com>
 
-	  		   ===============================================
+             ===============================================
 
 	writer [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
 
@@ -37,10 +37,10 @@ READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
 numbers, indicating which conditions occured in this last "tick":-
 
-	0 - no data was read
-	1 - data was read
-	2 - data was read out-of-order to what was written
-	4 - change queue was overrun
+    0 - no data was read
+    1 - data was read
+    2 - data was read out-of-order to what was written
+    4 - change queue was overrun
 
 If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.
@@ -48,13 +48,13 @@ statistics instead of its usual output.
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
 
-	  		   ===============================================
+             ===============================================
 
-	publisher [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] [-j|-s] [-l] \
-			  [-p ERROR PREFIX] [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT \
-			  MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
+    publisher [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] [-j|-s] [-l] \
+              [-p ERROR PREFIX] [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT \
+              MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
 
-	subscriber [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
+    subscriber [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
@@ -89,21 +89,21 @@ A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
 and SUBSCRIBER and READER on another.  For example, if the former were to be
 run on pslchi6dpricedev45 (10.2.2.152):-
 
-	dev45$ writer /tmp/his_local_file 4096
-	dev45$ publisher /tmp/his_local_file 10.2.2.152:23266 227.1.1.34:56134 \
-		   			 500000 10000
+    dev45$ writer /tmp/his_local_file 4096
+    dev45$ publisher /tmp/his_local_file 10.2.2.152:23266 227.1.1.34:56134 \
+                     500000 10000
 
 ...and the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
 
-	dev42$ subscriber shm:/her_local_segment 4096 10.2.2.152:23266
-	dev42$ reader shm:/her_local_segment
+    dev42$ subscriber shm:/her_local_segment 4096 10.2.2.152:23266
+    dev42$ reader shm:/her_local_segment
 
-	  		   ===============================================
+             ===============================================
 
-	inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...|all]
+    inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...|all]
 
-	grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
-		   NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
+    grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
+           NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
     deleter [-v] STORAGE-FILE
 
@@ -133,7 +133,7 @@ for the base and maximum identifiers.
 
 The DELETER program will delete the given storage.
 
-	  		   ===============================================
+             ===============================================
 
 Exit statuses: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
