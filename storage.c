@@ -260,7 +260,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
 
 	if (((*pstore)->seg->file_version >> 8) != CACHESTER_FILE_MAJOR_VERSION)
-		return error_msg("storage_create: incompatible file version",
+		return error_msg("storage_open: incompatible file version",
 						 WRONG_FILE_VERSION);
 
 	seg_sz = (*pstore)->seg->seg_size;
