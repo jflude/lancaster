@@ -63,6 +63,7 @@ DEPFLAGS += \
 endif
 
 all: \
+	$(BIN_DIR)/libcachester.a \
 	$(BIN_DIR)/libcachester$(SO_EXT) \
 	$(BIN_DIR)/writer \
 	$(BIN_DIR)/reader \
@@ -73,14 +74,14 @@ all: \
 	$(BIN_DIR)/deleter
 all: 
 	@for dir in $(COMPONENTS); do \
-	    $(MAKE) -C $$dir all; \
+		$(MAKE) -C $$dir all; \
 	done
 
 release: CFLAGS += -DNDEBUG -O3
 release: deps all
 release: 
 	for dir in $(COMPONENTS); do \
-	    $(MAKE) -C $$dir release; \
+		$(MAKE) -C $$dir release; \
 	done
 
 profile: CFLAGS += -pg
@@ -103,39 +104,47 @@ depend: DEPEND.mk
 		inspector.c \
 		grower.c \
 		deleter.c \
-	    $(SRCS)
+		$(SRCS)
 
 fetch:
 	@for dir in $(COMPONENTS); do \
-	   $(MAKE) -C $$dir fetch; \
+		$(MAKE) -C $$dir fetch; \
 	done
 
 deps: fetch depend
 
 clean: 
-	rm -rf $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT) \
-	    $(BIN_DIR)/writer writer.o writer.dSYM \
+	rm -rf \
+		$(BIN_DIR)/libcachester.a \
+		$(BIN_DIR)/libcachester$(SO_EXT) \
+		$(BIN_DIR)/writer writer.o writer.dSYM \
 		$(BIN_DIR)/reader reader.o reader.dSYM \
 		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
-	    $(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
+		$(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
 		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
 		$(BIN_DIR)/grower grower.o grower.dSYM \
 		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
-	    $(OBJS)
+		$(OBJS)
 	@for dir in $(COMPONENTS); do \
-	    $(MAKE) -C $$dir clean; \
+		$(MAKE) -C $$dir clean; \
 	done
 
 distclean: clean
 	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
 
-.PHONY: all release profile protocol gaps depend fetch deps clean distclean
-.PHONY: $(COMPONENTS)
-
 DEPEND.mk:
 	touch DEPEND.mk
 
 include DEPEND.mk
+
+.PHONY: all release profile protocol gaps depend fetch deps clean distclean
+.PHONY: $(COMPONENTS)
+
+$(BIN_DIR)/libcachester.a: $(OBJS)
+	ar -r $(BIN_DIR)/libcachester.a $(OBJS)
+
+$(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
+	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
@@ -157,9 +166,3 @@ $(BIN_DIR)/grower: grower.o $(BIN_DIR)/libcachester.a
 
 $(BIN_DIR)/deleter: deleter.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/libcachester.a: $(OBJS)
-	ar -r $(BIN_DIR)/libcachester.a $(OBJS)
-
-$(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
-	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
