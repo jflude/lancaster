@@ -200,6 +200,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (open_flags & O_CREAT)
 		(*pstore)->seg->magic = MAGIC_NUMBER;
 
+	SYNC_SYNCHRONIZE();
 	return storage_sync(*pstore);
 }
 
