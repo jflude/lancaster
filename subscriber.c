@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "error.h"
 #include "clock.h"
 #include "receiver.h"
@@ -206,10 +207,12 @@ int main(int argc, char *argv[])
 		show_syntax();
 
 	mmap_file = argv[optind++];
-	q_capacity = atoi(argv[optind++]);
+
+	if (FAILED(a2i(argv[optind++], "%ld", &q_capacity)))
+		error_report_fatal();
 
 	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
-		error_invalid_arg("error: change queue size not a non-zero power of 2");
+		error_invalid_arg("change queue size not a non-zero power of 2");
 		error_report_fatal();
 	}
 

@@ -129,8 +129,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			return error_errno("fstat");
 
 		if ((size_t)file_stat.st_size != seg_sz)
-			return error_msg("storage_create: storage is unequal size",
-							 STORAGE_CORRUPTED);
+			return error_msg("storage_create: storage is unequal",
+							 STORAGE_UNEQUAL);
 	}
 
 	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE,
@@ -176,8 +176,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			 (*pstore)->seg->val_offset != offsetof(struct record, val) ||
 			 (*pstore)->seg->prop_offset != prop_offset ||
 			 (*pstore)->seg->q_mask != (q_capacity - 1))
-		return error_msg("storage_create: storage is unequal structure",
-						 STORAGE_CORRUPTED);
+		return error_msg("storage_create: storage is unequal",
+						 STORAGE_UNEQUAL);
 
 	(*pstore)->first = (void *)(((char *)(*pstore)->seg) + hdr_sz);
 	(*pstore)->limit =
@@ -619,6 +619,78 @@ status storage_get_record(storage_handle store, identifier id,
 	return OK;
 }
 
+status storage_find_first_unused(storage_handle store, record_handle *prec,
+								 revision *old_rev)
+{
+	record_handle r;
+	if (!prec)
+		return error_invalid_arg("storage_find_first_unused");
+
+	if (old_rev && store->is_read_only)
+		return error_msg("storage_find_first_unused: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	for (r = store->first; r < store->limit; r = STORAGE_RECORD(store, r, 1)) {
+		revision rev;
+		if (old_rev) {
+			status st;
+			if (FAILED(st = spin_write_lock(&r->rev, &rev)))
+				return st;
+		} else
+			rev = r->rev;
+
+		if (rev == 0) {
+			*prec = r;
+			if (old_rev)
+				*old_rev = rev;
+
+			return TRUE;
+		}
+
+		if (old_rev)
+			spin_unlock(&r->rev, rev);
+	}
+
+	return FALSE;
+}
+
+status storage_find_last_used(storage_handle store, record_handle *prec,
+							  revision *old_rev)
+{
+	record_handle r;
+	if (!prec)
+		return error_invalid_arg("storage_find_last_used");
+
+	if (old_rev && store->is_read_only)
+		return error_msg("storage_find_last_used: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	for (r = STORAGE_RECORD(store, store->limit, -1);
+		 r >= store->first; 
+		 r = STORAGE_RECORD(store, r, -1)) {
+		revision rev;
+		if (old_rev) {
+			status st;
+			if (FAILED(st = spin_write_lock(&r->rev, &rev)))
+				return st;
+		} else
+			rev = r->rev;
+
+		if (rev != 0) {
+			*prec = r;
+			if (old_rev)
+				*old_rev = rev;
+
+			return TRUE;
+		}
+
+		if (old_rev)
+			spin_unlock(&r->rev, rev);
+	}
+
+	return FALSE;
+}
+
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 					   record_handle prev, void *param)
 {
@@ -732,6 +804,55 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 	}
 
 	(*pnewstore)->is_persistent = store->is_persistent;
+	return OK;
+}
+
+status storage_clear_record(storage_handle store, record_handle rec)
+{
+	if (store->is_read_only)
+		return error_msg("storage_clear_record: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	if (rec < store->first || rec >= store->limit)
+		return error_msg("storage_clear_record: invalid record address",
+						 INVALID_SLOT);
+
+	memset(rec->val, 0, store->seg->val_size);
+
+	if (store->seg->prop_size > 0)
+		memset((char *)rec + store->seg->prop_offset, 0, store->seg->prop_size);
+
+	rec->ts = 0;
+	spin_unlock(&rec->rev, 0);
+	return OK;
+}
+
+status storage_copy_record(storage_handle from_store, record_handle from_rec,
+						   storage_handle to_store, record_handle to_rec,
+						   microsec to_ts, boolean with_prop)
+{
+	if (to_store->is_read_only)
+		return error_msg("storage_copy_record: storage is read-only",
+						 STORAGE_READ_ONLY);
+
+	if (from_rec < from_store->first || from_rec >= from_store->limit ||
+		to_rec < to_store->first || to_rec >= to_store->limit)
+		return error_msg("storage_copy_record: invalid record address",
+						 INVALID_SLOT);
+
+	if (from_store->seg->val_size != to_store->seg->val_size ||
+		(with_prop && from_store->seg->prop_size != to_store->seg->prop_size))
+		return error_msg("storage_copy_record: storage is unequal",
+						 STORAGE_UNEQUAL);
+
+	memcpy(to_rec->val, from_rec->val, from_store->seg->val_size);
+
+	if (with_prop && from_store->seg->prop_size > 0)
+		memcpy((char *)to_rec + to_store->seg->prop_offset,
+			   (char *)from_rec + from_store->seg->prop_offset,
+			   from_store->seg->prop_size);
+
+	to_rec->ts = to_ts;
 	return OK;
 }
 

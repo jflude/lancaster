@@ -3,7 +3,7 @@
 #ifndef DATUM_H
 #define DATUM_H
 
-#define MAX_ID 1000
+#define MAX_ID 10
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -10,6 +9,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include "a2i.h"
 #include "error.h"
 #include "sock.h"
 #include "xalloc.h"
@@ -124,8 +124,7 @@ status sock_addr_split(const char *addr_and_port, char* paddr,
 	strncpy(paddr, addr_and_port, sz);
 	paddr[sz] = '\0';
 
-	*pport = atoi(colon + 1);
-	return OK;
+	return a2i(colon + 1, "%hu", pport);
 }
 
 boolean sock_addr_is_equal(sock_addr_handle lhs, sock_addr_handle rhs)

@@ -4,12 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "error.h"
 #include "storage.h"
 #include "version.h"
 
-#define PARSE(n, f) \
-	(*argv[n] == '=' ? f(old_store) : (unsigned)atoi(argv[n]))
+typedef long (*attr_func)(storage_handle);
+
+static storage_handle old_store, new_store;
 
 static void show_syntax(void)
 {
@@ -26,9 +28,20 @@ static void show_version(void)
 	exit(0);
 }
 
+static long parse(const char *text, attr_func fn)
+{
+	long n;
+	if (*text == '=')
+		return fn(old_store);
+
+	if (FAILED(a2i(text, "%lu", &n)))
+		error_report_fatal();
+
+	return n;
+}
+
 int main(int argc, char *argv[])
 {
-	storage_handle old_store, new_store;
 	identifier new_base_id, new_max_id;
 	size_t new_val_size, new_prop_size, new_q_capacity;
 	const char *new_file;
@@ -51,11 +64,11 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 
 	new_file = argv[optind++];
-	new_base_id = PARSE(optind, storage_get_base_id); optind++;
-	new_max_id = PARSE(optind, storage_get_max_id); optind++;
-	new_val_size = PARSE(optind, storage_get_value_size); optind++;
-	new_prop_size = PARSE(optind, storage_get_property_size); optind++;
-	new_q_capacity = PARSE(optind, storage_get_queue_capacity);
+	new_base_id = parse(argv[optind++], storage_get_base_id);
+	new_max_id = parse(argv[optind++], storage_get_max_id);
+	new_val_size = parse(argv[optind++], (attr_func)storage_get_value_size);
+	new_prop_size = parse(argv[optind++], (attr_func)storage_get_property_size);
+	new_q_capacity = parse(argv[optind++], (attr_func)storage_get_queue_capacity);
 
 	if (FAILED(storage_grow(old_store, &new_store, new_file, new_base_id,
 							new_max_id, new_val_size, new_prop_size,

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "advert.h"
 #include "clock.h"
 #include "error.h"
@@ -237,7 +238,8 @@ int main(int argc, char *argv[])
 			stg_stats = TRUE;
 			break;
 		case 't':
-			ttl = atoi(optarg);
+			if (FAILED(a2i(optarg, "%d", &ttl)))
+				error_report_fatal();
 			break;
 		case 'v':
 			show_version();
@@ -253,11 +255,10 @@ int main(int argc, char *argv[])
 	if (FAILED(sock_addr_split(argv[optind++], tcp_addr,
 							   sizeof(tcp_addr), &tcp_port)) ||
 		FAILED(sock_addr_split(argv[optind++], mcast_addr,
-							   sizeof(mcast_addr), &mcast_port)))
+							   sizeof(mcast_addr), &mcast_port)) ||
+		FAILED(a2i(argv[optind++], "%d", &hb)) ||
+		FAILED(a2i(argv[optind++], "%d", &max_pkt_age)))
 		error_report_fatal();
-
-	hb = atoi(argv[optind++]);
-	max_pkt_age = atoi(argv[optind++]);
 
 	if (FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||

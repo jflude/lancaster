@@ -75,8 +75,14 @@ status storage_get_id(storage_handle store, record_handle rec,
 status storage_get_record(storage_handle store, identifier id,
 						  record_handle *prec);
 
+status storage_find_first_unused(storage_handle store, record_handle *prec,
+								 revision *old_rev);
+status storage_find_last_used(storage_handle store, record_handle *prec,
+							  revision *old_rev);
+
 status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
 					   record_handle prev, void *param);
+
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);
 
@@ -85,6 +91,11 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 					const char *new_mmap_file, identifier new_base_id,
 					identifier new_max_id, size_t new_value_size,
 					size_t new_property_size, size_t new_q_capacity);
+
+status storage_clear_record(storage_handle store, record_handle rec);
+status storage_copy_record(storage_handle from_store, record_handle from_rec,
+						   storage_handle to_store, record_handle to_rec,
+						   microsec to_ts, boolean with_prop);
 
 void *storage_get_property_ref(storage_handle store, record_handle rec);
 void *record_get_value_ref(record_handle rec);

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "clock.h"
 #include "dump.h"
 #include "error.h"
@@ -14,11 +15,11 @@
 
 #define SHOW_ATTRIBUTES 1
 #define SHOW_QUEUE 2
-#define SHOW_VALUES 4
+#define SHOW_RECORDS 4
 #define SHOW_PROPERTIES 8
 
 #define SHOW_DIV1 (SHOW_ATTRIBUTES | SHOW_QUEUE)
-#define SHOW_DIV2 (SHOW_VALUES | SHOW_PROPERTIES)
+#define SHOW_DIV2 (SHOW_RECORDS | SHOW_PROPERTIES)
 
 static revision rev_copy;
 static microsec ts_copy;
@@ -29,8 +30,8 @@ static const void *prop_base;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-V] "
-			"STORAGE-FILE [RECORD ID...|all]\n",
+	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-r] "
+			"STORAGE-FILE [RECORD-ID...|all]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -230,7 +231,7 @@ static status iter_func(storage_handle store, record_handle rec, void *param)
 
 	if (FAILED(st = copy_record(store, rec)) ||
 		FAILED(st = print_record_header(store, rec)) ||
-		((show & SHOW_VALUES) && FAILED(st = print_value(store))) ||
+		((show & SHOW_RECORDS) && FAILED(st = print_value(store))) ||
 		(((show & SHOW_DIV2) == SHOW_DIV2) && FAILED(print_div2())) ||
 		((show & SHOW_PROPERTIES) && FAILED(st = print_property(store))))
 		return st;
@@ -246,7 +247,7 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "apqVv")) != -1)
+	while ((opt = getopt(argc, argv, "apqrv")) != -1)
 		switch (opt) {
 		case 'a':
 			show |= SHOW_ATTRIBUTES;
@@ -257,8 +258,8 @@ int main(int argc, char *argv[])
 		case 'q':
 			show |= SHOW_QUEUE;
 			break;
-		case 'V':
-			show |= SHOW_VALUES;
+		case 'r':
+			show |= SHOW_RECORDS;
 			break;
 		case 'v':
 			show_version();
@@ -283,10 +284,10 @@ int main(int argc, char *argv[])
 			error_report_fatal();
 	} else {
 		for (; optind < argc; ++optind) {
+			identifier id;
 			record_handle rec = NULL;
-			identifier id = atoi(argv[optind]);
-
-			if (FAILED(storage_get_record(store, id, &rec)) ||
+			if (FAILED(a2i(argv[optind], "%ld", &id)) ||
+				FAILED(storage_get_record(store, id, &rec)) ||
 				FAILED(iter_func(store, rec, (void *)(long)show)))
 				error_report_fatal();
 		}

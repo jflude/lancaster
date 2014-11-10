@@ -1,4 +1,5 @@
 SRCS = \
+	a2i.c \
 	advert.c \
 	clock.c \
 	dump.c \
@@ -71,7 +72,9 @@ all: \
 	$(BIN_DIR)/subscriber \
 	$(BIN_DIR)/inspector \
 	$(BIN_DIR)/grower \
-	$(BIN_DIR)/deleter
+	$(BIN_DIR)/deleter \
+	$(BIN_DIR)/eraser \
+	$(BIN_DIR)/copyer
 all: 
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all; \
@@ -104,6 +107,7 @@ depend: DEPEND.mk
 		inspector.c \
 		grower.c \
 		deleter.c \
+		eraser.c \
 		$(SRCS)
 
 fetch:
@@ -124,6 +128,8 @@ clean:
 		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
 		$(BIN_DIR)/grower grower.o grower.dSYM \
 		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
+		$(BIN_DIR)/eraser eraser.o eraser.dSYM \
+		$(BIN_DIR)/copyer copyer.o copyer.dSYM \
 		$(OBJS)
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean; \
@@ -165,4 +171,10 @@ $(BIN_DIR)/grower: grower.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(BIN_DIR)/deleter: deleter.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(BIN_DIR)/eraser: eraser.o $(BIN_DIR)/libcachester.a
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(BIN_DIR)/copyer: copyer.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@

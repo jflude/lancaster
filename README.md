@@ -10,9 +10,9 @@ Justin Flude <jflude@peak6.com>
 
              ===============================================
 
-	writer [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
+    writer [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
 
-	reader [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE
+    reader [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -100,7 +100,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
              ===============================================
 
-    inspector [-v] [-a] [-p] [-q] [-V] STORAGE-FILE [RECORD ID...|all]
+    inspector [-v] [-a] [-p] [-q] [-r] STORAGE-FILE [RECORD ID...|all]
 
     grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
            NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
@@ -109,10 +109,10 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
 These are utility programs to show, modify or delete a storage.
 
-INSPECTOR if given the -a option outputs the attribute values of a storage, such
+INSPECTOR, given the -a option, outputs the attribute values of a storage, such
 as the size of a record within it, the size of its change queue, the description
 associated with it, etc.  The -q option will cause the change queue, if any, to
-be output, while the -V option will cause the values of records to be output.
+be output, while the -r option will cause the values of records to be output.
 Properties for records will be included in the output if the -p option is
 specified.  Individual records can be chosen for output by specifying their
 record ID, or every record can be selected by specifying "all".  If no option is
@@ -126,12 +126,31 @@ specifying "=" for it.  For example, to create a new storage "new_store" that is
 identical to the existing "old_store", except for having a change queue capacity
 of 1024 records:-
 
-	dev45$ grower old_store new_store = = = = 1024
+    dev45$ grower old_store new_store = = = = 1024
 
 Expanding or contracting a storage can be done by specifying different values
 for the base and maximum identifiers.
 
 The DELETER program will delete the given storage.
+
+             ===============================================
+
+    eraser [-v] [-H] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
+
+    copyer [-v] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
+           SOURCE-RECORD-ID [SOURCE-RECORD-ID ...]
+
+These are utility programs to modify the contents of storages.
+
+ERASER removes the specified records from the specified storage.  The storage
+is compacted to eliminate the holes left behind, unless the -H option is given.
+(The compaction is performed by moving the last record in the storage to the
+place where the erased record used to be).
+
+COPYER makes a copy of the specified source record in the destination storage.
+
+Each program, if the -V option is specified ("verbose"), will output the
+identifiers of the records it is operating upon.
 
              ===============================================
 

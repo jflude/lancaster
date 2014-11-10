@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "clock.h"
 #include "datum.h"
 #include "error.h"
@@ -114,16 +115,17 @@ int main(int argc, char *argv[])
 		show_syntax();
 
 	mmap_file = argv[optind++];
-	q_capacity = atoi(argv[optind++]);
+
+	if (FAILED(a2i(argv[optind++], "%ld", &q_capacity)))
+		error_report_fatal();
 
 	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
-		error_invalid_arg("error: change queue size not a non-zero power of 2");
+		error_invalid_arg("change queue size not a non-zero power of 2");
 		error_report_fatal();
 	}
 
-	delay = atoi(argv[optind++]);
-
-	if (FAILED(signal_add_handler(SIGHUP)) ||
+	if (FAILED(a2i(argv[optind++], "%ld", &delay)) ||
+		FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT,
