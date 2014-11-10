@@ -769,7 +769,7 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 								   new_q_capacity)))
 		return st;
 
-	copy_sz = sizeof(revision) +
+	copy_sz = sizeof(revision) + sizeof(microsec) +
 		(store->seg->val_size < (*pnewstore)->seg->val_size
 		 ? store->seg->val_size : (*pnewstore)->seg->val_size);
 

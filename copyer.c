@@ -62,27 +62,43 @@ int main(int argc, char *argv[])
 			error_report_fatal();
 
 		if (verbose)
-			printf("%ld\n", id);
+			printf("%ld", id);
 
 		if (FAILED(storage_get_record(src_store, id, &src_rec)) ||
-			FAILED(st = storage_find_first_unused(dest_store, &dest_rec, &dest_rev)))
+			FAILED(st = storage_find_first_unused(dest_store, &dest_rec, &dest_rev))) {
+			putchar('\n');
 			error_report_fatal();
+		}
 
 		if (!st) {
+			putchar('\n');
 			error_msg("error: storage is full", STORAGE_FULL);
 			error_report_fatal();
 		}
 
 		if (FAILED(record_write_lock(src_rec, &src_rev))) {
 			record_set_revision(dest_rec, dest_rev);
+			putchar('\n');
 			error_report_fatal();
 		}
 
-		storage_copy_record(src_store, src_rec, dest_store, dest_rec,
-							record_get_timestamp(src_rec), TRUE);
+		st = storage_copy_record(src_store, src_rec, dest_store, dest_rec,
+								 record_get_timestamp(src_rec), TRUE);
 
 		record_set_revision(dest_rec, src_rev);
 		record_set_revision(src_rec, src_rev);
+
+		if (FAILED(st)) {
+			putchar('\n');
+			error_report_fatal();
+		} else {
+			if (FAILED(storage_get_id(dest_store, dest_rec, &id))) {
+				putchar('\n');
+				error_report_fatal();
+			}
+
+			printf(" --> %ld\n", id);
+		}
 	}
 
 	if (FAILED(storage_destroy(&src_store)) ||
