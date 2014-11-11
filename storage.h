@@ -29,7 +29,7 @@ typedef spin_lock revision;
 status storage_create(storage_handle *pstore, const char *mmap_file,
 					  int open_flags, boolean persist, identifier base_id,
 					  identifier max_id, size_t value_size, size_t property_size,
-					  size_t q_capacity);
+					  size_t q_capacity, const char *desc);
 status storage_open(storage_handle *pstore, const char *mmap_file,
 					int open_flags);
 status storage_destroy(storage_handle *pstore);

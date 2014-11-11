@@ -1,3 +1,4 @@
+#include <string.h>
 #include "dict.h"
 #include "error.h"
 #include "table.h"

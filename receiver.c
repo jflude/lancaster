@@ -4,6 +4,7 @@
 #include <float.h>
 #include <poll.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "clock.h"
 #include "error.h"
@@ -466,10 +467,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
 									O_RDWR | O_CREAT, TRUE, base_id, max_id,
-									val_size, property_size, q_capacity)) &&
+									val_size, property_size, q_capacity,
+									buf + proto_len)) &&
 		!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
-		!FAILED(st = storage_set_description((*precv)->store,
-											 buf + proto_len)) &&
 	    !FAILED(st = sock_create(&(*precv)->mcast_sock,
 								 SOCK_DGRAM, IPPROTO_UDP)) &&
 		!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, RECV_BUFSIZ)) &&

@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -69,7 +70,8 @@ struct storage {
 static status init_create(storage_handle *pstore, const char *mmap_file,
 						  int open_flags, boolean persist, identifier base_id,
 						  identifier max_id, size_t value_size,
-						  size_t property_size, size_t q_capacity)
+						  size_t property_size, size_t q_capacity,
+						  const char *desc)
 {
 	status st;
 	size_t rec_sz, hdr_sz, seg_sz, page_sz, prop_offset;
@@ -149,6 +151,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (open_flags & O_CREAT) {
 		(*pstore)->seg->file_version =
 			(CACHESTER_FILE_MAJOR_VERSION << 8) | CACHESTER_FILE_MINOR_VERSION;
+
 		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
 		(*pstore)->seg->rec_size = rec_sz;
@@ -161,8 +164,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		(*pstore)->seg->max_id = max_id;
 		(*pstore)->seg->q_mask = q_capacity - 1;
 
-		memset((*pstore)->seg->description, 0,
-			   sizeof(*pstore)->seg->description);
+		if (FAILED(st = storage_set_description(*pstore, desc)))
+			return st;
 	} else if (((*pstore)->seg->file_version >> 8) !=
 			       CACHESTER_FILE_MAJOR_VERSION)
 		return error_msg("storage_create: incompatible file version",
@@ -175,7 +178,9 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			 (*pstore)->seg->ts_offset != offsetof(struct record, ts) ||
 			 (*pstore)->seg->val_offset != offsetof(struct record, val) ||
 			 (*pstore)->seg->prop_offset != prop_offset ||
-			 (*pstore)->seg->q_mask != (q_capacity - 1))
+			 (*pstore)->seg->q_mask != (q_capacity - 1) ||
+			 (!desc && (*pstore)->seg->description[0] != '\0') ||
+			 (desc && strcmp(desc, (*pstore)->seg->description) != 0))
 		return error_msg("storage_create: storage is unequal",
 						 STORAGE_UNEQUAL);
 
@@ -294,7 +299,8 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 status storage_create(storage_handle *pstore, const char *mmap_file,
 					  int open_flags, boolean persist, identifier base_id,
 					  identifier max_id, size_t value_size,
-					  size_t property_size, size_t q_capacity)
+					  size_t property_size, size_t q_capacity,
+					  const char *desc)
 {
 	/* NB. q_capacity must be a power of 2 */
 	status st;
@@ -314,7 +320,7 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 
 	if (FAILED(st = init_create(pstore, mmap_file, open_flags, persist,
 								base_id, max_id, value_size, property_size,
-								q_capacity))) {
+								q_capacity, desc))) {
 		error_save_last();
 		storage_destroy(pstore);
 		error_restore_last();
@@ -482,18 +488,19 @@ const char *storage_get_description(storage_handle store)
 
 status storage_set_description(storage_handle store, const char *desc)
 {
-	if (!desc)
-		return error_invalid_arg("storage_set_description");
-
 	if (store->is_read_only)
 		return error_msg("storage_set_description: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	if (strlen(desc) >= sizeof(store->seg->description))
-		return error_msg("storage_set_description: description too long",
-						 BUFFER_TOO_SMALL);
+	if (desc) {
+		if (strlen(desc) >= sizeof(store->seg->description))
+			return error_msg("storage_set_description: description too long",
+							 BUFFER_TOO_SMALL);
 
-	strcpy(store->seg->description, desc);
+		strcpy(store->seg->description, desc);
+	} else
+		memset(store->seg->description, 0, sizeof(store->seg->description));
+
 	return OK;
 }
 
@@ -763,10 +770,12 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 		strcmp(new_mmap_file, store->mmap_file) == 0)
 		return error_invalid_arg("storage_grow");
 
-	if (FAILED(st = storage_create(pnewstore, new_mmap_file, O_RDWR | O_CREAT,
-								   FALSE, new_base_id, new_max_id,
+	if (FAILED(st = storage_create(pnewstore, new_mmap_file,
+								   O_RDWR | O_CREAT, FALSE,
+								   new_base_id, new_max_id,
 								   new_value_size, new_property_size,
-								   new_q_capacity)))
+								   new_q_capacity,
+								   storage_get_description(store))))
 		return st;
 
 	copy_sz = sizeof(revision) + sizeof(microsec) +

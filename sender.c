@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include "error.h"
 #include "h2n2h.h"

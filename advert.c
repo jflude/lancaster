@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include "advert.h"
