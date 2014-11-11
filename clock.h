@@ -19,7 +19,7 @@ status clock_get_text(microsec usec, int precision,
 					  char *text, size_t text_sz);
 
 status clock_get_short_text(microsec usec, int precision,
-							char* text, size_t text_sz);
+							char *text, size_t text_sz);
 #ifdef __cplusplus
 }
 #endif

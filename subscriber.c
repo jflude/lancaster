@@ -115,7 +115,7 @@ static void *stats_func(thread_handle thr)
 	status st;
 
     if (as_json) {
-		const char* delim_pos;
+		const char *delim_pos;
 		if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
 			(getenv(STATS_ENV_VAR) &&
 			 (FAILED(st = sock_addr_split(getenv(STATS_ENV_VAR), udp_address,

@@ -104,7 +104,7 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 	return OK;
 }
 
-status sock_addr_split(const char *addr_and_port, char* paddr,
+status sock_addr_split(const char *addr_and_port, char *paddr,
 					   size_t addr_sz, unsigned short *pport)
 {
 	size_t sz;
