@@ -23,6 +23,7 @@ a.out
 *.swp
 \#*#
 .#*
+TAGS
 
 # Build files
 .gradle
