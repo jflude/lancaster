@@ -18,8 +18,8 @@ These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
 
 Storages are arrays of records, each having an identifier, contained within a
-regular file on disk, such as "/tmp/my_file", or a POSIX shared memory segment,
-which is specified with a URI-like prefix of shm, eg. "shm:/my_segment".
+regular file on disk, such as "/tmp/my-file", or a POSIX shared memory segment,
+which is specified with a URI-like prefix of shm, eg. "shm:/my-segment".
 Storages can persist across runs (although the storages created by the test
 programs do not).
 
@@ -89,14 +89,14 @@ A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
 and SUBSCRIBER and READER on another.  For example, if the former were to be
 run on pslchi6dpricedev45 (10.2.2.152):-
 
-    dev45$ writer /tmp/his_local_file 4096
-    dev45$ publisher /tmp/his_local_file 10.2.2.152:23266 227.1.1.34:56134 \
+    dev45$ writer /tmp/his-local-file 4096
+    dev45$ publisher /tmp/his-local-file 10.2.2.152:23266 227.1.1.34:56134 \
                      500000 10000
 
 ...and the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
 
-    dev42$ subscriber shm:/her_local_segment 4096 10.2.2.152:23266
-    dev42$ reader shm:/her_local_segment
+    dev42$ subscriber shm:/her-local-segment 4096 10.2.2.152:23266
+    dev42$ reader shm:/her-local-segment
 
              ===============================================
 
@@ -122,11 +122,11 @@ zero (success) if the format of the storage is valid.
 The GROWER program will create a new storage based upon an existing storage, and
 containing the same data copied to its records (as applicable).  Any attribute
 of the old storage can be carried over unchanged to the new storage, by
-specifying "=" for it.  For example, to create a new storage "new_store" that is
-identical to the existing "old_store", except for having a change queue capacity
+specifying "=" for it.  For example, to create a new storage "new-store" that is
+identical to the existing "old-store", except for having a change queue capacity
 of 1024 records:-
 
-    dev45$ grower old_store new_store = = = = 1024
+    dev45$ grower old-store new-store = = = = 1024
 
 Expanding or contracting a storage can be done by specifying different values
 for the base and maximum identifiers.
@@ -137,7 +137,7 @@ The DELETER program will delete the given storage.
 
     eraser [-v] [-H] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
 
-    copyer [-v] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
+    copier [-v] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
            SOURCE-RECORD-ID [SOURCE-RECORD-ID ...]
 
 These are utility programs to modify the contents of storages.
@@ -147,7 +147,7 @@ is compacted to eliminate the holes left behind, unless the -H option is given.
 (The compaction is performed by moving the last record in the storage to the
 place where the erased record used to be).
 
-COPYER makes a copy of the specified source record in the destination storage.
+COPIER makes a copy of the specified source record in the destination storage.
 
 Each program, if the -V option is specified ("verbose"), will output the
 identifiers of the records it is operating upon.

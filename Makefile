@@ -74,7 +74,7 @@ all: \
 	$(BIN_DIR)/grower \
 	$(BIN_DIR)/deleter \
 	$(BIN_DIR)/eraser \
-	$(BIN_DIR)/copyer
+	$(BIN_DIR)/copier
 all: 
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all; \
@@ -129,7 +129,7 @@ clean:
 		$(BIN_DIR)/grower grower.o grower.dSYM \
 		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
 		$(BIN_DIR)/eraser eraser.o eraser.dSYM \
-		$(BIN_DIR)/copyer copyer.o copyer.dSYM \
+		$(BIN_DIR)/copier copier.o copier.dSYM \
 		$(OBJS)
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean; \
@@ -176,5 +176,5 @@ $(BIN_DIR)/deleter: deleter.o $(BIN_DIR)/libcachester.a
 $(BIN_DIR)/eraser: eraser.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-$(BIN_DIR)/copyer: copyer.o $(BIN_DIR)/libcachester.a
+$(BIN_DIR)/copier: copier.o $(BIN_DIR)/libcachester.a
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
