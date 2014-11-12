@@ -62,7 +62,7 @@ struct storage {
 };
 
 #define MAGIC_NUMBER 0x0C0FFEE0
-#define STORAGE_PERM (S_IRUSR | S_IWUSR)
+#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 #define STORAGE_RECORD(stg, base, idx) \
 	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
