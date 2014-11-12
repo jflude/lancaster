@@ -24,7 +24,6 @@
 
 #if defined(DEBUG_PROTOCOL)
 #include <unistd.h>
-#include <sys/types.h>
 #include "dump.h"
 #endif
 
@@ -383,8 +382,9 @@ static status event_func(poller_handle poller, sock_handle sock,
 }
 
 static status init(receiver_handle *precv, const char *mmap_file,
-				   unsigned q_capacity, size_t property_size,
-				   const char *tcp_address, unsigned short tcp_port)
+				   mode_t mode_flags, size_t property_size,
+				   unsigned q_capacity, const char *tcp_address,
+				   unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -466,9 +466,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	memset((*precv)->record_seqs, -1, (max_id - base_id) * sizeof(sequence));
 
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
-									O_RDWR | O_CREAT, TRUE, base_id, max_id,
-									val_size, property_size, q_capacity,
-									buf + proto_len)) &&
+									O_RDWR | O_CREAT, mode_flags, TRUE,
+									base_id, max_id, val_size, property_size,
+									q_capacity, buf + proto_len)) &&
 		!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
 	    !FAILED(st = sock_create(&(*precv)->mcast_sock,
 								 SOCK_DGRAM, IPPROTO_UDP)) &&
@@ -510,8 +510,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 }
 
 status receiver_create(receiver_handle *precv, const char *mmap_file,
-					   unsigned q_capacity, size_t property_size,
-					   const char *tcp_address, unsigned short tcp_port)
+					   mode_t mode_flags, size_t property_size,
+					   unsigned q_capacity, const char *tcp_address,
+					   unsigned short tcp_port)
 {
 	status st;
 	if (!precv || !mmap_file || !tcp_address)
@@ -521,8 +522,8 @@ status receiver_create(receiver_handle *precv, const char *mmap_file,
 	if (!*precv)
 		return NO_MEMORY;
 
-	if (FAILED(st = init(precv, mmap_file, q_capacity,
-						 property_size, tcp_address, tcp_port))) {
+	if (FAILED(st = init(precv, mmap_file, mode_flags, property_size,
+						 q_capacity, tcp_address, tcp_port))) {
 		error_save_last();
 		receiver_destroy(precv);
 		error_restore_last();

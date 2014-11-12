@@ -22,7 +22,6 @@
 #endif
 
 #if defined(DEBUG_PROTOCOL)
-#include <sys/types.h>
 #include "dump.h"
 #endif
 

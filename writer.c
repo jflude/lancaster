@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "a2i.h"
 #include "clock.h"
 #include "datum.h"
@@ -16,6 +17,8 @@
 #include "thread.h"
 #include "twist.h"
 #include "version.h"
+
+#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static storage_handle store;
 static microsec delay;
@@ -128,9 +131,9 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT, FALSE,
-							  0, MAX_ID, sizeof(struct datum), 0, q_capacity,
-							  "TEST")) ||
+		FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT, STORAGE_PERM,
+							  FALSE, 0, MAX_ID, sizeof(struct datum), 0,
+							  q_capacity, "TEST")) ||
 		FAILED(storage_reset(store)) ||
 		FAILED(thread_create(&touch_thread, touch_func, NULL)))
 		error_report_fatal();

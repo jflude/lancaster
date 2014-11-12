@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "a2i.h"
 #include "error.h"
 #include "clock.h"
@@ -15,6 +16,7 @@
 #include "thread.h"
 #include "version.h"
 
+#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 #define STATS_ENV_VAR "UDP_STATS_URL"
 
@@ -221,8 +223,8 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
-		FAILED(receiver_create(&rcvr, mmap_file, q_capacity,
-							   0, tcp_addr, tcp_port)) ||
+		FAILED(receiver_create(&rcvr, mmap_file, STORAGE_PERM, 0,
+							   q_capacity, tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
 		FAILED(receiver_run(rcvr)) ||
 		FAILED(thread_stop(stats_thread, &stats_result)) ||

@@ -4,6 +4,7 @@
 #define STORAGE_H
 
 #include <stddef.h>
+#include <sys/types.h>
 #include "clock.h"
 #include "spin.h"
 #include "status.h"
@@ -27,8 +28,9 @@ typedef spin_lock revision;
 #define NEXT_REV(v) (((v) + 1) & SPIN_MAX)
 
 status storage_create(storage_handle *pstore, const char *mmap_file,
-					  int open_flags, boolean persist, identifier base_id,
-					  identifier max_id, size_t value_size, size_t property_size,
+					  int open_flags, mode_t mode_flags, boolean persist,
+					  identifier base_id, identifier max_id,
+					  size_t value_size, size_t property_size,
 					  size_t q_capacity, const char *desc);
 status storage_open(storage_handle *pstore, const char *mmap_file,
 					int open_flags);
