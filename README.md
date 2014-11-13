@@ -10,7 +10,8 @@ Justin Flude <jflude@peak6.com>
 
              ===============================================
 
-    writer [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE CHANGE-QUEUE-SIZE DELAY
+    writer [-v] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
+           STORAGE-FILE DELAY
 
     reader [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE
 
@@ -24,14 +25,14 @@ Storages can persist across runs (although the storages created by the test
 programs do not).
 
 A "change queue" is an optional section of a storage used as a circular buffer
-containing the identifiers of records recently modified.  The size of a change
-queue must be either zero, or a non-zero power of two.
+containing the identifiers of records recently modified.  The capacity of a
+change queue, if specified, must be either zero or a non-zero power of two.
 
-WRITER will create a storage with a change queue of the given size, then update
-sequential slots with ascending values at a speed determined by DELAY (the
-number of microseconds to pause after each write, which can be zero).  If the
--r option is specified, slots will be chosen for update at random, instead of
-sequentially.
+WRITER will create a storage with a change queue of the given capacity, then
+update sequential slots with ascending values at a speed determined by DELAY
+(the number of microseconds to pause after each write, which can be zero).  If
+the -r option is specified, slots will be chosen for update at random, instead
+of sequentially.
 
 READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
@@ -54,7 +55,8 @@ messages, to allow easier identification when running multiple instances.
               [-p ERROR PREFIX] [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT \
               MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
 
-    subscriber [-v] [-j] STORAGE-FILE CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT
+    subscriber [-v] [-j] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
+               STORAGE-FILE TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
@@ -76,9 +78,9 @@ if the -a option is specified.
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure
-to PUBLISHER's (except for the change queue size, which is specified for 
-SUBSCRIBER independently).  Data read by PUBLISHER is multicast to SUBSCRIBER
-and written to SUBSCRIBER's storage.
+to PUBLISHER's (except for the change queue capacity, which may be specified for
+SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
+multicast to SUBSCRIBER and written to SUBSCRIBER's storage.
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
 output of statistics to be output in JSON format.  PUBLISHER also has a -s
@@ -110,11 +112,11 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 These are utility programs to show, modify or delete a storage.
 
 INSPECTOR, given the -a option, outputs the attribute values of a storage, such
-as the size of a record within it, the size of its change queue, the description
-associated with it, etc.  The -q option will cause the change queue, if any, to
-be output, while the -r option will cause the values of records to be output.
-Properties for records will be included in the output if the -p option is
-specified.  Individual records can be chosen for output by specifying their
+as the size of a record within it, the capacity of its change queue, the
+description associated with it, etc.  The -q option will cause the change queue,
+if any, to be output, while the -r option will cause the values of records to be
+output.  Properties for records will be included in the output if the -p option
+is specified.  Individual records can be chosen for output by specifying their
 record ID, or every record can be selected by specifying "all".  If no option is
 specified, the program will attempt to open and verify the storage, exiting with
 zero (success) if the format of the storage is valid.

@@ -95,9 +95,9 @@ int main(int argc, char *argv[])
 	status st = OK;
 	size_t q_capacity;
 	long old_head;
-	int opt;
 	boolean stg_stats = FALSE;
 	microsec last_print, created_time, delay;
+	int opt;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);

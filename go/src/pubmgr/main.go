@@ -60,13 +60,13 @@ func init() {
 		log.Fatal(err)
 	}
 
+	flag.Usage = usage
 	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
-	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in millis)")
+	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
 	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
-	flag.Usage = usage
-	flag.StringVar(&env, "env", env, "Environment to match against feed environment. Defaults to local MMD environment.")
+	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher executable")
 	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart publisher instances when they exit")
 }
@@ -218,12 +218,12 @@ func startIfNeeded(path string) {
 
 			log.Println("Reserving port", state.port, "for", name)
 
-			opts := []string{
+			opts := []string {
 				"-j",             // show stats in JSON format
 				"-a", advertAddr, // advertize publisher presence
 				"-i", clientInterface, // mcast interface
 				"-e", env,
-				"-p", name} // error message prefix
+				"-p", name } // error message prefix
 
 			if loopback {
 				opts = append(opts, "-l")

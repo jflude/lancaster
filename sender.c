@@ -733,8 +733,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	(*psndr)->pkt_next = (*psndr)->pkt_buf;
 
 	st = sprintf((*psndr)->hello_str,
-				 "%d\r\n%d\r\n%s\r\n%d\r\n%lu\r\n"
-				 "%ld\r\n%ld\r\n%lu\r\n%ld\r\n%ld\r\n",
+				 "%d\r\n%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n"
+				 "%ld\r\n%lu\r\n%lu\r\n%ld\r\n%ld\r\n",
 				 (CACHESTER_WIRE_MAJOR_VERSION << 8)
 				     | CACHESTER_WIRE_MINOR_VERSION,
 				 (int)storage_get_data_version((*psndr)->store),
@@ -744,6 +744,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				 (long)(*psndr)->base_id,
 				 (long)(*psndr)->max_id,
 				 storage_get_value_size((*psndr)->store),
+				 storage_get_queue_capacity((*psndr)->store),
 				 max_pkt_age_usec,
 				 (*psndr)->heartbeat_usec);
 

@@ -383,7 +383,7 @@ static status event_func(poller_handle poller, sock_handle sock,
 
 static status init(receiver_handle *precv, const char *mmap_file,
 				   mode_t mode_flags, size_t property_size,
-				   unsigned q_capacity, const char *tcp_address,
+				   size_t q_capacity, const char *tcp_address,
 				   unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
@@ -391,7 +391,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	unsigned wire_ver, data_ver;
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
-	size_t val_size;
+	size_t pub_q_capacity, val_size;
 	status st;
 #if defined(DEBUG_PROTOCOL)
 	char debug_name[256];
@@ -421,12 +421,12 @@ static status init(receiver_handle *precv, const char *mmap_file,
 		return st;
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%u %u %31s %d %lu %ld %ld %lu %ld %ld %n",
+	st = sscanf(buf, "%u %u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
 				&wire_ver, &data_ver, mcast_address, &mcast_port,
 				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
-				&max_age_usec, &hb_usec, &proto_len);
+				&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
 
-	if (st != 10)
+	if (st != 11)
 		return error_msg("receiver_create: invalid publisher attributes:\n%s",
 						 PROTOCOL_ERROR, buf);
 
@@ -445,6 +445,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->val_size = val_size;
 	(*precv)->next_seq = 0;
 	(*precv)->timeout_usec = hb_usec * MAX_MISSED_HB;
+
+	if (q_capacity == SENDER_QUEUE_CAPACITY)
+		q_capacity = pub_q_capacity;
 
 	(*precv)->in_buf =
 		xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);
@@ -511,7 +514,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   mode_t mode_flags, size_t property_size,
-					   unsigned q_capacity, const char *tcp_address,
+					   size_t q_capacity, const char *tcp_address,
 					   unsigned short tcp_port)
 {
 	status st;

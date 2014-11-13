@@ -25,8 +25,9 @@ static microsec delay;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] [-r] STORAGE-FILE "
-			"CHANGE-QUEUE-SIZE DELAY\n", error_get_program_name());
+	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] "
+			"[-q CHANGE-QUEUE-CAPACITY] [-r] STORAGE-FILE DELAY\n",
+			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
 }
@@ -89,7 +90,7 @@ int main(int argc, char *argv[])
 	thread_handle touch_thread;
 	twist_handle twister;
 	const char *mmap_file;
-	long q_capacity;
+	size_t q_capacity = 0;
 	boolean at_random = FALSE;
 	long xyz = 0;
 	int opt;
@@ -98,12 +99,16 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "p:rv")) != -1)
+	while ((opt = getopt(argc, argv, "p:q:rv")) != -1)
 		switch (opt) {
 		case 'p':
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
+			break;
+		case 'q':
+			if (FAILED(a2i(optarg, "%lu", &q_capacity)))
+				error_report_fatal();
 			break;
 		case 'r':
 			at_random = TRUE;
@@ -114,18 +119,10 @@ int main(int argc, char *argv[])
 			show_syntax();
 		}
 
-	if ((argc - optind) != 3)
+	if ((argc - optind) != 2)
 		show_syntax();
 
 	mmap_file = argv[optind++];
-
-	if (FAILED(a2i(argv[optind++], "%ld", &q_capacity)))
-		error_report_fatal();
-
-	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
-		error_invalid_arg("change queue size not a non-zero power of 2");
-		error_report_fatal();
-	}
 
 	if (FAILED(a2i(argv[optind++], "%ld", &delay)) ||
 		FAILED(signal_add_handler(SIGHUP)) ||

@@ -301,12 +301,14 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 					  size_t value_size, size_t property_size,
 					  size_t q_capacity, const char *desc)
 {
-	/* NB. q_capacity must be a power of 2 */
 	status st;
-	if (!pstore || !mmap_file ||
-		max_id <= base_id || value_size == 0 ||
-		q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
+	if (!pstore || !mmap_file || max_id <= base_id || value_size == 0)
 		return error_invalid_arg("storage_create");
+
+	/* NB. q_capacity must be zero or a non-zero power of 2 */
+	if (q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
+		return error_msg("storage_create: invalid queue capacity",
+						 INVALID_CAPACITY);
 
 	if ((open_flags & O_ACCMODE) != O_RDWR ||
 		open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
@@ -605,7 +607,7 @@ status storage_get_id(storage_handle store, record_handle rec,
 
 	if (rec < store->first || rec >= store->limit)
 		return error_msg("storage_get_id: invalid record address",
-						 INVALID_SLOT);
+						 INVALID_RECORD);
 
 	*pident = ((char *)rec - (char *)store->first) / store->seg->rec_size;
 	return OK;
@@ -619,7 +621,7 @@ status storage_get_record(storage_handle store, identifier id,
 
 	if (id < store->seg->base_id || id >= store->seg->max_id)
 		return error_msg("storage_get_record: invalid identifier",
-						 INVALID_SLOT);
+						 INVALID_RECORD);
 
 	*prec = STORAGE_RECORD(store, store->first, id - store->seg->base_id);
 	return OK;
@@ -828,7 +830,7 @@ status storage_clear_record(storage_handle store, record_handle rec)
 
 	if (rec < store->first || rec >= store->limit)
 		return error_msg("storage_clear_record: invalid record address",
-						 INVALID_SLOT);
+						 INVALID_RECORD);
 
 	memset(rec->val, 0, store->seg->val_size);
 
@@ -851,7 +853,7 @@ status storage_copy_record(storage_handle from_store, record_handle from_rec,
 	if (from_rec < from_store->first || from_rec >= from_store->limit ||
 		to_rec < to_store->first || to_rec >= to_store->limit)
 		return error_msg("storage_copy_record: invalid record address",
-						 INVALID_SLOT);
+						 INVALID_RECORD);
 
 	if (from_store->seg->val_size != to_store->seg->val_size ||
 		(with_prop && from_store->seg->prop_size != to_store->seg->prop_size))

@@ -25,8 +25,9 @@ static boolean as_json = FALSE;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] STORAGE-FILE "
-			"CHANGE-QUEUE-SIZE TCP-ADDRESS:PORT\n", error_get_program_name());
+	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] "
+			"[-q CHANGE-QUEUE-CAPACITY] STORAGE-FILE TCP-ADDRESS:PORT\n",
+			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
 }
@@ -181,15 +182,15 @@ int main(int argc, char *argv[])
 	const char *mmap_file;
 	char tcp_addr[64];
 	unsigned short tcp_port;
-	long q_capacity;
-	int opt;
+	size_t q_capacity = SENDER_QUEUE_CAPACITY;
 	void *stats_result;
+	int opt;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jp:v")) != -1)
+	while ((opt = getopt(argc, argv, "jp:q:v")) != -1)
 		switch (opt) {
 		case 'j':
 			as_json = TRUE;
@@ -199,24 +200,20 @@ int main(int argc, char *argv[])
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
 			break;
+		case 'q':
+			if (FAILED(a2i(optarg, "%lu", &q_capacity)))
+				error_report_fatal();
+			break;
 		case 'v':
 			show_version();
 		default:
 			show_syntax();
 		}
 
-	if ((argc - optind) != 3)
+	if ((argc - optind) != 2)
 		show_syntax();
 
 	mmap_file = argv[optind++];
-
-	if (FAILED(a2i(argv[optind++], "%ld", &q_capacity)))
-		error_report_fatal();
-
-	if (q_capacity <= 1 || (q_capacity & (q_capacity - 1)) != 0) {
-		error_invalid_arg("change queue size not a non-zero power of 2");
-		error_report_fatal();
-	}
 
 	if (FAILED(sock_addr_split(argv[optind++], tcp_addr,
 							   sizeof(tcp_addr), &tcp_port)) ||
