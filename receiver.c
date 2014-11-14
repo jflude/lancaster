@@ -109,7 +109,8 @@ static status update_record(receiver_handle recv, sequence seq, identifier id,
 	record_set_revision(rec, NEXT_REV(rev));
 
 	recv->record_seqs[id - recv->base_id] = seq;
-	if (FAILED(st = storage_write_queue(recv->store, id)))
+	if (storage_get_queue_capacity(recv->store) > 0 &&
+		FAILED(st = storage_write_queue(recv->store, id)))
 		return st;
 
 #if defined(DEBUG_PROTOCOL)

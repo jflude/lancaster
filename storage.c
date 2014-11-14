@@ -577,7 +577,7 @@ status storage_write_queue(storage_handle store, identifier id)
 		return error_msg("storage_write_queue: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	if (store->seg->q_mask == -1u)
+	if (store->seg->q_mask == (size_t)-1)
 		return error_msg("storage_write_queue: no change queue",
 						 NO_CHANGE_QUEUE);
 
@@ -591,7 +591,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 	if (!pident)
 		return error_invalid_arg("storage_read_queue");
 
-	if (store->seg->q_mask == -1u)
+	if (store->seg->q_mask == (size_t)-1)
 		return error_msg("storage_read_queue: no change queue",
 						 NO_CHANGE_QUEUE);
 
@@ -737,7 +737,7 @@ status storage_reset(storage_handle store)
 	memset(store->first, 0, (char *)store->limit - (char *)store->first);
 
 	store->seg->q_head = 0;
-	if (store->seg->q_mask != -1u)
+	if (store->seg->q_mask != (size_t)-1)
 		memset(store->seg->change_q, 0,
 			   (store->seg->q_mask + 1) * sizeof(identifier));
 

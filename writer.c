@@ -63,7 +63,8 @@ static status update(identifier id, long n)
 	record_set_timestamp(rec, now);
 	record_set_revision(rec, NEXT_REV(rev));
 
-	if (FAILED(st = storage_write_queue(store, id)) ||
+	if ((storage_get_queue_capacity(store) > 0 &&
+		 FAILED(st = storage_write_queue(store, id))) ||
 		(delay > 0 && FAILED(st = clock_sleep(delay))))
 		return st;
 
