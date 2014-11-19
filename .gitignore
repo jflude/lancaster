@@ -33,4 +33,4 @@ DEPEND.mk
 core
 core.*
 *.DEBUG
-.dontpull
+.nofetch
