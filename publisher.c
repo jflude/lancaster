@@ -18,18 +18,19 @@
 
 #define DISPLAY_DELAY_USEC (1 * 1000000)
 #define DEFAULT_TTL 1
-#define STATS_ENV_VAR "UDP_STATS_URL"
 
 static sender_handle sndr;
+static reporter_handle reporter;
+static char hostname[256];
 static boolean as_json;
 static boolean stg_stats;
 
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] "
-			"[-j|-s] [-l] [-p ERROR PREFIX] [-t TTL] STORAGE-FILE "
-			"TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD "
-			"MAXIMUM-PACKET-AGE\n",
+			"[-j|-s] [-l] [-p ERROR PREFIX] [-S STATISTICS-UDP-ADDRESS:PORT] "
+			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
+			"HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -57,8 +58,7 @@ static status output_stg(double secs)
 	return OK;
 }
 
-static status output_json(double secs, microsec now, const char *hostname,
-						  reporter_handle reporter)
+static status output_json(double secs, microsec now)
 {
 	status st;
 	char ts[64], buf[1024];
@@ -124,25 +124,11 @@ static status output_std(double secs)
 
 static void *stats_func(thread_handle thr)
 {
-	reporter_handle reporter = NULL;
-	char hostname[256], udp_address[64];
-	unsigned short udp_port;
+
 	microsec last_print;
 	status st;
     
-    if (as_json) {
-		if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
-			(getenv(STATS_ENV_VAR) &&
-			 (FAILED(st = sock_addr_split(getenv(STATS_ENV_VAR), udp_address,
-										  sizeof(udp_address), &udp_port)) ||
-			  FAILED(st = reporter_create(&reporter, udp_address, udp_port))))) {
-			sender_stop(sndr);
-			return (void *)(long)st;
-		}
-	}
-    
-	if (FAILED(st = clock_time(&last_print))) {
-		reporter_destroy(&reporter);
+    if (FAILED(st = clock_time(&last_print))) {
 		sender_stop(sndr);
 		return (void *)(long)st;
 	}
@@ -162,7 +148,7 @@ static void *stats_func(thread_handle thr)
 		if (stg_stats)
 			output_stg(secs);
 		else if (as_json)
-			output_json(secs, now, hostname, reporter);
+			output_json(secs, now);
 		else
 			output_std(secs);
 
@@ -174,11 +160,7 @@ static void *stats_func(thread_handle thr)
 			fflush(stdout);
 	}
 
-    if (reporter) {
-		status st2 = reporter_destroy(&reporter);
-		if (!FAILED(st))
-			st = st2;
-	} else
+    if (!reporter)
 		putchar('\n');
 
 	sender_stop(sndr);
@@ -187,12 +169,12 @@ static void *stats_func(thread_handle thr)
 
 int main(int argc, char *argv[])
 {
-	advert_handle adv;
+	advert_handle adv = NULL;
 	thread_handle stats_thread;
 	int hb, opt, ttl = DEFAULT_TTL;
 	const char *mmap_file, *mcast_iface = NULL;
-	char adv_addr[64], mcast_addr[64], tcp_addr[64];
-	unsigned short mcast_port, tcp_port, adv_port = 0;
+	char mcast_addr[64], tcp_addr[64], stats_addr[64], adv_addr[64];
+	unsigned short mcast_port, tcp_port, stats_port, adv_port = 0;
 	boolean pub_advert = FALSE, loopback = FALSE;
 	microsec max_pkt_age;
 	void *stats_result;
@@ -202,7 +184,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:e:i:jlp:st:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:e:i:jlp:sS:t:v")) != -1)
 		switch (opt) {
 		case 'a':
 			if (FAILED(sock_addr_split(optarg, adv_addr,
@@ -221,6 +203,9 @@ int main(int argc, char *argv[])
 			if (stg_stats)
 				show_syntax();
 
+			if (FAILED(sock_get_hostname(hostname, sizeof(hostname))))
+				error_report_fatal();
+
 			as_json = TRUE;
 			break;
 		case 'l':
@@ -236,6 +221,12 @@ int main(int argc, char *argv[])
 				show_syntax();
 
 			stg_stats = TRUE;
+			break;
+		case 'S':
+			if (FAILED(sock_addr_split(optarg, stats_addr,
+									   sizeof(stats_addr), &stats_port)) ||
+				FAILED(reporter_create(&reporter, stats_addr, stats_port)))
+				error_report_fatal();
 			break;
 		case 't':
 			if (FAILED(a2i(optarg, "%d", &ttl)))
@@ -279,7 +270,8 @@ int main(int argc, char *argv[])
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
 		FAILED((status)(long)stats_result) ||
-		(pub_advert && FAILED(advert_destroy(&adv))) ||
+		FAILED(reporter_destroy(&reporter)) ||
+		FAILED(advert_destroy(&adv)) ||
 		FAILED(sender_destroy(&sndr)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||

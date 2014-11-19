@@ -30,7 +30,7 @@ var subscriberPath = getExecDir() + "subscriber"
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var shmDirectory = "/dev/shm"
-var clientInterface = "bond0"
+var mcastInterface = "bond0"
 var restartOnExit bool
 var deleteOldStorages bool
 var queueSize int64
@@ -61,7 +61,7 @@ func (si *SubscriberInstance) String() string {
 
 func init() {
 	var err error
-	flag.StringVar(&clientInterface, "i", clientInterface, "Client side interface")
+	flag.StringVar(&mcastInterface, "i", mcastInterface, "Multicast interface")
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func main() {
 	var err error
 	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.StringVar(&udpStatsAddr, "udpStatsAddr", udpStatsAddr, "Publish stats to udp address")
+	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
 	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
@@ -126,10 +126,12 @@ func main() {
 }
 
 func discoveryLoop() error {
-	iface, err := net.InterfaceByName(clientInterface)
+	iface, err := net.InterfaceByName(mcastInterface)
 	chkFatal(err)
+
 	advertAddrHostPort := strings.Split(advertAddr, ":")
 	advertAddrHost := advertAddrHostPort[0]
+
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
 		log.Fatal("Error parsing advert address ", advertAddr, ": ", err)
@@ -197,28 +199,24 @@ func (si *SubscriberInstance) run() {
 	chkFatal(err)
 	storePath := "shm:/client." + si.discovery.Data[0].Description
 
-	opts := []string {
+	opts := []string{
 		"-j",
-		"-p", si.discovery.Data[0].Description }
+		"-p", si.discovery.Data[0].Description}
 
 	if queueSize != -1 {
 		opts = append(opts, "-q", strconv.FormatInt(queueSize, 10))
 	}
 
-	opts = append(opts,
-		storePath,
-		addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port))
+	if udpStatsAddr != "" {
+		opts = append(opts, "-S", udpStatsAddr)
+	}
 
 	si.commander, err = commander.New(subscriberPath)
 	if err != nil {
-		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
+		log.Fatalln("Failed to create commander for:", si, ", error:", err)
 	}
 
-	si.commander.Args = opts
-	if udpStatsAddr != "" {
-		si.commander.Env["UDP_STATS_URL"] = udpStatsAddr
-	}
-
+	si.commander.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port))
 	si.commander.Name = si.name
 	si.commander.AutoRestart = false
 
@@ -235,7 +233,7 @@ func (si *SubscriberInstance) run() {
 				log.Fatalln("Could not delete storage file at ", storePathToDelete)
 			}
 
-			return err;
+			return err
 		}
 	}
 

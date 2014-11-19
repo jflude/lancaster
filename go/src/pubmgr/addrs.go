@@ -16,7 +16,7 @@ var advertAddr = "227.1.1.227:11227"
 var addrLock sync.Mutex
 var addrsAssigned = make(map[string]bool)
 var hostName string
-var clientInterface = "bond0"
+var mcastInterface = "bond0"
 var listenAddress string
 var ifaceToIp = make(map[string]string)
 
@@ -46,12 +46,13 @@ func init() {
 		log.Fatal(err)
 	}
 
-	listenAddress = ifaceToIp[clientInterface]
+	listenAddress = ifaceToIp[mcastInterface]
+
 	flag.Var(&baseMCastGroup, "bg", "Base Multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
-	flag.StringVar(&clientInterface, "i", clientInterface, "Client side interface")
-	flag.StringVar(&listenAddress, "la", listenAddress, "Listen address")
+	flag.StringVar(&mcastInterface, "i", mcastInterface, "Multicast interface")
+	flag.StringVar(&listenAddress, "listen", listenAddress, "TCP/IP listen address")
 }
 
 func mcastAddrFor(name string) (string, error) {
@@ -78,6 +79,7 @@ func mcastAddrFor(name string) (string, error) {
 func reservePort() (int, error) {
 	addrLock.Lock()
 	defer addrLock.Unlock()
+
 	if portPicker.rangeSize == 0 {
 		portPicker.rangeSize = (portPicker.rangeEnd - portPicker.rangeStart) + 1
 		portPicker.counter = portPicker.rangeStart
@@ -134,6 +136,7 @@ func initAddrs() error {
 		if err != nil || len(addrs) == 0 || iface.Flags&net.FlagMulticast == 0 {
 			continue
 		}
+
 		ifaceToIp[iface.Name] = strings.Split(addrs[0].String(), "/")[0]
 	}
 

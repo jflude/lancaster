@@ -18,22 +18,23 @@
 
 #define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
-#define STATS_ENV_VAR "UDP_STATS_URL"
 
 static receiver_handle rcvr;
-static boolean as_json = FALSE;
+static reporter_handle reporter;
+static char hostname[256];
+static boolean as_json;
 
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] "
-			"[-q CHANGE-QUEUE-CAPACITY] STORAGE-FILE TCP-ADDRESS:PORT\n",
+			"[-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] "
+			"STORAGE-FILE TCP-ADDRESS:PORT\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
 }
 
-static status output_json(double secs, microsec now, const char *hostname,
-						  const char *alias, reporter_handle reporter)
+static status output_json(double secs, microsec now, const char *alias)
 {
 	status st;
 	char ts[64], buf[1024];
@@ -109,33 +110,22 @@ static void show_version(void)
 
 static void *stats_func(thread_handle thr)
 {
-	reporter_handle reporter = NULL;
-	char hostname[256], alias[32], udp_address[64];
-	unsigned short udp_port;
-	const char *storage_desc =
-		storage_get_description(receiver_get_storage(rcvr));
+	char alias[32];
 	microsec last_print;
 	status st;
 
-    if (as_json) {
-		const char *delim_pos;
-		if (FAILED(st = sock_get_hostname(hostname, sizeof(hostname))) ||
-			(getenv(STATS_ENV_VAR) &&
-			 (FAILED(st = sock_addr_split(getenv(STATS_ENV_VAR), udp_address,
-										  sizeof(udp_address), &udp_port)) ||
-			  FAILED(st = reporter_create(&reporter, udp_address, udp_port))))) {
-			receiver_stop(rcvr);
-			return (void *)(long)st;
-		}
+	const char *storage_desc =
+		storage_get_description(receiver_get_storage(rcvr));
 
-		if (!(delim_pos = strchr(storage_desc, '.')))
+    if (as_json) {
+		const char *delim_pos = strchr(storage_desc, '.');
+		if (!delim_pos)
 			strncpy(alias, "unknown", sizeof(alias));
 		else
 			strncpy(alias, storage_desc, delim_pos - storage_desc);
 	}
 
 	if (FAILED(st = clock_time(&last_print))) {
-		reporter_destroy(&reporter);
 		receiver_stop(rcvr);
 		return (void *)(long)st;
 	}
@@ -153,7 +143,7 @@ static void *stats_func(thread_handle thr)
 		secs = (now - last_print) / 1000000.0;
 
 		if (as_json)
-			output_json(secs, now, hostname, alias, reporter);
+			output_json(secs, now, alias);
 		else
 			output_std(secs);
 
@@ -165,11 +155,7 @@ static void *stats_func(thread_handle thr)
 			fflush(stdout);
 	}
 
-    if (reporter) {
-		status st2 = reporter_destroy(&reporter);
-		if (!FAILED(st))
-			st = st2;
-	} else
+    if (!reporter)
 		putchar('\n');
 
 	receiver_stop(rcvr);
@@ -180,8 +166,8 @@ int main(int argc, char *argv[])
 {
 	thread_handle stats_thread;
 	const char *mmap_file;
-	char tcp_addr[64];
-	unsigned short tcp_port;
+	char tcp_addr[64], stats_addr[64];
+	unsigned short tcp_port, stats_port;
 	size_t q_capacity = SENDER_QUEUE_CAPACITY;
 	void *stats_result;
 	int opt;
@@ -190,7 +176,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jp:q:v")) != -1)
+	while ((opt = getopt(argc, argv, "jp:q:S:v")) != -1)
 		switch (opt) {
 		case 'j':
 			as_json = TRUE;
@@ -202,6 +188,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'q':
 			if (FAILED(a2i(optarg, "%lu", &q_capacity)))
+				error_report_fatal();
+			break;
+		case 'S':
+			if (FAILED(sock_addr_split(optarg, stats_addr,
+									   sizeof(stats_addr), &stats_port)) ||
+				FAILED(reporter_create(&reporter, stats_addr, stats_port)))
 				error_report_fatal();
 			break;
 		case 'v':
@@ -227,6 +219,7 @@ int main(int argc, char *argv[])
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
 		FAILED(thread_destroy(&stats_thread)) ||
 		FAILED((status)(long)stats_result) ||
+		FAILED(reporter_destroy(&reporter)) ||
 		FAILED(receiver_destroy(&rcvr)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
