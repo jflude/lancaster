@@ -67,7 +67,7 @@ func init() {
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher executable")
-	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart publisher instances when they exit")
+	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
 }
 
 func getExecDir() string {

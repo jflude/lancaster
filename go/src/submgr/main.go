@@ -106,7 +106,7 @@ func main() {
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber executable")
-	flag.BoolVar(&restartOnExit, "restartOnExit", true, "Restart subscriber instances when they exit")
+	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
 	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
 	flag.Parse()
