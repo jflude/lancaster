@@ -81,7 +81,7 @@ all:
 	done
 
 release: CFLAGS += -DNDEBUG -O3
-release: deps all
+release: fetch depend all
 release: 
 	for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir release; \
@@ -115,8 +115,6 @@ fetch:
 		$(MAKE) -C $$dir fetch; \
 	done
 
-deps: fetch depend
-
 clean: 
 	rm -rf \
 		$(BIN_DIR)/libcachester.a \
@@ -143,7 +141,7 @@ DEPEND.mk:
 
 include DEPEND.mk
 
-.PHONY: all release profile protocol gaps depend fetch deps clean distclean
+.PHONY: all release profile protocol gaps depend fetch clean distclean
 .PHONY: $(COMPONENTS)
 
 $(BIN_DIR)/libcachester.a: $(OBJS)
