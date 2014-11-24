@@ -24,7 +24,7 @@ type PublisherInstance struct {
 
 var stop = make(chan struct{})
 var env string
-var publisherPath = getExecDir() + "publisher"
+var execPath = getExecDir()
 var sourceVersion = "<DEV>"
 var filePatternFlag filePattern = makeFilePattern("feed.*")
 var publishers = make(map[string]*commander.Command)
@@ -66,7 +66,7 @@ func init() {
 	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
-	flag.StringVar(&publisherPath, "pub", publisherPath, "Path to publisher executable")
+	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
 }
 
@@ -80,10 +80,10 @@ func getExecDir() string {
 }
 
 func usage() {
-	v, err := exec.Command(publisherPath, "-v").Output()
+	v, err := exec.Command(execPath + "publisher", "-v").Output()
 	var publisherVersion string
 	if err != nil {
-		publisherVersion = "Error, can't find Publisher at: " + publisherPath
+		publisherVersion = "Error, can't find Publisher at: " + execPath
 	} else {
 		publisherVersion = strings.TrimSpace(string(v))
 	}
@@ -102,12 +102,11 @@ func main() {
 	flag.Parse()
 	log.Println("Patterns:", filePatternFlag)
 
-	if _, err = os.Stat(publisherPath); err != nil {
+	if _, err = os.Stat(execPath + "publisher"); err != nil {
 		log.Fatalln(err)
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
-	commander.SetDefaultStdIO(nil, os.Stderr, os.Stdout)
 
 	err = discoveryLoop()
 	if err != nil {
@@ -117,17 +116,17 @@ func main() {
 	log.Println("Done")
 }
 
-func discoveryLoop() error {
-	pmatch := func(s string) bool {
-		for _, p := range filePatternFlag {
-			if p.MatchString(s) {
-				return true
-			}
+func matchPattern(s string) bool {
+	for _, p := range filePatternFlag {
+		if p.MatchString(s) {
+			return true
 		}
-
-		return false
 	}
 
+	return false
+}
+
+func discoveryLoop() error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -147,7 +146,7 @@ func discoveryLoop() error {
 				return err
 			}
 
-			if info.IsDir() || !pmatch(path) {
+			if info.IsDir() || !matchPattern(path) {
 				return nil
 			}
 
@@ -164,7 +163,7 @@ func discoveryLoop() error {
 	for {
 		select {
 		case event := <-watcher.Events:
-			if pmatch(event.Name) {
+			if matchPattern(event.Name) {
 				switch event.Op {
 				case fsnotify.Create, fsnotify.Write:
 					startIfNeeded(event.Name)
@@ -200,7 +199,7 @@ func startIfNeeded(path string) {
 			port int
 		}
 
-		cmd, err := commander.New(publisherPath)
+		cmd, err := commander.New(execPath + "publisher")
 		if err != nil {
 			log.Fatal(err)
 		}

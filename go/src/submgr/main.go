@@ -26,10 +26,9 @@ var feedPattern string
 var env string
 var run = true
 var wireProtocolVersion = "*"
-var subscriberPath = getExecDir() + "subscriber"
+var execPath = getExecDir()
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
-var shmDirectory = "/dev/shm"
 var mcastInterface = "bond0"
 var restartOnExit bool
 var deleteOldStorages bool
@@ -41,10 +40,10 @@ func logln(args ...interface{}) {
 
 type Discovery struct {
 	Hostname string
-	Env      string
-	Version  string
-	Data     []struct {
-		Port        int
+	Env string
+	Version string
+	Data[] struct {
+		Port int
 		Description string
 	}
 }
@@ -77,10 +76,10 @@ func getExecDir() string {
 }
 
 func usage() {
-	v, err := exec.Command(subscriberPath, "-v").Output()
+	v, err := exec.Command(execPath + "subscriber", "-v").Output()
 	var subscriberVersion string
 	if err != nil {
-		subscriberVersion = "Error, can't find subscriber at: " + subscriberPath
+		subscriberVersion = "Error, can't find subscriber at: " + execPath
 	} else {
 		subscriberVersion = strings.TrimSpace(string(v))
 	}
@@ -105,18 +104,18 @@ func main() {
 	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
-	flag.StringVar(&subscriberPath, "sub", subscriberPath, "Path to subscriber executable")
+	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
 	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
 	flag.Parse()
 
-	if _, err := os.Stat(subscriberPath); err != nil {
+	if _, err := os.Stat(execPath + "subscriber"); err != nil {
 		log.Fatalln(err)
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
-	commander.SetDefaultStdIO(nil, os.Stderr, os.Stdout)
+
 	err = discoveryLoop()
 	if err != nil {
 		log.Fatal(err)
@@ -131,7 +130,6 @@ func discoveryLoop() error {
 
 	advertAddrHostPort := strings.Split(advertAddr, ":")
 	advertAddrHost := advertAddrHostPort[0]
-
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
 		log.Fatal("Error parsing advert address ", advertAddr, ": ", err)
@@ -161,6 +159,7 @@ func discoveryLoop() error {
 		if ignore[jsstr] {
 			continue
 		}
+
 		ignore[jsstr] = true
 		var disc Discovery
 		err = json.Unmarshal(jsbin, &disc)
@@ -211,7 +210,7 @@ func (si *SubscriberInstance) run() {
 		opts = append(opts, "-S", udpStatsAddr)
 	}
 
-	si.commander, err = commander.New(subscriberPath)
+	si.commander, err = commander.New(execPath + "subscriber")
 	if err != nil {
 		log.Fatalln("Failed to create commander for:", si, ", error:", err)
 	}
@@ -222,15 +221,10 @@ func (si *SubscriberInstance) run() {
 
 	if deleteOldStorages {
 		si.commander.BeforeStart = func(*commander.Command) error {
-			storePathToDelete := storePath
-			if strings.HasPrefix(storePath, "shm:") {
-				storePathToDelete = strings.Replace(storePathToDelete, "shm:", shmDirectory, 1)
-			}
-
-			removeFileCommand := exec.Command("rm", "-f", storePathToDelete)
+			removeFileCommand := exec.Command(execPath + "deleter", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
-				log.Fatalln("Could not delete storage file at ", storePathToDelete)
+				log.Fatalln("Could not delete storage file at ", storePath)
 			}
 
 			return err

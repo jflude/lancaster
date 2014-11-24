@@ -64,6 +64,7 @@ func mcastAddrFor(name string) (string, error) {
 			addr = baseMCastGroup.String()
 			break
 		}
+
 		baseMCastGroup[2]++
 	}
 
@@ -122,6 +123,7 @@ func initAddrs() error {
 	addr[1] = 227
 	addr[2] = 0
 	baseMCastGroup = IP(addr)
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return err

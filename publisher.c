@@ -124,7 +124,6 @@ static status output_std(double secs)
 
 static void *stats_func(thread_handle thr)
 {
-
 	microsec last_print;
 	status st;
     
