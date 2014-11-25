@@ -4,6 +4,7 @@ SCRIPTS_DIR := $(CACHESTER_DIR)/scripts
 
 CACHESTER_VENDOR_DIR := $(SELF_DIR)/.vendor
 CACHESTER_GOOP_DIR := $(CACHESTER_VENDOR_DIR)/..
+
 export GOPATH := $(CACHESTER_VENDOR_DIR):$(GOPATH)
 export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 
@@ -17,3 +18,4 @@ export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 .installGoop: .getGoop
 	cd $(CACHESTER_GOOP_DIR) && goop install
 
+.PHONY: .ensurePrivateGithubSSH .getGoop .installGoop
