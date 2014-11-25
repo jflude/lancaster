@@ -204,6 +204,8 @@ func startIfNeeded(path string) {
 			log.Fatal(err)
 		}
 
+		cmd.Name = "publisher(" + name + ")"
+
 		cmd.BeforeStart = func(c *commander.Command) error {
 			state.port, err = reservePort()
 			if err != nil {

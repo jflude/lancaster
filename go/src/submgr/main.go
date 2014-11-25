@@ -215,8 +215,9 @@ func (si *SubscriberInstance) run() {
 		log.Fatalln("Failed to create commander for:", si, ", error:", err)
 	}
 
+	si.commander.Name = "subscriber(" + si.name + ")"
+
 	si.commander.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port))
-	si.commander.Name = si.name
 	si.commander.AutoRestart = false
 
 	if deleteOldStorages {
