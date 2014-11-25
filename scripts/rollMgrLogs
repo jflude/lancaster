@@ -1,0 +1,6 @@
+#! /bin/sh
+
+dir="${1?Syntax: $0 LOG-DIRECTORY}"
+files=`find "$dir" -name '*.log_????-??-??'`
+
+test x"$files" = x || exec gzip $files

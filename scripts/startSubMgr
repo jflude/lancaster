@@ -1,0 +1,38 @@
+#! /bin/sh
+
+log_dir="/plogs/submgr"
+mkdir -p "$log_dir" || exit 1
+
+exec_dir=`dirname "$0"`
+if test x"$exec_dir" = x
+then
+	exec_dir=`dirname \`which \\\`basename "$0"\\\`\``
+else
+	cd "$exec_dir"
+	exec_dir="$PWD"
+	cd "$OLDPWD"
+fi
+
+exec_dir="$exec_dir"/../bin
+
+LD_LIBRARY_PATH="${exec_dir}:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH
+
+copy_stats=0
+for i in "$@"
+do
+	case x"$i" in
+		x-stats=) copy_stats=1 ; break ;;
+	esac
+done
+
+date=`date +'%Y-%m-%d'`
+log="$log_dir"/server.log_"$date"
+
+if test x"$copy_stats" = x1
+then
+	stat="$log_dir"/stats.log_"$date"
+	"$exec_dir"/submgr "$@" >> "$stat" 2>> "$log" &
+else
+	"$exec_dir"/submgr "$@" >> "$log" 2>&1 &
+fi

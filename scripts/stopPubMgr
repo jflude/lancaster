@@ -1,0 +1,2 @@
+#! /bin/sh
+killall pubmgr && sleep 2 && test x`pidof pubmgr` = x || killall -9 pubmgr
