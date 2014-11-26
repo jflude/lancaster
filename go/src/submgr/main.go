@@ -222,7 +222,7 @@ func (si *SubscriberInstance) run() {
 
 	if deleteOldStorages {
 		si.commander.BeforeStart = func(*commander.Command) error {
-			removeFileCommand := exec.Command(execPath + "deleter", storePath)
+			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
 				log.Fatalln("Could not delete storage file at ", storePath)

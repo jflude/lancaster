@@ -381,7 +381,7 @@ status storage_destroy(storage_handle *pstore)
 		(*pstore)->seg = NULL;
 
 		if (!(*pstore)->is_persistent &&
-			FAILED(st = storage_delete((*pstore)->mmap_file)))
+			FAILED(st = storage_delete((*pstore)->mmap_file, FALSE)))
 			return st;
 	}
 
@@ -745,13 +745,13 @@ status storage_reset(storage_handle store)
 	return OK;
 }
 
-status storage_delete(const char *mmap_file)
+status storage_delete(const char *mmap_file, boolean force)
 {
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
-		if (shm_unlink(mmap_file + 4) == -1)
+		if (shm_unlink(mmap_file + 4) == -1 && (errno != ENOENT || !force))
 			return error_errno("shm_unlink");
 	} else {
-		if (unlink(mmap_file) == -1)
+		if (unlink(mmap_file) == -1 && (errno != ENOENT || !force))
 			return error_errno("unlink");
 	}
 

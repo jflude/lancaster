@@ -9,7 +9,9 @@
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE\n", error_get_program_name());
+	fprintf(stderr, "Syntax: %s [-v] [-f] STORAGE-FILE\n",
+			error_get_program_name());
+
 	exit(-SYNTAX_ERROR);
 }
 
@@ -21,11 +23,16 @@ static void show_version(void)
 
 int main(int argc, char *argv[])
 {
+	boolean force = FALSE;
 	int opt;
+
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "v")) != -1)
+	while ((opt = getopt(argc, argv, "fv")) != -1)
 		switch (opt) {
+		case 'f':
+			force = TRUE;
+			break;
 		case 'v':
 			show_version();
 		default:
@@ -35,7 +42,7 @@ int main(int argc, char *argv[])
 	if ((argc - optind) != 1)
 		show_syntax();
 
-	if (FAILED(storage_delete(argv[optind])))
+	if (FAILED(storage_delete(argv[optind], force)))
 		error_report_fatal();
 
 	return 0;

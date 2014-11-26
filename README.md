@@ -107,7 +107,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
     grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
            NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
-    deleter [-v] STORAGE-FILE
+    deleter [-v] [-f] STORAGE-FILE
 
 These are utility programs to show, modify or delete a storage.
 
@@ -133,7 +133,9 @@ of 1024 records:-
 Expanding or contracting a storage can be done by specifying different values
 for the base and maximum identifiers.
 
-The DELETER program will delete the given storage.
+The DELETER program will delete the given storage.  If the -f option is given
+then it is not an error if the storage does not exist (ie. just as with the
+standard RM command).
 
              ===============================================
 
