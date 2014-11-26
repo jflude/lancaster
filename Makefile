@@ -1,4 +1,4 @@
-SRCS = \
+LIB_SRCS = \
 	a2i.c \
 	advert.c \
 	clock.c \
@@ -20,10 +20,17 @@ SRCS = \
 	version.c \
 	xalloc.c
 
-COMPONENTS = \
-	go/src/submgr \
-	go/src/pubmgr \
-	go/src/rdr
+APP_SRCS = \
+	writer.c \
+	reader.c \
+	publisher.c \
+	subscriber.c \
+	inspector.c \
+	grower.c \
+	deleter.c \
+	eraser.c
+
+COMPONENTS = go
 
 BIN_DIR = bin
 
@@ -33,16 +40,23 @@ CFLAGS = \
 	-ansi -pedantic -Wall -Wextra -Werror -g \
 	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE \
 	-DCACHESTER_SOURCE_VERSION='$(CACHESTER_SOURCE_VERSION)' \
-	-DCACHESTER_FILE_MAJOR_VERSION=$(CACHESTER_FILE_MAJOR_VERSION) \
-	-DCACHESTER_FILE_MINOR_VERSION=$(CACHESTER_FILE_MINOR_VERSION) \
-	-DCACHESTER_WIRE_MAJOR_VERSION=$(CACHESTER_WIRE_MAJOR_VERSION) \
-	-DCACHESTER_WIRE_MINOR_VERSION=$(CACHESTER_WIRE_MINOR_VERSION)
+	-DCACHESTER_FILE_MAJOR_VERSION='$(CACHESTER_FILE_MAJOR_VERSION)' \
+	-DCACHESTER_FILE_MINOR_VERSION='$(CACHESTER_FILE_MINOR_VERSION)' \
+	-DCACHESTER_WIRE_MAJOR_VERSION='$(CACHESTER_WIRE_MAJOR_VERSION)' \
+	-DCACHESTER_WIRE_MINOR_VERSION='$(CACHESTER_WIRE_MINOR_VERSION)'
 
 LDLIBS = -lm
-OBJS = $(SRCS:.c=.o)
+
+LIB_OBJS = $(LIB_SRCS:.c=.o)
+LIB_BINS = $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT)
+
+APP_OBJS = $(APP_SRCS:.c=.o)
+APP_BINS = $(APP_SRCS:%.c=$(BIN_DIR)/%)
+APP_DBG =
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
 CFLAGS += -DDARWIN_OS -D_DARWIN_C_SOURCE
+APP_DBG = $(APP_SRCS:.c=.dSYM)
 else
 CFLAGS += -pthread
 LDFLAGS += -pthread
@@ -63,27 +77,25 @@ DEPFLAGS += \
 	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
-all: \
-	$(BIN_DIR)/libcachester.a \
-	$(BIN_DIR)/libcachester$(SO_EXT) \
-	$(BIN_DIR)/writer \
-	$(BIN_DIR)/reader \
-	$(BIN_DIR)/publisher \
-	$(BIN_DIR)/subscriber \
-	$(BIN_DIR)/inspector \
-	$(BIN_DIR)/grower \
-	$(BIN_DIR)/deleter \
-	$(BIN_DIR)/eraser \
-	$(BIN_DIR)/copier
+all: $(LIB_BINS) $(APP_BINS)
 all: 
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all; \
 	done
 
+$(BIN_DIR)/libcachester.a: $(LIB_OBJS)
+	ar -r $(BIN_DIR)/libcachester.a $(LIB_OBJS)
+
+$(BIN_DIR)/libcachester$(SO_EXT): $(LIB_OBJS)
+	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(BIN_DIR)/%: %.c $(LIB_BINS)
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
 release: CFLAGS += -DNDEBUG -O3
 release: fetch depend all
-release: 
-	for dir in $(COMPONENTS); do \
+release:
+	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir release; \
 	done
 
@@ -100,41 +112,26 @@ gaps: all
 depend: CFLAGS += -DDEBUG_PROTOCOL -DDEBUG_GAPS
 depend: DEPEND.mk
 	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-		writer.c \
-		reader.c \
-		publisher.c \
-		subscriber.c \
-		inspector.c \
-		grower.c \
-		deleter.c \
-		eraser.c \
-		$(SRCS)
+		$(LIB_SRCS) $(APP_SRCS)
 
 fetch:
+	@rm -f go/Goopfile.lock
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir fetch; \
 	done
 
 clean: 
-	rm -rf \
-		$(BIN_DIR)/libcachester.a \
-		$(BIN_DIR)/libcachester$(SO_EXT) \
-		$(BIN_DIR)/writer writer.o writer.dSYM \
-		$(BIN_DIR)/reader reader.o reader.dSYM \
-		$(BIN_DIR)/publisher publisher.o publisher.dSYM \
-		$(BIN_DIR)/subscriber subscriber.o subscriber.dSYM \
-		$(BIN_DIR)/inspector inspector.o inspector.dSYM \
-		$(BIN_DIR)/grower grower.o grower.dSYM \
-		$(BIN_DIR)/deleter deleter.o deleter.dSYM \
-		$(BIN_DIR)/eraser eraser.o eraser.dSYM \
-		$(BIN_DIR)/copier copier.o copier.dSYM \
-		$(OBJS)
+	rm -rf $(LIB_OBJS) $(LIB_BINS) $(APP_OBJS) $(APP_BINS)
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean; \
 	done
 
 distclean: clean
-	rm -f DEPEND.mk *~ *.bak core core.* *.stackdump
+	rm -rf \
+		DEPEND.mk \
+		$(BIN_DIR)/core $(BIN_DIR)/core.* $(BIN_DIR)/*.stackdump \
+		go/Goopfile.lock go/.vendor \
+		`find . -name '*~' -o -name '*.bak'`
 
 DEPEND.mk:
 	touch DEPEND.mk
@@ -143,36 +140,3 @@ include DEPEND.mk
 
 .PHONY: all release profile protocol gaps depend fetch clean distclean
 .PHONY: $(COMPONENTS)
-
-$(BIN_DIR)/libcachester.a: $(OBJS)
-	ar -r $(BIN_DIR)/libcachester.a $(OBJS)
-
-$(BIN_DIR)/libcachester$(SO_EXT): $(OBJS)
-	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
-
-$(BIN_DIR)/writer: writer.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/reader: reader.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/publisher: publisher.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/subscriber: subscriber.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/inspector: inspector.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/grower: grower.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/deleter: deleter.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/eraser: eraser.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-$(BIN_DIR)/copier: copier.o $(BIN_DIR)/libcachester.a
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
