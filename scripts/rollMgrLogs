@@ -1,6 +1,15 @@
 #! /bin/sh
 
-dir="${1?Syntax: $0 LOG-DIRECTORY}"
-files=`find "$dir" -name '*.log_????-??-??'`
+dir="${1?Syntax: $0 LOG-DIRECTORY [LOG-DIRECTORY ...]}"
 
-test x"$files" = x || exec gzip $files
+for dir in $*
+do
+	if test -d "$dir"
+	then
+		files=`find "$dir" -name '*.log_????-??-??'`
+		echo test x"$files" = x || echo gzip $files
+	else
+		echo "$0: error: directory $dir does not exist" >&2
+		exit 2
+	fi
+done

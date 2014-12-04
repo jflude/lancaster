@@ -1,2 +1,5 @@
 #! /bin/sh
-killall submgr && sleep 2 && test x`pidof submgr` = x || killall -9 submgr
+killall -u "$LOGNAME" submgr &&
+sleep 2 &&
+test x`pidof submgr` = x ||
+killall -u "$LOGNAME" -9 submgr
