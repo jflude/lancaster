@@ -7,7 +7,7 @@ do
 	if test -d "$dir"
 	then
 		files=`find "$dir" -name '*.log_????-??-??'`
-		echo test x"$files" = x || echo gzip $files
+		test x"$files" = x || gzip $files
 	else
 		echo "$0: error: directory $dir does not exist" >&2
 		exit 2
