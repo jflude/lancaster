@@ -1,5 +1,7 @@
 MAILTO=mvanderpluym@peak6.com,jflude@peak6.com,boropeza@peak6.com,jrobertson@peak6.com
 
+STATS=""
+
 GOPATH=~/go
 
 05 01 * * mon-fri mkdir -p /plogs/submgr ; submgr/latest/scripts/startSubMgr $STATS
