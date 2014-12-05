@@ -1,15 +1,23 @@
 #! /bin/sh
 
 dir="${1?Syntax: $0 LOG-DIRECTORY [LOG-DIRECTORY ...]}"
+code=0
 
 for dir in $*
 do
-	if test -d "$dir"
+	files=`find "$dir" -name '*.log_????-??-??'`
+	new_code=$?
+	if test x$new_code = x0
 	then
-		files=`find "$dir" -name '*.log_????-??-??'`
-		test x"$files" = x || gzip $files
+		if test x"$files" != x
+		then
+			gzip $files
+			new_code=$?
+			test x$code = x0 && code=$new_code
+		fi
 	else
-		echo "$0: error: directory $dir does not exist" >&2
-		exit 2
+		test x$code = x0 && code=$new_code
 	fi
 done
+
+exit $code
