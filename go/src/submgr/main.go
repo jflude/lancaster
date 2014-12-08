@@ -240,25 +240,6 @@ func (si *SubscriberInstance) run() {
 		}
 	}
 
-	si.commander.AfterStart = func(c *commander.Command) error {
-		// Linux - coredumps should include shared mmap segments
-		filt := fmt.Sprintf("/proc/%d/coredump_filter", c.Pid)
-		exist, err := fileExists(filt)
-		if exist {
-			var f *os.File
-			f, err = os.OpenFile(filt, os.O_WRONLY, 0644)
-			if err == nil {
-				_, err2 := f.WriteString("0x2F")
-				err = f.Close()
-				if err2 != nil {
-					err = err2
-				}
-			}
-		}
-
-		return err
-	}
-
 	si.commander.AutoRestart = restartOnExit
 	err = si.commander.Run()
 

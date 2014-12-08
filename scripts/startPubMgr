@@ -18,6 +18,10 @@ exec_dir="$exec_dir"/../bin
 LD_LIBRARY_PATH="${exec_dir}:$LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH
 
+case x`uname` in
+	xLinux) echo 0x2F > /proc/$$/coredump_filter ;;
+esac
+
 copy_stats=0
 for i in "$@"
 do
