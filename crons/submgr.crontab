@@ -2,6 +2,6 @@ MAILTO=mvanderpluym@peak6.com,jflude@peak6.com,boropeza@peak6.com,jrobertson@pea
 
 GOPATH=~/go
 
-05 01 * * mon-fri mkdir -p /plogs/submgr ; submgr/latest/scripts/startSubMgr $STATS
+05 01 * * mon-fri mkdir -p /plogs/submgr ; submgr/latest/scripts/startSubMgr
 
-45 23 * * mon-fri submgr/latest/scripts/stopSubMgr ; submgr/latest/scripts/rollLogs /plogs/submgr
+45 23 * * mon-fri mkdir -p /plogs/submgr ; submgr/latest/scripts/stopSubMgr ; submgr/latest/scripts/rollLogs /plogs/submgr

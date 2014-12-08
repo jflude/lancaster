@@ -29,7 +29,7 @@ var wireProtocolVersion = "*"
 var execPath = getExecDir()
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
-var mcastInterface = "bond0"
+var mcastInterfaces = "bond0,eth0"
 var restartOnExit bool
 var deleteOldStorages bool
 var queueSize int64
@@ -60,7 +60,7 @@ func (si *SubscriberInstance) String() string {
 
 func init() {
 	var err error
-	flag.StringVar(&mcastInterface, "i", mcastInterface, "Multicast interface")
+	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
@@ -125,8 +125,16 @@ func main() {
 }
 
 func discoveryLoop() error {
-	iface, err := net.InterfaceByName(mcastInterface)
-	chkFatal(err)
+	var iface *net.Interface
+	var err error
+	for _, mcastInterface := range strings.Split(mcastInterfaces, ",") {
+		if ! interfaceExists(mcastInterface) {
+			log.Println("Interface ", mcastInterface, " does not exist")
+		} else {
+			iface, err = net.InterfaceByName(mcastInterface)
+			chkFatal(err)
+		}
+	}
 
 	advertAddrHostPort := strings.Split(advertAddr, ":")
 	advertAddrHost := advertAddrHostPort[0]
@@ -257,6 +265,19 @@ func (si *SubscriberInstance) run() {
 	logln("Commander for: ", si, " exited: ", err)
 	delete(feeds, si.name)         // deregister this feed
 	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
+}
+
+func interfaceExists(interfaceName string) bool {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, anInterface := range interfaces {
+		if strings.EqualFold(anInterface.Name, interfaceName) {
+			return true
+		}
+	}
+	return false
 }
 
 func chkFatal(err error) {
