@@ -8,11 +8,9 @@ import (
 	"gopkg.in/fsnotify.v1"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 type filePattern []*regexp.Regexp
@@ -59,7 +57,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	flag.Usage = usage
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
@@ -68,6 +65,16 @@ func init() {
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
+
+	flag.Usage = usage
+	flag.Parse()
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "pubmgr "+sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS] DIRECTORY [DIRECTORY ...]")
+	flag.PrintDefaults()
+	os.Exit(1)
 }
 
 func getExecDir() string {
@@ -79,29 +86,10 @@ func getExecDir() string {
 	return dir
 }
 
-func usage() {
-	v, err := exec.Command(execPath + "publisher", "-v").Output()
-	var publisherVersion string
-	if err != nil {
-		publisherVersion = "Error, can't find Publisher at: " + execPath
-	} else {
-		publisherVersion = strings.TrimSpace(string(v))
-	}
-
-	fmt.Fprintln(os.Stderr, ""+
-		"        Source: "+sourceVersion+
-		"\n     Publisher: "+publisherVersion+
-		"\n\n Usage: "+os.Args[0]+" [flags] DIR1 [DIR2...]")
-
-	flag.PrintDefaults()
-	os.Exit(1)
-}
-
 func main() {
-	var err error
-	flag.Parse()
 	log.Println("Patterns:", filePatternFlag)
 
+	var err error
 	if _, err = os.Stat(execPath + "publisher"); err != nil {
 		log.Fatalln(err)
 	}

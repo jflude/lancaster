@@ -60,43 +60,10 @@ func (si *SubscriberInstance) String() string {
 
 func init() {
 	var err error
-	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
 	}
-}
 
-func getExecDir() string {
-	dir, _ := filepath.Split(os.Args[0])
-	if dir != "" {
-		strconv.AppendQuoteRune([]byte(dir), filepath.Separator)
-	}
-
-	return dir
-}
-
-func usage() {
-	v, err := exec.Command(execPath + "subscriber", "-v").Output()
-	var subscriberVersion string
-	if err != nil {
-		subscriberVersion = "Error, can't find subscriber at: " + execPath
-	} else {
-		subscriberVersion = strings.TrimSpace(string(v))
-	}
-
-	fmt.Fprintln(os.Stderr, ""+
-		"         Source: "+sourceVersion+
-		"\n     Subscriber: "+subscriberVersion+
-		"\n  Wire Protocol: "+wireProtocolVersion+
-		"\n\n Usage: "+os.Args[0]+" [flags]")
-
-	flag.PrintDefaults()
-	os.Exit(1)
-}
-
-func main() {
-	var err error
-	flag.Usage = usage
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
 	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
@@ -108,8 +75,30 @@ func main() {
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
 	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
-	flag.Parse()
+	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
 
+	flag.Usage = usage
+	flag.Parse()
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "submgr "+sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS]")
+	flag.PrintDefaults()
+	os.Exit(1)
+}
+
+func getExecDir() string {
+	dir, _ := filepath.Split(os.Args[0])
+	if dir != "" {
+		strconv.AppendQuoteRune([]byte(dir), filepath.Separator)
+	}
+
+	return dir
+}
+
+func main() {
+	var err error
 	if _, err := os.Stat(execPath + "subscriber"); err != nil {
 		log.Fatalln(err)
 	}
@@ -128,8 +117,8 @@ func discoveryLoop() error {
 	var iface *net.Interface
 	var err error
 	for _, mcastInterface := range strings.Split(mcastInterfaces, ",") {
-		if ! interfaceExists(mcastInterface) {
-			log.Println("Interface ", mcastInterface, " does not exist")
+		if !interfaceExists(mcastInterface) {
+			logln("Interface ", mcastInterface, " not found")
 		} else {
 			iface, err = net.InterfaceByName(mcastInterface)
 			chkFatal(err)
@@ -173,9 +162,9 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disc)
 
 		if err != nil {
-			logln("Bad discovery format (", err, "), ignoring: ", jsstr)
+			logln("Bad discovery format \"", err, "\", ignoring: ", jsstr)
 		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
-			logln("Wire version mismatch, expected: ", wireProtocolVersion, "got: ", jsstr)
+			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got: ", jsstr)
 		} else if len(disc.Data) != 1 {
 			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
 		} else {
@@ -220,7 +209,7 @@ func (si *SubscriberInstance) run() {
 
 	si.commander, err = commander.New(execPath + "subscriber")
 	if err != nil {
-		log.Fatalln("Failed to create commander for:", si, ", error:", err)
+		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
 	}
 
 	si.commander.Name = "subscriber(" + si.name + ")"
@@ -253,11 +242,13 @@ func interfaceExists(interfaceName string) bool {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	for _, anInterface := range interfaces {
 		if strings.EqualFold(anInterface.Name, interfaceName) {
 			return true
 		}
 	}
+
 	return false
 }
 
