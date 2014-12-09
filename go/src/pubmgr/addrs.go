@@ -16,8 +16,9 @@ var advertAddr = "227.1.1.227:11227"
 var addrLock sync.Mutex
 var addrsAssigned = make(map[string]bool)
 var hostName string
-var mcastInterface = "bond0"
-var listenAddress string
+var mcastInterfacesToTry = "bond0,eth0"
+var mcastInterface string
+var listenAddress string 
 var ifaceToIp = make(map[string]string)
 
 var portPicker = struct {
@@ -49,8 +50,16 @@ func init() {
 	flag.Var(&baseMCastGroup, "bg", "Base Multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
-	flag.StringVar(&mcastInterface, "i", mcastInterface, "Multicast interface")
+	flag.StringVar(&mcastInterfacesToTry, "i", mcastInterfacesToTry, "Multicast interface to try, ,separated by ','")
 	flag.StringVar(&listenAddress, "listen", listenAddress, "TCP/IP listen address")
+}
+
+func initializePostFlagsParsed() error {
+	err := setMcastInterface()
+	if err != nil {
+		return err
+	}
+	return setListenAddress()
 }
 
 func mcastAddrFor(name string) (string, error) {
@@ -140,5 +149,35 @@ func initAddrs() error {
 		ifaceToIp[iface.Name] = strings.Split(addrs[0].String(), "/")[0]
 	}
 
+	return nil
+}
+
+func setMcastInterface() error {
+	if mcastInterface != "" {
+		return nil
+	}
+	for _, mcastInterfaceToTry := range strings.Split(mcastInterfacesToTry, ",") {
+		if _, ok := ifaceToIp[mcastInterfaceToTry]; ok {
+			mcastInterface = mcastInterfaceToTry
+			log.Println("Setting mcastInterface to ", mcastInterface)
+			return nil
+		} else {
+			log.Println("No valid interface named '", mcastInterfaceToTry, "' was found")
+		}
+	}
+	return errors.New("No valid interface found. Tried " + mcastInterfacesToTry)
+}
+
+func setListenAddress() error {
+	if listenAddress != "" {
+		log.Println("Listen address already defined to ", listenAddress)
+		return nil
+	}
+	err := setMcastInterface()
+	if err != nil {
+		return err
+	}
+	listenAddress = ifaceToIp[mcastInterface]
+	log.Println("Setting listenAddress to", listenAddress)
 	return nil
 }
