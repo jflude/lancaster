@@ -46,8 +46,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	listenAddress = ifaceToIp[mcastInterface]
-
 	flag.Var(&baseMCastGroup, "bg", "Base Multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")

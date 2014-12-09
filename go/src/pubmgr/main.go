@@ -89,6 +89,8 @@ func getExecDir() string {
 func main() {
 	log.Println("Patterns:", filePatternFlag)
 
+	listenAddress = ifaceToIp[mcastInterface]
+
 	var err error
 	if _, err = os.Stat(execPath + "publisher"); err != nil {
 		log.Fatalln(err)
