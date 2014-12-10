@@ -18,7 +18,7 @@ var addrsAssigned = make(map[string]bool)
 var hostName string
 var mcastInterfacesToTry = "bond0,eth0"
 var mcastInterface string
-var listenAddress string 
+var listenAddress string
 var ifaceToIp = make(map[string]string)
 
 var portPicker = struct {
@@ -28,7 +28,7 @@ var portPicker = struct {
 	rangeSize int
 	counter   int
 	inUse     map[int]bool
-} { rangeStart: 26000, rangeEnd: 26999, inUse: make(map[int]bool) }
+}{rangeStart: 26000, rangeEnd: 26999, inUse: make(map[int]bool)}
 
 type IP net.IP
 
@@ -50,7 +50,7 @@ func init() {
 	flag.Var(&baseMCastGroup, "bg", "Base Multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
-	flag.StringVar(&mcastInterfacesToTry, "i", mcastInterfacesToTry, "Multicast interface to try, ,separated by ','")
+	flag.StringVar(&mcastInterfacesToTry, "i", mcastInterfacesToTry, "Comma-separated list of multicast interfaces to try")
 	flag.StringVar(&listenAddress, "listen", listenAddress, "TCP/IP listen address")
 }
 

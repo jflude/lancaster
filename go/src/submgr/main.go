@@ -40,10 +40,10 @@ func logln(args ...interface{}) {
 
 type Discovery struct {
 	Hostname string
-	Env string
-	Version string
-	Data[] struct {
-		Port int
+	Env      string
+	Version  string
+	Data     []struct {
+		Port        int
 		Description string
 	}
 }
@@ -83,7 +83,7 @@ func init() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "submgr "+sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS]")
+	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
@@ -219,7 +219,7 @@ func (si *SubscriberInstance) run() {
 
 	if deleteOldStorages {
 		si.commander.BeforeStart = func(*commander.Command) error {
-			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
+			removeFileCommand := exec.Command(execPath+"deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
 				log.Fatalln("Could not delete storage file at ", storePath)

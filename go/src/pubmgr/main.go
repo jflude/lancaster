@@ -72,7 +72,7 @@ func init() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, "pubmgr "+sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS] DIRECTORY [DIRECTORY ...]")
+	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS] DIRECTORY [DIRECTORY ...]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
