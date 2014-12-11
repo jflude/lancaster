@@ -141,5 +141,6 @@ releaselog:
 
 include DEPEND.mk
 
-.PHONY: all release profile protocol gaps depend fetch clean distclean
+.PHONY: all release profile protocol gaps
+.PHONY: depend fetch clean distclean releaselog
 .PHONY: $(COMPONENTS)
