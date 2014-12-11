@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
 	"github.peak6.net/platform/gocore.git/mmd"
 	"gopkg.in/fsnotify.v1"
@@ -32,6 +33,8 @@ var loopback = true
 var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
 var restartOnExit bool
+var registerAppInfo = true
+var releaseLogPath = getExecDir() + "/../"
 
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
@@ -65,6 +68,8 @@ func init() {
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
+	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.pubmgr service")
+	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -100,6 +105,10 @@ func main() {
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
+
+	if registerAppInfo {
+		appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true });
+	}
 
 	err = discoveryLoop()
 	if err != nil {

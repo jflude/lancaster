@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
 	"github.peak6.net/platform/gocore.git/mmd"
 	"log"
@@ -33,6 +34,8 @@ var mcastInterfaces = "bond0,eth0"
 var restartOnExit bool
 var deleteOldStorages bool
 var queueSize int64
+var registerAppInfo = true
+var releaseLogPath = getExecDir() + "/../"
 
 func logln(args ...interface{}) {
 	log.Println(args...)
@@ -76,6 +79,8 @@ func init() {
 	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
 	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
+	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
+	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -104,6 +109,10 @@ func main() {
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
+
+	if registerAppInfo {
+		appinfo.Setup("submgr", releaseLogPath, func() bool { return true });
+	}
 
 	err = discoveryLoop()
 	if err != nil {

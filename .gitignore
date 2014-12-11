@@ -28,6 +28,7 @@ TAGS
 # Build files
 .gradle
 DEPEND.mk
+RELEASE_LOG
 
 # etc
 core

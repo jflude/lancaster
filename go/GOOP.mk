@@ -18,4 +18,7 @@ export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 .installGoop: .getGoop
 	cd $(CACHESTER_GOOP_DIR) && goop install
 
+.updateGoop: .getGoop
+	cd $(CACHESTER_GOOP_DIR) && goop update
+
 .PHONY: .ensurePrivateGithubSSH .getGoop .installGoop

@@ -77,7 +77,7 @@ DEPFLAGS += \
 	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
 endif
 
-all: $(LIB_BINS) $(APP_BINS)
+all: $(LIB_BINS) $(APP_BINS) releaselog
 all: 
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all; \
@@ -135,6 +135,9 @@ distclean: clean
 
 DEPEND.mk:
 	touch DEPEND.mk
+
+releaselog:
+	git log -n1 > RELEASE_LOG
 
 include DEPEND.mk
 
