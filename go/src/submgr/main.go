@@ -111,7 +111,10 @@ func main() {
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 
 	if registerAppInfo {
-		appinfo.Setup("submgr", releaseLogPath, func() bool { return true });
+		err = appinfo.Setup("submgr", releaseLogPath, func() bool { return true });
+		if err != nil {
+			log.Println("Couldn't register appinfo service:", err)
+		}
 	}
 
 	err = discoveryLoop()

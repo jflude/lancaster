@@ -108,6 +108,9 @@ func main() {
 
 	if registerAppInfo {
 		appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true });
+		if err != nil {
+			log.Println("Couldn't register appinfo service:", err)
+		}
 	}
 
 	err = discoveryLoop()
