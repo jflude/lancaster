@@ -107,7 +107,7 @@ func main() {
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 
 	if registerAppInfo {
-		err = appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true });
+		err = appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true })
 		if err != nil {
 			log.Println("Couldn't register appinfo service:", err)
 		}

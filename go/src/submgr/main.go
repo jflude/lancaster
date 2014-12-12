@@ -21,6 +21,7 @@ var verbose bool
 var stop = make(chan struct{})
 var ignore = make(map[string]bool)
 var feeds = make(map[string]*SubscriberInstance)
+var hasRun = make(map[string]bool)
 var advertAddr = "227.1.1.227:11227"
 var hostPattern string
 var feedPattern string
@@ -42,23 +43,23 @@ func logln(args ...interface{}) {
 }
 
 type Discovery struct {
-	Hostname string
-	Env      string
-	Version  string
-	Data     []struct {
-		Port        int
-		Description string
+	host string
+	env  string
+	vers string
+	data []struct {
+		port int
+		desc string
 	}
 }
 
 type SubscriberInstance struct {
-	name      string
-	discovery Discovery
-	commander *commander.Command
+	name string
+	disc Discovery
+	cmdr *commander.Command
 }
 
 func (si *SubscriberInstance) String() string {
-	return si.commander.String()
+	return si.cmdr.String()
 }
 
 func init() {
@@ -111,7 +112,7 @@ func main() {
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 
 	if registerAppInfo {
-		err = appinfo.Setup("submgr", releaseLogPath, func() bool { return true });
+		err = appinfo.Setup("submgr", releaseLogPath, func() bool { return true })
 		if err != nil {
 			log.Println("Couldn't register appinfo service:", err)
 		}
@@ -133,7 +134,7 @@ func discoveryLoop() error {
 			logln("Interface ", mcastInterface, " not found")
 		} else {
 			iface, err = net.InterfaceByName(mcastInterface)
-			chkFatal(err)
+			checkFatal(err)
 		}
 	}
 
@@ -147,7 +148,7 @@ func discoveryLoop() error {
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	logln("Listening for adverts on: ", addr)
-	chkFatal(err)
+	checkFatal(err)
 
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
@@ -162,7 +163,8 @@ func discoveryLoop() error {
 
 	for run {
 		n, from, err := sock.ReadFrom(data)
-		chkFatal(err)
+		checkFatal(err)
+
 		jsbin := data[:n]
 		jsstr := string(jsbin)
 		if ignore[jsstr] {
@@ -175,25 +177,33 @@ func discoveryLoop() error {
 
 		if err != nil {
 			logln("Bad discovery format \"", err, "\", ignoring: ", jsstr)
-		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
+		} else if wireProtocolVersion != "*" && disc.vers != wireProtocolVersion {
 			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got: ", jsstr)
-		} else if len(disc.Data) != 1 {
+		} else if len(disc.data) != 1 {
 			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
 		} else {
-			desc := disc.Data[0].Description
-			if env != disc.Env {
+			desc := disc.data[0].desc
+			if env != disc.env {
 				logln("No match on env: ", env, ", ignoring: ", jsstr)
-			} else if !hp.MatchString(disc.Hostname) {
+			} else if !hp.MatchString(disc.host) {
 				logln("No match on host pattern: ", hostPattern, ", ignoring: ", jsstr)
 			} else if !fp.MatchString(desc) {
 				logln("No match on feed pattern: ", feedPattern, ", ignoring: ", jsstr)
 			} else if feeds[desc] != nil {
 				//logln("Already have a feed for: ", desc, ", ignoring: ", jsstr)
 			} else {
-				logln("New Feed1:", desc, ", from: ", from, ", disc: ", jsstr)
-				logln("New Feed2:", desc, ", from: ", from, ", disc: ", jsstr)
-				si := &SubscriberInstance{name: desc, discovery: disc}
+				if !restartOnExit {
+					if _, exists := hasRun[desc]; exists {
+						logln("Spent feed:", desc, ", from, ", ", disc: ", jsstr)
+						continue
+					}
+				}
+
+				logln("New feed:", desc, ", from: ", from, ", disc: ", jsstr)
+
+				si := &SubscriberInstance{name: desc, disc: disc}
 				feeds[desc] = si
+				hasRun[desc] = true
 				go si.run()
 			}
 		}
@@ -203,13 +213,13 @@ func discoveryLoop() error {
 }
 
 func (si *SubscriberInstance) run() {
-	addr, err := net.LookupHost(si.discovery.Hostname)
-	chkFatal(err)
-	storePath := "shm:/client." + si.discovery.Data[0].Description
+	addr, err := net.LookupHost(si.disc.host)
+	checkFatal(err)
+	storePath := "shm:/client." + si.disc.data[0].desc
 
 	opts := []string{
 		"-j",
-		"-p", si.discovery.Data[0].Description}
+		"-p", si.disc.data[0].desc}
 
 	if queueSize != -1 {
 		opts = append(opts, "-q", strconv.FormatInt(queueSize, 10))
@@ -219,18 +229,16 @@ func (si *SubscriberInstance) run() {
 		opts = append(opts, "-S", udpStatsAddr)
 	}
 
-	si.commander, err = commander.New(execPath + "subscriber")
+	si.cmdr, err = commander.New(execPath + "subscriber")
 	if err != nil {
 		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
 	}
 
-	si.commander.Name = "subscriber(" + si.name + ")"
-
-	si.commander.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.discovery.Data[0].Port))
-	si.commander.AutoRestart = false
+	si.cmdr.Name = "subscriber(" + si.name + ")"
+	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disc.data[0].port))
 
 	if deleteOldStorages {
-		si.commander.BeforeStart = func(*commander.Command) error {
+		si.cmdr.BeforeStart = func(*commander.Command) error {
 			removeFileCommand := exec.Command(execPath+"deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
@@ -241,10 +249,9 @@ func (si *SubscriberInstance) run() {
 		}
 	}
 
-	si.commander.AutoRestart = restartOnExit
-	err = si.commander.Run()
-
+	err = si.cmdr.Run()
 	logln("Commander for: ", si, " exited: ", err)
+
 	delete(feeds, si.name)         // deregister this feed
 	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
 }
@@ -264,7 +271,7 @@ func interfaceExists(interfaceName string) bool {
 	return false
 }
 
-func chkFatal(err error) {
+func checkFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
