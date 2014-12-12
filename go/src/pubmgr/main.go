@@ -34,7 +34,7 @@ var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
 var restartOnExit bool
 var registerAppInfo = true
-var releaseLogPath = getExecDir() + "/../"
+var releaseLogPath = getExecDir() + "../"
 
 func (fp *filePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))

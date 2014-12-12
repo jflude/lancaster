@@ -36,7 +36,7 @@ var restartOnExit bool
 var deleteOldStorages bool
 var queueSize int64
 var registerAppInfo = true
-var releaseLogPath = getExecDir() + "/../"
+var releaseLogPath = getExecDir() + "../"
 
 func logln(args ...interface{}) {
 	log.Println(args...)
