@@ -43,12 +43,12 @@ func logln(args ...interface{}) {
 }
 
 type Discovery struct {
-	host string
-	env  string
-	vers string
-	data []struct {
-		port int
-		desc string
+	Hostname string
+	Env      string
+	Version  string
+	Data     []struct {
+		Port int
+		Description string
 	}
 }
 
@@ -177,15 +177,15 @@ func discoveryLoop() error {
 
 		if err != nil {
 			logln("Bad discovery format \"", err, "\", ignoring: ", jsstr)
-		} else if wireProtocolVersion != "*" && disc.vers != wireProtocolVersion {
-			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got: ", jsstr)
-		} else if len(disc.data) != 1 {
+		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
+			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got version ", disc.Version, " from ", jsstr)
+		} else if len(disc.Data) != 1 {
 			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
 		} else {
-			desc := disc.data[0].desc
-			if env != disc.env {
+			desc := disc.Data[0].Description
+			if env != disc.Env {
 				logln("No match on env: ", env, ", ignoring: ", jsstr)
-			} else if !hp.MatchString(disc.host) {
+			} else if !hp.MatchString(disc.Hostname) {
 				logln("No match on host pattern: ", hostPattern, ", ignoring: ", jsstr)
 			} else if !fp.MatchString(desc) {
 				logln("No match on feed pattern: ", feedPattern, ", ignoring: ", jsstr)
@@ -213,13 +213,13 @@ func discoveryLoop() error {
 }
 
 func (si *SubscriberInstance) run() {
-	addr, err := net.LookupHost(si.disc.host)
+	addr, err := net.LookupHost(si.disc.Hostname)
 	checkFatal(err)
-	storePath := "shm:/client." + si.disc.data[0].desc
+	storePath := "shm:/client." + si.disc.Data[0].Description
 
 	opts := []string{
 		"-j",
-		"-p", si.disc.data[0].desc}
+		"-p", si.disc.Data[0].Description}
 
 	if queueSize != -1 {
 		opts = append(opts, "-q", strconv.FormatInt(queueSize, 10))
@@ -235,7 +235,7 @@ func (si *SubscriberInstance) run() {
 	}
 
 	si.cmdr.Name = "subscriber(" + si.name + ")"
-	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disc.data[0].port))
+	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disc.Data[0].Port))
 
 	if deleteOldStorages {
 		si.cmdr.BeforeStart = func(*commander.Command) error {
