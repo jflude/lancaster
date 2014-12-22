@@ -4,6 +4,6 @@ STATS=""
 
 GOPATH=~/go
 
-05 01 * * mon-fri mkdir -p /plogs/submgr ; submgr/latest/scripts/startSubMgr $STATS
+05 01 * * mon-fri mkdir -p /plogs/submgr ; exec submgr/latest/scripts/startSubMgr $STATS
 
-45 23 * * mon-fri submgr/latest/scripts/stopSubMgr ; submgr/latest/scripts/rollLogs /plogs/submgr
+45 23 * * mon-fri submgr/latest/scripts/stopSubMgr ; exec submgr/latest/scripts/rollLogs /plogs/submgr
