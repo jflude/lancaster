@@ -210,6 +210,7 @@ func startIfNeeded(path string) {
 		}
 
 		cmd.Name = "publisher(" + name + ")"
+		cmd.AutoRestart = restartOnExit
 
 		cmd.BeforeStart = func(c *commander.Command) error {
 			state.port, err = reservePort()

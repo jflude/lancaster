@@ -24,10 +24,9 @@ var ifaceToIp = make(map[string]string)
 var portPicker = struct {
 	rangeStart int
 	rangeEnd   int
-
-	rangeSize int
-	counter   int
-	inUse     map[int]bool
+	rangeSize  int
+	counter    int
+	inUse      map[int]bool
 }{rangeStart: 26000, rangeEnd: 26999, inUse: make(map[int]bool)}
 
 type IP net.IP
@@ -47,7 +46,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	flag.Var(&baseMCastGroup, "bg", "Base Multicast group (each feed increments the 3rd octet)")
+	flag.Var(&baseMCastGroup, "bg", "Base multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
 	flag.StringVar(&mcastInterfacesToTry, "i", mcastInterfacesToTry, "Comma-separated list of multicast interfaces to try")
@@ -101,7 +100,7 @@ func reservePort() (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("Either ports have been leaked or port range is too small. Ports in use: %d, range: %d - %d",
+	return 0, fmt.Errorf("Port range leaked or too narrow. Ports in use: %d, range: %d - %d",
 		len(portPicker.inUse), portPicker.rangeStart, portPicker.rangeEnd)
 }
 
@@ -142,7 +141,7 @@ func initAddrs() error {
 		}
 
 		addrs, err := iface.Addrs()
-		if err != nil || len(addrs) == 0 || iface.Flags&net.FlagMulticast == 0 {
+		if err != nil || len(addrs) == 0 || (iface.Flags & net.FlagMulticast) == 0 {
 			continue
 		}
 
@@ -156,6 +155,7 @@ func setMcastInterface() error {
 	if mcastInterface != "" {
 		return nil
 	}
+
 	for _, mcastInterfaceToTry := range strings.Split(mcastInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[mcastInterfaceToTry]; ok {
 			mcastInterface = mcastInterfaceToTry
@@ -165,6 +165,7 @@ func setMcastInterface() error {
 			log.Println("No valid interface named '", mcastInterfaceToTry, "' was found")
 		}
 	}
+
 	return errors.New("No valid interface found. Tried " + mcastInterfacesToTry)
 }
 
@@ -173,10 +174,12 @@ func setListenAddress() error {
 		log.Println("Listen address already defined to ", listenAddress)
 		return nil
 	}
+
 	err := setMcastInterface()
 	if err != nil {
 		return err
 	}
+
 	listenAddress = ifaceToIp[mcastInterface]
 	log.Println("Setting listenAddress to", listenAddress)
 	return nil
