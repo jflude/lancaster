@@ -334,9 +334,13 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	strcat(buf, storage_get_description(sndr->store));
 	strcat(buf, "\r\n");
 
-	if (FAILED(st = sock_accept(sock, &accepted)) ||
-		FAILED(st = sock_write(accepted, buf, strlen(buf))))
+	if (FAILED(st = sock_accept(sock, &accepted)))
 		return st;
+
+	if (FAILED(st = sock_write(accepted, buf, strlen(buf)))) {
+		sock_destroy(&accepted);
+		return st;
+	}
 
 	clnt = XMALLOC(struct tcp_client);
 	if (!clnt) {
