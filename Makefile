@@ -28,7 +28,8 @@ APP_SRCS = \
 	inspector.c \
 	grower.c \
 	deleter.c \
-	eraser.c
+	eraser.c \
+	copier.c
 
 COMPONENTS = go
 
