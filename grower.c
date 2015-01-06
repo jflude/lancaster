@@ -70,9 +70,9 @@ int main(int argc, char *argv[])
 	new_prop_size = parse(argv[optind++], (attr_func)storage_get_property_size);
 	new_q_capacity = parse(argv[optind++], (attr_func)storage_get_queue_capacity);
 
-	if (FAILED(storage_grow(old_store, &new_store, new_file, new_base_id,
-							new_max_id, new_val_size, new_prop_size,
-							new_q_capacity)) ||
+	if (FAILED(storage_grow(old_store, &new_store, new_file, O_CREAT,
+							new_base_id, new_max_id, new_val_size,
+							new_prop_size, new_q_capacity)) ||
 		FAILED(storage_destroy(&old_store)) ||
 		FAILED(storage_destroy(&new_store)))
 		error_report_fatal();

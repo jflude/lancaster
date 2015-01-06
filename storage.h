@@ -90,9 +90,10 @@ status storage_reset(storage_handle store);
 
 status storage_delete(const char *mmap_file, boolean force);
 status storage_grow(storage_handle store, storage_handle *pnewstore,
-					const char *new_mmap_file, identifier new_base_id,
-					identifier new_max_id, size_t new_value_size,
-					size_t new_property_size, size_t new_q_capacity);
+					const char *new_mmap_file, int open_flags,
+					identifier new_base_id, identifier new_max_id,
+					size_t new_value_size, size_t new_property_size,
+					size_t new_q_capacity);
 
 status storage_clear_record(storage_handle store, record_handle rec);
 status storage_copy_record(storage_handle from_store, record_handle from_rec,

@@ -1,3 +1,4 @@
+#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -759,24 +760,31 @@ status storage_delete(const char *mmap_file, boolean force)
 }
 
 status storage_grow(storage_handle store, storage_handle *pnewstore,
-					const char *new_mmap_file, identifier new_base_id,
-					identifier new_max_id, size_t new_value_size,
-					size_t new_property_size, size_t new_q_capacity)
+					const char *new_mmap_file, int open_flags,
+					identifier new_base_id, identifier new_max_id,
+					size_t new_value_size, size_t new_property_size,
+					size_t new_q_capacity)
 {
 	status st;
-	size_t copy_sz;
+	revision rev;
+	size_t val_copy_sz, prop_copy_sz;
 	record_handle old_r, new_r;
+	void *val_copy_buf, *prop_copy_buf;
 	struct stat file_stat;
 
 	if (!pnewstore || !new_mmap_file ||
 		strcmp(new_mmap_file, store->mmap_file) == 0)
 		return error_invalid_arg("storage_grow");
 
+	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
+		return error_msg("storage_grow: invalid open flags: 0%07o",
+						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
+
 	if (fstat(store->seg_fd, &file_stat) == -1)
 		return error_errno("fstat");
 
 	if (FAILED(st = storage_create(pnewstore, new_mmap_file,
-								   O_RDWR | O_CREAT | O_EXCL,
+								   O_RDWR | open_flags,
 								   file_stat.st_mode, FALSE,
 								   new_base_id, new_max_id,
 								   new_value_size, new_property_size,
@@ -784,32 +792,45 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 								   storage_get_description(store))))
 		return st;
 
-	copy_sz = sizeof(revision) + sizeof(microsec) +
+	val_copy_sz = sizeof(revision) + sizeof(microsec) +
 		(store->seg->val_size < (*pnewstore)->seg->val_size
 		 ? store->seg->val_size : (*pnewstore)->seg->val_size);
+
+	val_copy_buf = alloca(val_copy_sz);
+
+	if (new_property_size > 0) {
+		prop_copy_sz = (store->seg->prop_size < (*pnewstore)->seg->prop_size
+						? store->seg->prop_size : (*pnewstore)->seg->prop_size);
+
+		prop_copy_buf = alloca(prop_copy_sz);
+	}
 
 	for (old_r = store->first, new_r = (*pnewstore)->first;
 		 old_r < store->limit && new_r < (*pnewstore)->limit;
 		 old_r = STORAGE_RECORD(store, old_r, 1),
-			 new_r = STORAGE_RECORD(*pnewstore, new_r, 1))
-		memcpy(new_r, old_r, copy_sz);
+			 new_r = STORAGE_RECORD(*pnewstore, new_r, 1)) {
+		do {
+			if (FAILED(st = record_read_lock(old_r, &rev)))
+				return st;
 
-	SYNC_SYNCHRONIZE();
+			memcpy(val_copy_buf, old_r, val_copy_sz);
 
-	if (new_property_size > 0) {
-		copy_sz = (store->seg->prop_size < (*pnewstore)->seg->prop_size
-				   ? store->seg->prop_size : (*pnewstore)->seg->prop_size);
+			if (new_property_size > 0)
+				memcpy(prop_copy_buf, (char *)old_r + store->seg->prop_offset,
+					   prop_copy_sz);
+		} while (rev != record_get_revision(old_r));
 
-		for (old_r = store->first, new_r = (*pnewstore)->first;
-			 old_r < store->limit && new_r < (*pnewstore)->limit;
-			 old_r = STORAGE_RECORD(store, old_r, 1),
-				 new_r = STORAGE_RECORD(*pnewstore, new_r, 1))
+		memcpy(new_r, val_copy_buf, val_copy_sz);
+
+		if (new_property_size > 0)
 			memcpy((char *)new_r + (*pnewstore)->seg->prop_offset,
-				   (char *)old_r + store->seg->prop_offset, copy_sz);
+				   prop_copy_buf, prop_copy_sz);
 	}
 
 	(*pnewstore)->seg->data_version = store->seg->data_version;
 	strcpy((*pnewstore)->seg->description, store->seg->description);
+
+	SYNC_SYNCHRONIZE();
 
 	if (FAILED(st = clock_time(&(*pnewstore)->seg->last_created))) {
 		error_save_last();

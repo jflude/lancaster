@@ -52,7 +52,7 @@ LIB_OBJS = $(LIB_SRCS:.c=.o)
 LIB_BINS = $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT)
 
 APP_OBJS = $(APP_SRCS:.c=.o)
-APP_BINS = $(APP_SRCS:%.c=$(BIN_DIR)/%)
+APP_BINS = $(APP_OBJS:%.o=$(BIN_DIR)/%)
 APP_DBG =
 
 ifneq (,$(findstring Darwin,$(shell uname -s)))
@@ -90,8 +90,11 @@ $(BIN_DIR)/libcachester.a: $(LIB_OBJS)
 $(BIN_DIR)/libcachester$(SO_EXT): $(LIB_OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(BIN_DIR)/%: %.c $(LIB_BINS)
+$(BIN_DIR)/%: %.o $(LIB_BINS)
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+$(BIN_DIR)/%.o: %.c
+	$(CC) $^ -c $@
 
 release: CFLAGS += -DNDEBUG -O3
 release: fetch depend all

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "a2i.h"
-#include "clock.h"
 #include "error.h"
 #include "storage.h"
 #include "version.h"
@@ -22,7 +21,7 @@ static void show_syntax(void)
 
 static void show_version(void)
 {
-	printf("transfer %s\n", version_get_source());
+	printf("copier %s\n", version_get_source());
 	exit(0);
 }
 
