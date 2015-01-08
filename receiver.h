@@ -16,8 +16,8 @@ typedef struct receiver *receiver_handle;
 
 status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   mode_t mode_flags, size_t property_size,
-					   size_t q_capacity, const char *tcp_address,
-					   unsigned short tcp_port);
+					   size_t q_capacity, microsec touch_period_usec,
+					   const char *tcp_address, unsigned short tcp_port);
 status receiver_destroy(receiver_handle *precv);
 
 storage_handle receiver_get_storage(receiver_handle recv);

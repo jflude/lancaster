@@ -17,10 +17,9 @@
 #include "spin.h"
 #include "xalloc.h"
 
-#define RECV_BUFSIZ (1024 * 1024)
-#define TOUCH_PERIOD_USEC (1 * 1000000)
 #define INITIAL_MC_HB_USEC (10 * 1000000)
 #define MAX_MISSED_HB 5
+#define RECV_BUFSIZ (1024 * 1024)
 
 #if defined(DEBUG_PROTOCOL)
 #include <unistd.h>
@@ -53,6 +52,7 @@ struct receiver {
 	microsec mcast_recv_time;
 	microsec tcp_recv_time;
 	microsec touched_time;
+	microsec touch_period_usec;
 	microsec timeout_usec;
 	sock_addr_handle mcast_src_addr;
 	sock_addr_handle mcast_pub_addr;
@@ -384,8 +384,8 @@ static status event_func(poller_handle poller, sock_handle sock,
 
 static status init(receiver_handle *precv, const char *mmap_file,
 				   mode_t mode_flags, size_t property_size,
-				   size_t q_capacity, const char *tcp_address,
-				   unsigned short tcp_port)
+				   size_t q_capacity, microsec touch_period_usec,
+				   const char *tcp_address, unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -445,6 +445,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->base_id = base_id;
 	(*precv)->val_size = val_size;
 	(*precv)->next_seq = 0;
+	(*precv)->touched_time = 0;
+	(*precv)->touch_period_usec = touch_period_usec;
 	(*precv)->timeout_usec = hb_usec * MAX_MISSED_HB;
 
 	if (q_capacity == SENDER_QUEUE_CAPACITY)
@@ -515,11 +517,11 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   mode_t mode_flags, size_t property_size,
-					   size_t q_capacity, const char *tcp_address,
-					   unsigned short tcp_port)
+					   size_t q_capacity, microsec touch_period_usec,
+					   const char *tcp_address, unsigned short tcp_port)
 {
 	status st;
-	if (!precv || !mmap_file || !tcp_address)
+	if (!precv || !mmap_file || touch_period_usec <= 0 || !tcp_address)
 		return error_invalid_arg("receiver_create");
 
 	*precv = XMALLOC(struct receiver);
@@ -527,7 +529,8 @@ status receiver_create(receiver_handle *precv, const char *mmap_file,
 		return NO_MEMORY;
 
 	if (FAILED(st = init(precv, mmap_file, mode_flags, property_size,
-						 q_capacity, tcp_address, tcp_port))) {
+						 q_capacity, touch_period_usec,
+						 tcp_address, tcp_port))) {
 		error_save_last();
 		receiver_destroy(precv);
 		error_restore_last();
@@ -583,8 +586,8 @@ status receiver_run(receiver_handle recv)
 			(st > 0 && FAILED(st = poller_process_events(recv->poller,
 														 event_func, recv))) ||
 			FAILED(st = clock_time(&now)) ||
-			((now - recv->touched_time) >= TOUCH_PERIOD_USEC &&
-			 FAILED(st = storage_touch(recv->store, now))))
+			((now - recv->touched_time) >= recv->touch_period_usec &&
+			 FAILED(st = storage_touch(recv->store, recv->touched_time = now))))
 			break;
 
 		mc_hb_usec =

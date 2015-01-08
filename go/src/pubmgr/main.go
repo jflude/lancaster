@@ -28,7 +28,8 @@ var sourceVersion = "<DEV>"
 var filePatternFlag filePattern = makeFilePattern("feed.*")
 var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 1000
-var maxIdle = 2
+var maxAgeMS = 2
+var orphanTimeoutMS = 3000
 var loopback = true
 var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
@@ -63,7 +64,8 @@ func init() {
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
 	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
-	flag.IntVar(&maxIdle, "maxidle", maxIdle, "Maximum idle time (in ms) before sending a partial packet")
+	flag.IntVar(&maxAgeMS, "maxAge", maxAgeMS, "Maximum packet age (in ms) allowed before sending a partial packet")
+	flag.IntVar(&orphanTimeoutMS, "orphan", orphanTimeoutMS, "Maximum time (in ms) allowed between storage touches")
 	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
@@ -225,7 +227,10 @@ func startIfNeeded(path string) {
 				"-a", advertAddr,
 				"-i", mcastInterface,
 				"-e", env,
-				"-p", name}
+				"-p", name,
+				"-P", fmt.Sprint(maxAgeMS * 1000),
+				"-H", fmt.Sprint(heartBeatMS * 1000),
+				"-O", fmt.Sprint(orphanTimeoutMS * 1000)}
 
 			if loopback {
 				opts = append(opts, "-l")
@@ -237,10 +242,8 @@ func startIfNeeded(path string) {
 
 			c.Args = append(opts,
 				path,
-				listenAddress+":"+strconv.Itoa(state.port),
-				addr+":"+strconv.Itoa(state.port),
-				fmt.Sprint(heartBeatMS*1000),
-				fmt.Sprint(maxIdle*1000),
+				listenAddress + ":" + strconv.Itoa(state.port),
+				addr + ":" + strconv.Itoa(state.port),
 			)
 
 			return nil

@@ -9,8 +9,6 @@
 #include "thread.h"
 #include "xalloc.h"
 
-#define SEND_DELAY_USEC (3 * 1000000)
-
 struct notice {
 	sender_handle sender;
 	char *json_desc;
@@ -24,6 +22,7 @@ struct advert {
 	char *json_msg;
 	char *env;
 	size_t json_sz;
+	microsec tx_period_usec;
 	struct notice *notices;
 	volatile spin_lock lock;
 };
@@ -112,7 +111,7 @@ static void *mcast_func(thread_handle thr)
 							 advert->json_msg, advert->json_sz);
 
 		spin_unlock(&advert->lock, 0);
-		if (FAILED(st) || FAILED(st = clock_sleep(SEND_DELAY_USEC)))
+		if (FAILED(st) || FAILED(st = clock_sleep(advert->tx_period_usec)))
 			break;
 	}
 
@@ -124,11 +123,11 @@ static void *mcast_func(thread_handle thr)
 }
 
 status advert_create(advert_handle *padvert, const char *mcast_address,
-					 unsigned short mcast_port, short mcast_ttl,
-					 boolean mcast_loopback, const char *env)
+					 unsigned short mcast_port, microsec tx_period_usec,
+					 short mcast_ttl, boolean mcast_loopback, const char *env)
 {
 	status st;
-	if (!mcast_address)
+	if (!mcast_address || tx_period_usec <= 0)
 		return error_invalid_arg("advert_create");
 
 	*padvert = XMALLOC(struct advert);
@@ -141,6 +140,8 @@ status advert_create(advert_handle *padvert, const char *mcast_address,
 	(*padvert)->env = xstrdup(env);
 	if (!(*padvert)->env)
 		return NO_MEMORY;
+
+	(*padvert)->tx_period_usec = tx_period_usec;
 
 	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
 								SOCK_DGRAM, IPPROTO_UDP)) ||

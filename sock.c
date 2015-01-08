@@ -23,9 +23,6 @@
 #define ifr_mtu ifr_metric
 #endif
 
-#define PROCFS_RX_DROPS_COLUMN 5
-#define PROCFS_TX_DROPS_COLUMN 13
-
 struct sock {
 	int fd;
 	void *prop_ref;

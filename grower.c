@@ -34,7 +34,7 @@ static long parse(const char *text, attr_func fn)
 	if (*text == '=')
 		return fn(old_store);
 
-	if (FAILED(a2i(text, "%lu", &n)))
+	if (FAILED(a2i(text, "%ld", &n)))
 		error_report_fatal();
 
 	return n;

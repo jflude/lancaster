@@ -36,18 +36,43 @@ const char *error_last_msg(void)
 	return last_msg;
 }
 
+void error_save_last(void)
+{
+	if (FAILED(spin_write_lock(&msg_lock, NULL)))
+		abort();
+
+	if (last_code != 0) {
+		saved_errno = errno;
+		saved_code = last_code;
+		strcpy(saved_msg, last_msg);
+
+		error_reset();
+	}
+
+	spin_unlock(&msg_lock, 0);
+}
+
+void error_restore_last(void)
+{
+	if (FAILED(spin_write_lock(&msg_lock, NULL)))
+		abort();
+
+	if (saved_code != 0) {
+		errno = saved_errno;
+		last_code = saved_code;
+		strcpy(last_msg, saved_msg);
+
+		saved_code = 0;
+		saved_msg[0] = '\0';
+	}
+
+	spin_unlock(&msg_lock, 0);
+}
+
 void error_reset(void)
 {
 	last_code = 0;
 	last_msg[0] = '\0';
-}
-
-void error_report_fatal(void)
-{
-	if (fputs(last_msg, stderr) == EOF || fputc('\n', stderr) == EOF)
-		abort();
-
-	exit(-last_code);
 }
 
 int error_msg(const char *msg, int code, ...)
@@ -120,35 +145,18 @@ int error_unimplemented(const char *func)
 	return error_errno(func);
 }
 
-void error_save_last(void)
+void error_append_msg(const char *text)
 {
-	if (FAILED(spin_write_lock(&msg_lock, NULL)))
+	if (!text || (strlen(last_msg) + strlen(text)) >= sizeof(last_msg))
 		abort();
 
-	if (last_code != 0) {
-		saved_errno = errno;
-		saved_code = last_code;
-		strcpy(saved_msg, last_msg);
-
-		error_reset();
-	}
-
-	spin_unlock(&msg_lock, 0);
+	strcat(last_msg, text);
 }
 
-void error_restore_last(void)
+void error_report_fatal(void)
 {
-	if (FAILED(spin_write_lock(&msg_lock, NULL)))
+	if (fputs(last_msg, stderr) == EOF || fputc('\n', stderr) == EOF)
 		abort();
 
-	if (saved_code != 0) {
-		errno = saved_errno;
-		last_code = saved_code;
-		strcpy(last_msg, saved_msg);
-
-		saved_code = 0;
-		saved_msg[0] = '\0';
-	}
-
-	spin_unlock(&msg_lock, 0);
+	exit(-last_code);
 }

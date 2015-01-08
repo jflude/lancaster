@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "a2i.h"
 #include "clock.h"
 #include "datum.h"
 #include "error.h"
@@ -14,9 +15,13 @@
 #include "storage.h"
 #include "version.h"
 
-#define ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define DISPLAY_DELAY_USEC (0.2 * 1000000)
+#define DEFAULT_ORPHAN_TIMEOUT_USEC (3 * 1000000)
 #define QUEUE_DELAY_USEC (1 * 1000000)
+
+#define DATA_UPDATED 1
+#define DATA_SKIPPED 2
+#define QUEUE_OVERRUN 4
 
 static storage_handle store;
 static latency_handle stg_latency;
@@ -24,7 +29,8 @@ static int event;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] "
+			"[-s] STORAGE-FILE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -80,9 +86,9 @@ static status update(q_index qi)
 		when = record_get_timestamp(rec);
 	} while (rev != record_get_revision(rec));
 
-	event |= 1;
+	event |= DATA_UPDATED;
 	if (qi > xyz)
-		event |= 2;
+		event |= DATA_SKIPPED;
 
 	if (stg_latency && !FAILED(st = clock_time(&now)))
 		st = latency_on_sample(stg_latency, now - when);
@@ -96,15 +102,20 @@ int main(int argc, char *argv[])
 	size_t q_capacity;
 	long old_head;
 	boolean stg_stats = FALSE;
-	microsec last_print, created_time, delay;
+	microsec last_print, created_time, delay,
+		orphan_timeout = DEFAULT_ORPHAN_TIMEOUT_USEC;
 	int opt;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "p:sv")) != -1)
+	while ((opt = getopt(argc, argv, "O:p:sv")) != -1)
 		switch (opt) {
+		case 'O':
+			if (FAILED(a2i(optarg, "%ld", &orphan_timeout)))
+				error_report_fatal();
+			break;
 		case 'p':
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
@@ -155,7 +166,7 @@ int main(int argc, char *argv[])
 		} else {
 			if ((size_t)(new_head - old_head) > q_capacity) {
 				old_head = new_head - q_capacity;
-				event |= 4;
+				event |= QUEUE_OVERRUN;
 			}
 
 			for (q = old_head; q < new_head; ++q)
@@ -181,7 +192,7 @@ int main(int argc, char *argv[])
 			FAILED(storage_get_touched_time(store, &when)))
 			break;
 
-		if ((now - when) >= ORPHAN_TIMEOUT_USEC) {
+		if ((now - when) >= orphan_timeout) {
 			putchar('\n');
 			error_msg("error: storage is orphaned", STORAGE_ORPHANED);
 			error_report_fatal();

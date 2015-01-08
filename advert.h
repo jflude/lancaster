@@ -13,8 +13,8 @@ struct advert;
 typedef struct advert *advert_handle;
 
 status advert_create(advert_handle *padvert, const char *mcast_address,
-					 unsigned short mcast_port, short mcast_ttl,
-					 boolean mcast_loopback, const char *env);
+					 unsigned short mcast_port, microsec tx_period_usec,
+					 short mcast_ttl, boolean mcast_loopback, const char *env);
 status advert_destroy(advert_handle *padvert);
 
 boolean advert_is_running(advert_handle adv);

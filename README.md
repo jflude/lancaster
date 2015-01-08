@@ -2,18 +2,18 @@ CACHESTER - fast, reliable multicasting of ephemeral data
 =========================================================
 
 The software consists of a C library, libcachester, provided in both static and
-dynamic forms, together with seven utility programs for use in production and
+dynamic forms, together with nine utility programs for use in production and
 development environments.
 
-Any questions, bug reports, suggested improvements etc. - please contact
+Any questions, bug reports, suggestions for improvements etc. - please contact
 Justin Flude <jflude@peak6.com>
 
              ===============================================
 
     writer [-v] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
-           STORAGE-FILE DELAY
+           [-T TOUCH-PERIOD] STORAGE-FILE DELAY
 
-    reader [-v] [-p ERROR PREFIX] [-s] STORAGE-FILE
+    reader [-v] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-s] STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -30,9 +30,10 @@ change queue, if specified, must be either zero or a non-zero power of two.
 
 WRITER will create a storage with a change queue of the given capacity, then
 update sequential slots with ascending values at a speed determined by DELAY
-(the number of microseconds to pause after each write, which can be zero).  If
+(the number of microseconds to pause after each write, which may be zero).  If
 the -r option is specified, slots will be chosen for update at random, instead
-of sequentially.
+of sequentially.  The storage will be "touched" at least every TOUCH-PERIOD
+microseconds (defaulting to one second).
 
 READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
@@ -44,43 +45,51 @@ numbers, indicating which conditions occured in this last "tick":-
     4 - change queue was overrun
 
 If the -s option is supplied to READER then it will output storage latency
-statistics instead of its usual output.
+statistics instead of its usual output.  If the storage has not been "touched"
+by its writer for ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), READER
+will exit with an error.
 
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
 
              ===============================================
 
-    publisher [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] [-j|-s] [-l] \
-              [-p ERROR PREFIX] [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT \
-              MULTICAST-ADDRESS:PORT HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE
+    publisher [-v] [-a ADVERT-ADDRESS:PORT] [-A ADVERT-PERIOD] \
+              [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DEVICE] [-j|-s] [-l] \
+              [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] \
+              [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
     subscriber [-v] [-j] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
-               STORAGE-FILE TCP-ADDRESS:PORT
+               [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
 hosts wanting to receive it.  PUBLISHER looks for a storage to read from (such
 as one created by WRITER).  It will listen on TCP-ADDRESS:PORT for connections
 from subscribers.  When one is made, PUBLISHER will send the subscriber the
-MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds it
-should expect to receive heartbeats in the absence of data (PUBLISHER will send
-separate heartbeats over both the TCP and multicast channels).  PUBLISHER will
-attempt to fill a UDP packet with data before sending it, but will send a
-partial packet if the data in it is more than MAX-PACKET-AGE microseconds old.
-PUBLISHER will send multicast data over the DEVICE interface rather than the
-system's default, if the -i option is specified.  Multicast data will be sent
-with a TTL other than 1 if the -t option is specified.  Multicast data will
-"loopback" (be delivered also on the sending host) if the -l option is
-specified, which enables testing on a single host.  PUBLISHER will "advertize"
-its existence by multicasting its connection and storage details every second,
-if the -a option is specified.
+MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds
+(defaulting to one second) it should expect to receive heartbeats in the absence
+of data (PUBLISHER will send separate heartbeats over both the TCP and multicast
+channels).  If a heartbeat is not received in time, PUBLISHER will exit with an
+error.  PUBLISHER will attempt to fill a UDP packet with data before sending it,
+but will send a partial packet if the data in it is older than MAX-PACKET-AGE
+microseconds (defaulting to 2 milliseconds).  PUBLISHER will send multicast data
+over the DEVICE interface rather than the system's default, if the -i option is
+specified.  Multicast data will be sent with a TTL other than 1 if the -t option
+is specified.  Multicast data will "loopback" (be delivered also on the sending
+host) if the -l option is specified, which enables testing on a single host.
+If the -a option is specified, PUBLISHER will "advertize" its existence by
+multicasting its connection and storage details every ADVERT-PERIOD microseconds
+(defaulting to 3 seconds).  If the storage has not been recently "touched" by its
+writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), PUBLISHER will
+exit with an error.
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure
 to PUBLISHER's (except for the change queue capacity, which may be specified for
 SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
-multicast to SUBSCRIBER and written to SUBSCRIBER's storage.
+multicast to SUBSCRIBER and written to SUBSCRIBER's storage.  SUBSCRIBER will
+"touch" the storage every TOUCH-PERIOD microseconds (defaulting to one second).
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
 output of statistics to be output in JSON format.  PUBLISHER also has a -s
@@ -107,7 +116,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
     grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
            NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
-    deleter [-v] [-f] STORAGE-FILE
+    deleter [-v] [-f] STORAGE-FILE [STORAGE-FILE ...]
 
 These are utility programs to show, modify or delete a storage.
 
@@ -131,11 +140,12 @@ of 1024 records:-
     dev45$ grower old-store new-store = = = = 1024
 
 Expanding or contracting a storage can be done by specifying different values
-for the base and maximum identifiers.
+for the base and maximum identifiers.  A straight copy of a storage can be done
+by specifying "=" for all attributes.  NB. GROWER never copies the contents of
+the change queue.
 
-The DELETER program will delete the given storage.  If the -f option is given
-then it is not an error if the storage does not exist (ie. just as with the
-standard RM command).
+The DELETER program will delete the given storages.  If the -f option is given
+then it is not an error if a storage does not exist.
 
              ===============================================
 

@@ -16,21 +16,25 @@
 #include "thread.h"
 #include "version.h"
 
+#define DEFAULT_ADVERT_USEC (3 * 1000000)
+#define DEFAULT_HEARTBEAT_USEC (1 * 1000000)
+#define DEFAULT_MAX_PKT_AGE_USEC (2 * 1000)
+#define DEFAULT_MCAST_TTL 1
+#define DEFAULT_ORPHAN_USEC (3 * 1000000)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
-#define DEFAULT_TTL 1
 
 static sender_handle sndr;
 static reporter_handle reporter;
 static char hostname[256];
-static boolean as_json;
-static boolean stg_stats;
+static boolean as_json, stg_stats;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-a ADDRESS:PORT] [-e ENV] [-i DEVICE] "
-			"[-j|-s] [-l] [-p ERROR PREFIX] [-S STATISTICS-UDP-ADDRESS:PORT] "
-			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT "
-			"HEARTBEAT-PERIOD MAXIMUM-PACKET-AGE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-a ADVERT-ADDRESS:PORT] "
+			"[-A ADVERT-PERIOD] [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] "
+			"[-i DEVICE] [-j|-s] [-l] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] "
+			"[-P MAXIMUM-PACKET-AGE] [-S STATISTICS-UDP-ADDRESS:PORT] "
+			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -170,20 +174,24 @@ int main(int argc, char *argv[])
 {
 	advert_handle adv = NULL;
 	thread_handle stats_thread;
-	int hb, opt, ttl = DEFAULT_TTL;
 	const char *mmap_file, *mcast_iface = NULL;
 	char mcast_addr[64], tcp_addr[64], stats_addr[64], adv_addr[64];
 	unsigned short mcast_port, tcp_port, stats_port, adv_port = 0;
 	boolean pub_advert = FALSE, loopback = FALSE;
-	microsec max_pkt_age;
+	microsec hb_period = DEFAULT_HEARTBEAT_USEC,
+		orphan_timeout = DEFAULT_ORPHAN_USEC,
+		adv_period = DEFAULT_ADVERT_USEC,
+		max_pkt_age = DEFAULT_MAX_PKT_AGE_USEC;
+	short mcast_ttl = DEFAULT_MCAST_TTL;
 	void *stats_result;
 	char *env = "";
+	int opt;
 
 	char prog_name[256];
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:e:i:jlp:sS:t:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:A:e:H:i:jlO:p:P:sS:t:v")) != -1)
 		switch (opt) {
 		case 'a':
 			if (FAILED(sock_addr_split(optarg, adv_addr,
@@ -192,8 +200,16 @@ int main(int argc, char *argv[])
 
 			pub_advert = TRUE;
 			break;
+		case 'A':
+			if (FAILED(a2i(optarg, "%ld", &adv_period)))
+				error_report_fatal();
+			break;
 		case 'e':
 			env = optarg;
+			break;
+		case 'H':
+			if (FAILED(a2i(optarg, "%ld", &hb_period)))
+				error_report_fatal();
 			break;
 		case 'i':
 			mcast_iface = optarg;
@@ -210,10 +226,18 @@ int main(int argc, char *argv[])
 		case 'l':
 			loopback = TRUE;
 			break;
+		case 'O':
+			if (FAILED(a2i(optarg, "%ld", &orphan_timeout)))
+				error_report_fatal();
+			break;
 		case 'p':
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
+			break;
+		case 'P':
+			if (FAILED(a2i(optarg, "%ld", &max_pkt_age)))
+				error_report_fatal();
 			break;
 		case 's':
 			if (as_json)
@@ -228,7 +252,7 @@ int main(int argc, char *argv[])
 				error_report_fatal();
 			break;
 		case 't':
-			if (FAILED(a2i(optarg, "%d", &ttl)))
+			if (FAILED(a2i(optarg, "%hd", &mcast_ttl)))
 				error_report_fatal();
 			break;
 		case 'v':
@@ -237,7 +261,7 @@ int main(int argc, char *argv[])
 			show_syntax();
 		}
 
-	if ((argc - optind) != 5)
+	if ((argc - optind) != 3)
 		show_syntax();
 
 	mmap_file = argv[optind++];
@@ -246,18 +270,16 @@ int main(int argc, char *argv[])
 							   sizeof(tcp_addr), &tcp_port)) ||
 		FAILED(sock_addr_split(argv[optind++], mcast_addr,
 							   sizeof(mcast_addr), &mcast_port)) ||
-		FAILED(a2i(argv[optind++], "%d", &hb)) ||
-		FAILED(a2i(argv[optind++], "%d", &max_pkt_age)))
-		error_report_fatal();
-
-	if (FAILED(signal_add_handler(SIGHUP)) ||
+		FAILED(signal_add_handler(SIGHUP)) ||
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(sender_create(&sndr, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_iface,
-							 ttl, loopback, hb, max_pkt_age)) ||
+							 mcast_ttl, loopback, hb_period,
+							 orphan_timeout, max_pkt_age)) ||
 		(pub_advert &&
-		 (FAILED(advert_create(&adv, adv_addr, adv_port, ttl, loopback, env)) ||
+		 (FAILED(advert_create(&adv, adv_addr, adv_port, adv_period,
+							   mcast_ttl, loopback, env)) ||
 		  FAILED(advert_publish(adv, sndr)))))
 		error_report_fatal();
 

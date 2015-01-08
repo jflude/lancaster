@@ -15,6 +15,7 @@ LIB_SRCS = \
 	spin.c \
 	storage.c \
 	table.c \
+	toucher.c \
 	thread.c \
 	twist.c \
 	version.c \

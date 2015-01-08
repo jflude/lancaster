@@ -9,7 +9,7 @@
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-f] STORAGE-FILE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-f] STORAGE-FILE [STORAGE-FILE ...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -39,11 +39,16 @@ int main(int argc, char *argv[])
 			show_syntax();
 		}
 
-	if ((argc - optind) != 1)
+	if ((argc - optind) < 1)
 		show_syntax();
 
-	if (FAILED(storage_delete(argv[optind], force)))
-		error_report_fatal();
+	for (; optind < argc; ++optind)
+		if (FAILED(storage_delete(argv[optind], force))) {
+			error_append_msg(" [");
+			error_append_msg(argv[optind]);
+			error_append_msg("]");
+			error_report_fatal();
+		}
 
 	return 0;
 }

@@ -13,9 +13,8 @@
 #include "spin.h"
 #include "xalloc.h"
 
-#define ORPHAN_TIMEOUT_USEC (3 * 1000000)
-#define IDLE_TIMEOUT_USEC 100
 #define IDLE_SLEEP_USEC 10
+#define IDLE_TIMEOUT_USEC 100
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 #include <unistd.h>
@@ -51,6 +50,7 @@ struct sender {
 	microsec mcast_send_time;
 	microsec last_active_time;
 	microsec heartbeat_usec;
+	microsec orphan_timeout_usec;
 	microsec max_pkt_age_usec;
 	size_t mcast_mtu;
 	char *pkt_buf;
@@ -651,7 +651,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				   const char *mcast_address, unsigned short mcast_port,
 				   const char *mcast_interface, short mcast_ttl,
 				   boolean mcast_loopback, microsec heartbeat_usec,
-				   microsec max_pkt_age_usec)
+				   microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
@@ -683,6 +683,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	(*psndr)->min_seq = 0;
 	(*psndr)->max_pkt_age_usec = max_pkt_age_usec;
 	(*psndr)->heartbeat_usec = heartbeat_usec;
+	(*psndr)->orphan_timeout_usec = orphan_timeout_usec;
 
 	if (FAILED(st = storage_get_created_time((*psndr)->store,
 											 &(*psndr)->store_created_time)))
@@ -785,11 +786,12 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 					 const char *mcast_address, unsigned short mcast_port,
 					 const char *mcast_interface, short mcast_ttl,
 					 boolean mcast_loopback, microsec heartbeat_usec,
-					 microsec max_pkt_age_usec)
+					 microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
 	if (!psndr || !mmap_file || heartbeat_usec <= 0 ||
-		max_pkt_age_usec < 0 || !mcast_address || !tcp_address)
+		orphan_timeout_usec <= 0 || max_pkt_age_usec < 0 ||
+		!mcast_address || !tcp_address)
 		return error_invalid_arg("sender_create");
 
 	*psndr = XMALLOC(struct sender);
@@ -799,7 +801,7 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 	if (FAILED(st = init(psndr, mmap_file, tcp_address, tcp_port,
 						 mcast_address, mcast_port, mcast_interface,
 						 mcast_ttl, mcast_loopback, heartbeat_usec,
-						 max_pkt_age_usec))) {
+						 orphan_timeout_usec, max_pkt_age_usec))) {
 		error_save_last();
 		sender_destroy(psndr);
 		error_restore_last();
@@ -864,7 +866,7 @@ status sender_run(sender_handle sndr)
 			break;
 
 		when = now - when;
-		if (when >= ORPHAN_TIMEOUT_USEC) {
+		if (when >= sndr->orphan_timeout_usec) {
 			st = error_msg("sender_run: storage is orphaned", STORAGE_ORPHANED);
 			break;
 		}

@@ -3,9 +3,8 @@
 #include "spin.h"
 #include "sync.h"
 
-#define MAX_WAIT_USEC (1 * 1000000)
-
 #define MAX_SPINS 10000
+#define MAX_WAIT_USEC (1 * 1000000)
 #define SLEEP_USEC 1000
 
 void spin_create(volatile spin_lock *lock)

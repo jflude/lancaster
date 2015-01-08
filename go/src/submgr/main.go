@@ -33,8 +33,9 @@ var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
 var mcastInterfaces = "bond0,eth0"
 var restartOnExit bool
-var deleteOldStorages bool
+var deleteOld bool
 var queueSize int64
+var touchPeriodMS = 1000
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 
@@ -77,7 +78,8 @@ func init() {
 	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
-	flag.BoolVar(&deleteOldStorages, "deleteOldStorages", true, "Delete old storage files before (re)starting")
+	flag.BoolVar(&deleteOld, "delete", true, "Delete old storage files before (re)starting")
+	flag.IntVar(&touchPeriodMS, "touch", touchPeriodMS, "Period (in ms) of storage touches by subscribers")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
 	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
@@ -219,6 +221,7 @@ func (si *SubscriberInstance) run() {
 
 	opts := []string{
 		"-j",
+		"-T", fmt.Sprint(touchPeriodMS * 1000),
 		"-p", si.disc.Data[0].Description}
 
 	if queueSize != -1 {
@@ -237,7 +240,7 @@ func (si *SubscriberInstance) run() {
 	si.cmdr.Name = "subscriber(" + si.name + ")"
 	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disc.Data[0].Port))
 
-	if deleteOldStorages {
+	if deleteOld {
 		si.cmdr.BeforeStart = func(*commander.Command) error {
 			removeFileCommand := exec.Command(execPath+"deleter", "-f", storePath)
 			err := removeFileCommand.Run()

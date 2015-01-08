@@ -14,10 +14,12 @@
 #include "error.h"
 #include "signals.h"
 #include "storage.h"
-#include "thread.h"
+#include "toucher.h"
 #include "twist.h"
 #include "version.h"
 
+#define DEFAULT_QUEUE_CAPACITY 256
+#define DEFAULT_TOUCH_USEC (1 * 1000000)
 #define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static storage_handle store;
@@ -26,7 +28,8 @@ static microsec delay;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] "
-			"[-q CHANGE-QUEUE-CAPACITY] [-r] STORAGE-FILE DELAY\n",
+			"[-q CHANGE-QUEUE-CAPACITY] [-r] [-T TOUCH-PERIOD] "
+			"STORAGE-FILE DELAY\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -71,27 +74,14 @@ static status update(identifier id, long n)
 	return OK;
 }
 
-static void *touch_func(thread_handle thr)
-{
-	status st = OK;
-	while (!thread_is_stopping(thr)) {
-		microsec now;
-		if (FAILED(st = clock_time(&now)) ||
-			FAILED(st = storage_touch(store, now)) ||
-			FAILED(st = clock_sleep(1000000)))
-			break;
-	}
-
-	return (void *)(long)st;
-}
-
 int main(int argc, char *argv[])
 {
 	status st = OK;
-	thread_handle touch_thread;
 	twist_handle twister;
+	toucher_handle toucher;
 	const char *mmap_file;
-	size_t q_capacity = 0;
+	size_t q_capacity = DEFAULT_QUEUE_CAPACITY;
+	microsec touch_period = DEFAULT_TOUCH_USEC;
 	boolean at_random = FALSE;
 	long xyz = 0;
 	int opt;
@@ -100,7 +90,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "p:q:rv")) != -1)
+	while ((opt = getopt(argc, argv, "p:q:rT:v")) != -1)
 		switch (opt) {
 		case 'p':
 			strcat(prog_name, ": ");
@@ -113,6 +103,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'r':
 			at_random = TRUE;
+			break;
+		case 'T':
+			if (FAILED(a2i(optarg, "%ld", &touch_period)))
+				error_report_fatal();
 			break;
 		case 'v':
 			show_version();
@@ -133,7 +127,7 @@ int main(int argc, char *argv[])
 							  FALSE, 0, MAX_ID, sizeof(struct datum), 0,
 							  q_capacity, "TEST")) ||
 		FAILED(storage_reset(store)) ||
-		FAILED(thread_create(&touch_thread, touch_func, NULL)))
+		FAILED(toucher_create(&toucher, store, touch_period)))
 		error_report_fatal();
 
 	if (at_random) {
@@ -155,7 +149,7 @@ int main(int argc, char *argv[])
 
 finish:
 	if (FAILED(st) ||
-		FAILED(thread_destroy(&touch_thread)) ||
+		FAILED(toucher_destroy(&toucher)) ||
 		(at_random && FAILED(twist_destroy(&twister))) ||
 		FAILED(storage_destroy(&store)) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||

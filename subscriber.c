@@ -16,8 +16,9 @@
 #include "thread.h"
 #include "version.h"
 
-#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define DEFAULT_TOUCH_USEC (1 * 1000000)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
+#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static receiver_handle rcvr;
 static reporter_handle reporter;
@@ -28,7 +29,7 @@ static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] "
 			"[-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] "
-			"STORAGE-FILE TCP-ADDRESS:PORT\n",
+			"[-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -169,6 +170,7 @@ int main(int argc, char *argv[])
 	char tcp_addr[64], stats_addr[64];
 	unsigned short tcp_port, stats_port;
 	size_t q_capacity = SENDER_QUEUE_CAPACITY;
+	microsec touch_period = DEFAULT_TOUCH_USEC;
 	void *stats_result;
 	int opt;
 
@@ -176,7 +178,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jp:q:S:v")) != -1)
+	while ((opt = getopt(argc, argv, "jp:q:S:T:v")) != -1)
 		switch (opt) {
 		case 'j':
 			as_json = TRUE;
@@ -196,6 +198,10 @@ int main(int argc, char *argv[])
 				FAILED(reporter_create(&reporter, stats_addr, stats_port)))
 				error_report_fatal();
 			break;
+		case 'T':
+			if (FAILED(a2i(optarg, "%ld", &touch_period)))
+				error_report_fatal();
+			break;
 		case 'v':
 			show_version();
 		default:
@@ -213,7 +219,8 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&rcvr, mmap_file, STORAGE_PERM, 0,
-							   q_capacity, tcp_addr, tcp_port)) ||
+							   q_capacity, touch_period,
+							   tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
 		FAILED(receiver_run(rcvr)) ||
 		FAILED(thread_stop(stats_thread, &stats_result)) ||
