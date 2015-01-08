@@ -47,7 +47,7 @@ status toucher_create(toucher_handle *ptouch, storage_handle store,
 		error_restore_last();
 	}
 
-	return OK;
+	return st;
 }
 
 status toucher_destroy(toucher_handle *ptouch)
