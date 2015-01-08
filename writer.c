@@ -127,7 +127,8 @@ int main(int argc, char *argv[])
 							  FALSE, 0, MAX_ID, sizeof(struct datum), 0,
 							  q_capacity, "TEST")) ||
 		FAILED(storage_reset(store)) ||
-		FAILED(toucher_create(&toucher, store, touch_period)))
+		FAILED(toucher_create(&toucher, touch_period)) ||
+		FAILED(toucher_add_storage(toucher, store)))
 		error_report_fatal();
 
 	if (at_random) {

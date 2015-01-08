@@ -386,7 +386,7 @@ status storage_destroy(storage_handle *pstore)
 			return st;
 	}
 
-	XFREE((*pstore)->mmap_file);
+	xfree((*pstore)->mmap_file);
 	XFREE(*pstore);
 	return st;
 }

@@ -21,10 +21,9 @@ status twist_create(twist_handle *ptwist)
 
 status twist_destroy(twist_handle *ptwist)
 {
-	if (!ptwist || !*ptwist)
-		return OK;
+	if (ptwist && *ptwist)
+		XFREE(*ptwist);
 
-	XFREE(*ptwist);
 	return OK;
 }
 

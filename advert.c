@@ -46,7 +46,7 @@ static const char *escape_quotes(const char *in)
 static status make_json_map(advert_handle advert)
 {
 	char buf[8192], hostname[256];
-	struct notice *it;
+	struct notice *n;
 	char *new_msg;
 
 	status st;
@@ -60,9 +60,9 @@ static status make_json_map(advert_handle advert)
 			hostname, escape_quotes(advert->env),
 			CACHESTER_WIRE_MAJOR_VERSION, CACHESTER_WIRE_MINOR_VERSION);
 
-	for (it = advert->notices; it; it = it->next) {
-		strcat(buf, it->json_desc);
-		if (it->next)
+	for (n = advert->notices; n; n = n->next) {
+		strcat(buf, n->json_desc);
+		if (n->next)
 			strcat(buf, ", ");
 	}
 
@@ -75,7 +75,7 @@ static status make_json_map(advert_handle advert)
 	if (FAILED(st = spin_write_lock(&advert->lock, NULL)))
 		return st;
 
-	XFREE(advert->json_msg);
+	xfree(advert->json_msg);
 	advert->json_msg = new_msg;
 	advert->json_sz = strlen(advert->json_msg);
 
@@ -165,7 +165,7 @@ status advert_create(advert_handle *padvert, const char *mcast_address,
 status advert_destroy(advert_handle *padvert)
 {
 	status st = OK;
-	struct notice *it;
+	struct notice *n;
 
 	if (!padvert || !*padvert ||
 		FAILED(st = thread_destroy(&(*padvert)->mcast_thr)) ||
@@ -173,15 +173,15 @@ status advert_destroy(advert_handle *padvert)
 		FAILED(st = sock_addr_destroy(&(*padvert)->mcast_addr)))
 		return st;
 
-	for (it = (*padvert)->notices; it; ) {
-		struct notice *next = it->next;
-		XFREE(it->json_desc);
-		xfree(it);
-		it = next;
+	for (n = (*padvert)->notices; n; ) {
+		struct notice *next = n->next;
+		xfree(n->json_desc);
+		xfree(n);
+		n = next;
 	}
 
-	XFREE((*padvert)->json_msg);
-	XFREE((*padvert)->env);
+	xfree((*padvert)->json_msg);
+	xfree((*padvert)->env);
 	XFREE(*padvert);
 	return st;
 }
@@ -207,47 +207,47 @@ status advert_stop(advert_handle advert)
 
 status advert_publish(advert_handle advert, sender_handle sender)
 {
-	struct notice *it;
+	struct notice *n;
 	status st;
 
 	if (!sender)
 		return error_invalid_arg("advert_publish");
 
-	for (it = advert->notices; it; it = it->next)
-		if (it->sender == sender)
+	for (n = advert->notices; n; n = n->next)
+		if (n->sender == sender)
 			return OK;
 
-	it = XMALLOC(struct notice);
-	if (!it)
+	n = XMALLOC(struct notice);
+	if (!n)
 		return NO_MEMORY;
 
-	if (FAILED(st = make_json_notice(sender, &it->json_desc))) {
-		XFREE(it);
+	if (FAILED(st = make_json_notice(sender, &n->json_desc))) {
+		xfree(n);
 		return st;
 	}
 
-	it->sender = sender;
-	it->next = advert->notices;
-	advert->notices = it;
+	n->sender = sender;
+	n->next = advert->notices;
+	advert->notices = n;
 
 	return make_json_map(advert);
 }
 
 status advert_retract(advert_handle advert, sender_handle sender)
 {
-	struct notice *it;
+	struct notice *n;
 	struct notice **prev;
 
 	if (!sender)
 		return error_invalid_arg("advert_retract");
 
-	for (prev = &advert->notices, it = advert->notices;
-		 it;
-		 prev = &it->next, it = it->next)
-		if (it->sender == sender) {
-			*prev = it->next;
-			XFREE(it->json_desc);
-			XFREE(it);
+	for (prev = &advert->notices, n = advert->notices;
+		 n;
+		 prev = &n->next, n = n->next)
+		if (n->sender == sender) {
+			*prev = n->next;
+			xfree(n->json_desc);
+			xfree(n);
 
 			return make_json_map(advert);
 		}

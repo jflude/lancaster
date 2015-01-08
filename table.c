@@ -59,7 +59,7 @@ status table_destroy(table_handle *ptab)
 		}
 	}
 
-	XFREE((*ptab)->array);
+	xfree((*ptab)->array);
 	XFREE(*ptab);
 	return OK;
 }
@@ -147,7 +147,7 @@ status table_remove(table_handle tab, table_key key)
 		else
 			tab->array[hash] = c->next;
 
-		XFREE(c);
+		xfree(c);
 		return OK;
 	}
 

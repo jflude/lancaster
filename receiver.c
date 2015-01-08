@@ -552,11 +552,11 @@ status receiver_destroy(receiver_handle *precv)
 		FAILED(st = latency_destroy(&(*precv)->mcast_latency)))
 		return st;
 
-	XFREE((*precv)->next_stats);
-	XFREE((*precv)->curr_stats);
-	XFREE((*precv)->record_seqs);
-	XFREE((*precv)->out_buf);
-	XFREE((*precv)->in_buf);
+	xfree((*precv)->next_stats);
+	xfree((*precv)->curr_stats);
+	xfree((*precv)->record_seqs);
+	xfree((*precv)->out_buf);
+	xfree((*precv)->in_buf);
 
 #if defined(DEBUG_PROTOCOL)
 	if ((*precv)->debug_file && fclose((*precv)->debug_file) == EOF)

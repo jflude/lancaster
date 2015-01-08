@@ -1,12 +1,19 @@
 #include "error.h"
+#include "spin.h"
 #include "thread.h"
 #include "toucher.h"
 #include "xalloc.h"
 
+struct target {
+	storage_handle store;
+	struct target *next;
+};
+
 struct toucher {
 	thread_handle thread;
-	storage_handle store;
 	microsec period;
+	struct target *targets;
+	volatile spin_lock lock;
 };
 
 static void *touch_func(thread_handle thr)
@@ -16,20 +23,28 @@ static void *touch_func(thread_handle thr)
 
 	while (!thread_is_stopping(thr)) {
 		microsec now;
-		if (FAILED(st = clock_time(&now)) ||
-			FAILED(st = storage_touch(touch->store, now)) ||
-			FAILED(st = clock_sleep(touch->period)))
+		struct target *t;
+
+		if (FAILED(st = spin_write_lock(&touch->lock, NULL)))
+			break;
+
+		if (!FAILED(st = clock_time(&now)))
+			for (t = touch->targets; t; t = t->next)
+				if (FAILED(st = storage_touch(t->store, now)))
+					break;
+
+		spin_unlock(&touch->lock, 0);
+		if (FAILED(st) || FAILED(st = clock_sleep(touch->period)))
 			break;
 	}
 
 	return (void *)(long)st;
 }
 
-status toucher_create(toucher_handle *ptouch, storage_handle store,
-					  microsec touch_period)
+status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
 {
 	status st;
-	if (!ptouch || !store || touch_period <= 0)
+	if (!ptouch || touch_period_usec <= 0)
 		return error_invalid_arg("toucher_create");
 
 	*ptouch = XMALLOC(struct toucher);
@@ -37,9 +52,9 @@ status toucher_create(toucher_handle *ptouch, storage_handle store,
 		return NO_MEMORY;
 
 	BZERO(*ptouch);
+	spin_create(&(*ptouch)->lock);
 
-	(*ptouch)->store = store;
-	(*ptouch)->period = touch_period;
+	(*ptouch)->period = touch_period_usec;
 
 	if (FAILED(st = thread_create(&(*ptouch)->thread, touch_func, *ptouch))) {
 		error_save_last();
@@ -53,9 +68,17 @@ status toucher_create(toucher_handle *ptouch, storage_handle store,
 status toucher_destroy(toucher_handle *ptouch)
 {
 	status st = OK;
+	struct target *t;
+
 	if (!ptouch || !*ptouch ||
 		FAILED(st = thread_destroy(&(*ptouch)->thread)))
 		return st;
+
+	for (t = (*ptouch)->targets; t; ) {
+		struct target *next = t->next;
+		xfree(t);
+		t = next;
+	}
 
 	XFREE(*ptouch);
 	return st;
@@ -73,5 +96,64 @@ status toucher_stop(toucher_handle touch)
 	if (!FAILED(st))
 		st = (long)p;
 
+	return st;
+}
+
+status toucher_add_storage(toucher_handle touch, storage_handle store)
+{
+	struct target *t;
+	status st;
+
+	if (!store)
+		return error_invalid_arg("toucher_add_storage");
+
+	if (FAILED(st = spin_write_lock(&touch->lock, NULL)))
+		return st;
+
+	for (t = touch->targets; t; t = t->next)
+		if (t->store == store) {
+			spin_unlock(&touch->lock, 0);
+			return OK;
+		}
+
+	t = XMALLOC(struct target);
+	if (!t) {
+		spin_unlock(&touch->lock, 0);
+		return NO_MEMORY;
+	}
+
+	t->store = store;
+	t->next = touch->targets;
+	touch->targets = t;
+
+	spin_unlock(&touch->lock, 0);
+	return OK;
+}
+
+status toucher_remove_storage(toucher_handle touch, storage_handle store)
+{
+	struct target *t;
+	struct target **prev;
+	status st;
+
+	if (!store)
+		return error_invalid_arg("toucher_remove_storage");
+
+	if (FAILED(st = spin_write_lock(&touch->lock, NULL)))
+		return st;
+
+	st = NOT_FOUND;
+	for (prev = &touch->targets, t = touch->targets;
+		 t;
+		 prev = &t->next, t = t->next)
+		if (t->store == store) {
+			*prev = t->next;
+			xfree(t);
+
+			st = OK;
+			break;
+		}
+
+	spin_unlock(&touch->lock, 0);
 	return st;
 }

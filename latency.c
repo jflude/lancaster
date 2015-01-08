@@ -48,8 +48,8 @@ status latency_destroy(latency_handle *plat)
 	if (!plat || !*plat)
 		return OK;
 
-	XFREE((*plat)->curr);
-	XFREE((*plat)->next);
+	xfree((*plat)->curr);
+	xfree((*plat)->next);
 	XFREE(*plat);
 	return OK;
 }

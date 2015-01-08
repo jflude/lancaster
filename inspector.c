@@ -293,8 +293,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	XFREE(val_copy);
-	XFREE(prop_copy);
+	xfree(val_copy);
+	xfree(prop_copy);
 
 	if (FAILED(storage_destroy(&store)))
 		error_report_fatal();

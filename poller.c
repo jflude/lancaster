@@ -44,8 +44,8 @@ status poller_destroy(poller_handle *ppoller)
 	if (!ppoller || !*ppoller)
 		return OK;
 
-	XFREE((*ppoller)->socks);
-	XFREE((*ppoller)->fds);
+	xfree((*ppoller)->socks);
+	xfree((*ppoller)->fds);
 	XFREE(*ppoller);
 	return OK;
 }

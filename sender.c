@@ -352,7 +352,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	clnt->in_buf = XMALLOC(struct sequence_range);
 	if (!clnt->in_buf) {
-		XFREE(clnt);
+		xfree(clnt);
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
@@ -367,8 +367,8 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	clnt->out_buf = xmalloc(clnt->pkt_size);
 	if (!clnt->out_buf) {
-		XFREE(clnt->in_buf);
-		XFREE(clnt);
+		xfree(clnt->in_buf);
+		xfree(clnt);
 		sock_destroy(&accepted);
 		return NO_MEMORY;
 	}
@@ -412,9 +412,9 @@ static status close_sock_func(poller_handle poller, sock_handle sock,
 	(void)events; (void)param;
 
 	if (clnt) {
-		XFREE(clnt->out_buf);
-		XFREE(clnt->in_buf);
-		XFREE(clnt);
+		xfree(clnt->out_buf);
+		xfree(clnt->in_buf);
+		xfree(clnt);
 	}
 
 	if (FAILED(st = poller_remove(poller, sock)))
@@ -824,10 +824,10 @@ status sender_destroy(sender_handle *psndr)
 		FAILED(st = latency_destroy(&(*psndr)->stg_latency)))
 		return st;
 
-	XFREE((*psndr)->next_stats);
-	XFREE((*psndr)->curr_stats);
-	XFREE((*psndr)->record_seqs);
-	XFREE((*psndr)->pkt_buf);
+	xfree((*psndr)->next_stats);
+	xfree((*psndr)->curr_stats);
+	xfree((*psndr)->record_seqs);
+	xfree((*psndr)->pkt_buf);
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	if ((*psndr)->debug_file && fclose((*psndr)->debug_file) == EOF)
