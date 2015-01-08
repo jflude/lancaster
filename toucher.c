@@ -55,7 +55,7 @@ status toucher_destroy(toucher_handle *ptouch)
 	status st = OK;
 	if (!ptouch || !*ptouch ||
 		FAILED(st = thread_destroy(&(*ptouch)->thread)))
-		return OK;
+		return st;
 
 	XFREE(*ptouch);
 	return st;
