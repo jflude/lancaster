@@ -17,7 +17,7 @@ struct notice {
 
 struct advert {
 	sock_handle mcast_sock;
-	sock_addr_handle mcast_addr;
+	sock_addr_handle sendto_addr;
 	thread_handle mcast_thr;
 	char *json_msg;
 	char *env;
@@ -103,14 +103,14 @@ static void *mcast_func(thread_handle thr)
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		if (FAILED(st = spin_write_lock(&advert->lock, NULL)))
-			break;
+		if (!FAILED(st = spin_write_lock(&advert->lock, NULL))) {
+			if (advert->json_msg)
+				st = sock_sendto(advert->mcast_sock, advert->sendto_addr,
+								 advert->json_msg, advert->json_sz);
 
-		if (advert->json_msg)
-			st = sock_sendto(advert->mcast_sock, advert->mcast_addr,
-							 advert->json_msg, advert->json_sz);
+			spin_unlock(&advert->lock, 0);
+		}
 
-		spin_unlock(&advert->lock, 0);
 		if (FAILED(st) || FAILED(st = clock_sleep(advert->tx_period_usec)))
 			break;
 	}
@@ -122,9 +122,52 @@ static void *mcast_func(thread_handle thr)
 	return (void *)(long)st;
 }
 
+static status init(advert_handle *padvert, const char *mcast_address,
+				   unsigned short mcast_port, const char *mcast_interface,
+				   short mcast_ttl, boolean mcast_loopback, const char *env,
+				   microsec tx_period_usec)
+{
+	status st;
+	BZERO(*padvert);
+	spin_create(&(*padvert)->lock);
+
+	(*padvert)->env = xstrdup(env ? env : "");
+	if (!(*padvert)->env)
+		return NO_MEMORY;
+
+	(*padvert)->tx_period_usec = tx_period_usec;
+
+	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
+								SOCK_DGRAM, IPPROTO_UDP)))
+		return st;
+
+	if (mcast_interface) {
+		sock_addr_handle if_addr;
+		if (FAILED(st = sock_addr_create(&if_addr, NULL, 0)) ||
+			FAILED(st = sock_get_interface_address((*padvert)->mcast_sock,
+												   mcast_interface,
+												   if_addr)) ||
+			FAILED(st = sock_set_mcast_interface((*padvert)->mcast_sock,
+												 if_addr)) ||
+			FAILED(st = sock_addr_destroy(&if_addr)))
+			return st;
+	}
+
+	(void)(FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
+		   FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
+		   FAILED(st = sock_set_mcast_loopback((*padvert)->mcast_sock,
+											   mcast_loopback)) ||
+		   FAILED(st = sock_addr_create(&(*padvert)->sendto_addr,
+										mcast_address, mcast_port)) ||
+		   FAILED(st = thread_create(&(*padvert)->mcast_thr,
+									 mcast_func, *padvert)));
+	return st;
+}
+
 status advert_create(advert_handle *padvert, const char *mcast_address,
-					 unsigned short mcast_port, microsec tx_period_usec,
-					 short mcast_ttl, boolean mcast_loopback, const char *env)
+					 unsigned short mcast_port, const char *mcast_interface,
+					 short mcast_ttl, boolean mcast_loopback, const char *env,
+					 microsec tx_period_usec)
 {
 	status st;
 	if (!mcast_address || tx_period_usec <= 0)
@@ -134,26 +177,8 @@ status advert_create(advert_handle *padvert, const char *mcast_address,
 	if (!*padvert)
 		return NO_MEMORY;
 
-	BZERO(*padvert);
-	spin_create(&(*padvert)->lock);
-
-	(*padvert)->env = xstrdup(env);
-	if (!(*padvert)->env)
-		return NO_MEMORY;
-
-	(*padvert)->tx_period_usec = tx_period_usec;
-
-	if (FAILED(st = sock_create(&(*padvert)->mcast_sock,
-								SOCK_DGRAM, IPPROTO_UDP)) ||
-		FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
-		FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl)) ||
-		FAILED(st = sock_set_mcast_loopback((*padvert)->mcast_sock,
-											mcast_loopback)) ||
-		FAILED(st = sock_addr_create(&(*padvert)->mcast_addr,
-									 mcast_address, mcast_port)) ||
-		FAILED(st = sock_bind((*padvert)->mcast_sock, (*padvert)->mcast_addr)) ||
-		FAILED(st = thread_create(&(*padvert)->mcast_thr,
-								  mcast_func, *padvert))) {
+	if (FAILED(st = init(padvert, mcast_address, mcast_port, mcast_interface,
+						 mcast_ttl, mcast_loopback, env, tx_period_usec))) {
 		error_save_last();
 		advert_destroy(padvert);
 		error_restore_last();
@@ -170,7 +195,7 @@ status advert_destroy(advert_handle *padvert)
 	if (!padvert || !*padvert ||
 		FAILED(st = thread_destroy(&(*padvert)->mcast_thr)) ||
 		FAILED(st = sock_destroy(&(*padvert)->mcast_sock)) ||
-		FAILED(st = sock_addr_destroy(&(*padvert)->mcast_addr)))
+		FAILED(st = sock_addr_destroy(&(*padvert)->sendto_addr)))
 		return st;
 
 	for (n = (*padvert)->notices; n; ) {

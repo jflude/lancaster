@@ -31,7 +31,7 @@ var wireProtocolVersion = "*"
 var execPath = getExecDir()
 var sourceVersion = "<DEV>"
 var udpStatsAddr = "127.0.0.1:9411"
-var mcastInterfaces = "bond0,eth0"
+var dataInterfaces = "bond0,eth0"
 var restartOnExit bool
 var deleteOld bool
 var queueSize int64
@@ -81,7 +81,7 @@ func init() {
 	flag.BoolVar(&deleteOld, "delete", true, "Delete old storage files before (re)starting")
 	flag.IntVar(&touchPeriodMS, "touch", touchPeriodMS, "Period (in ms) of storage touches by subscribers")
 	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
-	flag.StringVar(&mcastInterfaces, "i", mcastInterfaces, "Multicast interfaces to use")
+	flag.StringVar(&dataInterfaces, "i", dataInterfaces, "Networtk interfaces to receive multicast data on")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
 	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
 
@@ -131,12 +131,14 @@ func main() {
 func discoveryLoop() error {
 	var iface *net.Interface
 	var err error
-	for _, mcastInterface := range strings.Split(mcastInterfaces, ",") {
-		if !interfaceExists(mcastInterface) {
-			logln("Interface ", mcastInterface, " not found")
+	for _, dataInterface := range strings.Split(dataInterfaces, ",") {
+		if !interfaceExists(dataInterface) {
+			logln("Interface ", dataInterface, " not found")
 		} else {
-			iface, err = net.InterfaceByName(mcastInterface)
-			checkFatal(err)
+			iface, err = net.InterfaceByName(dataInterface)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
@@ -148,9 +150,12 @@ func discoveryLoop() error {
 	}
 
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
-	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	logln("Listening for adverts on: ", addr)
-	checkFatal(err)
+
+	sock, err := net.ListenMulticastUDP("udp", iface, addr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	data := make([]byte, 4096)
 	fp, err := regexp.Compile(feedPattern)
@@ -165,7 +170,9 @@ func discoveryLoop() error {
 
 	for run {
 		n, from, err := sock.ReadFrom(data)
-		checkFatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		jsbin := data[:n]
 		jsstr := string(jsbin)
@@ -216,7 +223,10 @@ func discoveryLoop() error {
 
 func (si *SubscriberInstance) run() {
 	addr, err := net.LookupHost(si.disc.Hostname)
-	checkFatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	storePath := "shm:/client." + si.disc.Data[0].Description
 
 	opts := []string{
@@ -272,12 +282,6 @@ func interfaceExists(interfaceName string) bool {
 	}
 
 	return false
-}
-
-func checkFatal(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func fileExists(path string) (bool, error) {

@@ -66,7 +66,7 @@ func init() {
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
 	flag.IntVar(&maxAgeMS, "maxAge", maxAgeMS, "Maximum packet age (in ms) allowed before sending a partial packet")
 	flag.IntVar(&orphanTimeoutMS, "orphan", orphanTimeoutMS, "Maximum time (in ms) allowed between storage touches")
-	flag.BoolVar(&loopback, "loopback", loopback, "Enable multicast loopback")
+	flag.BoolVar(&loopback, "loopback", loopback, "Enable loopback of multicast data & adverts")
 	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
@@ -194,7 +194,7 @@ func startIfNeeded(path string) {
 		log.Println("Already publishing:", name)
 	} else {
 		publishers[name] = nil
-		addr, err := mcastAddrFor(name)
+		addr, err := getMcastAddrFor(name)
 		if err != nil {
 			log.Println(err)
 			return
@@ -225,7 +225,8 @@ func startIfNeeded(path string) {
 			opts := []string{
 				"-j",
 				"-a", advertAddr,
-				"-i", mcastInterface,
+				"-i", dataInterface,
+				"-I", advertInterface,
 				"-e", env,
 				"-p", name,
 				"-P", fmt.Sprint(maxAgeMS * 1000),
@@ -257,12 +258,6 @@ func startIfNeeded(path string) {
 
 		log.Println("CMD:", cmd)
 		go cmd.Run()
-	}
-}
-
-func chkFatal(err error) {
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 

@@ -789,9 +789,8 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 					 microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
-	if (!psndr || !mmap_file || heartbeat_usec <= 0 ||
-		orphan_timeout_usec <= 0 || max_pkt_age_usec < 0 ||
-		!mcast_address || !tcp_address)
+	if (!psndr || !mmap_file || !tcp_address || !mcast_address ||
+		heartbeat_usec <= 0 || orphan_timeout_usec <= 0 || max_pkt_age_usec < 0)
 		return error_invalid_arg("sender_create");
 
 	*psndr = XMALLOC(struct sender);

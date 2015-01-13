@@ -16,8 +16,10 @@ var advertAddr = "227.1.1.227:11227"
 var addrLock sync.Mutex
 var addrsAssigned = make(map[string]bool)
 var hostName string
-var mcastInterfacesToTry = "bond0,eth0"
-var mcastInterface string
+var dataInterfacesToTry = "bond0,eth0"
+var dataInterface string
+var advertInterfacesToTry = "bond0,eth0"
+var advertInterface string
 var listenAddress string
 var ifaceToIp = make(map[string]string)
 
@@ -41,7 +43,7 @@ func (ip *IP) Set(val string) error {
 }
 
 func init() {
-	err := initAddrs()
+	err := initInterfaceResolver()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,21 +51,31 @@ func init() {
 	flag.Var(&baseMCastGroup, "bg", "Base multicast group (each feed increments the 3rd octet)")
 	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
 	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
-	flag.StringVar(&mcastInterfacesToTry, "i", mcastInterfacesToTry, "Comma-separated list of multicast interfaces to try")
+	flag.StringVar(&dataInterfacesToTry, "i", dataInterfacesToTry,
+		"Comma-separated list of network interfaces to try for multicasting data")
+	flag.StringVar(&advertInterfacesToTry, "I", advertInterfacesToTry,
+		"Comma-separated list of network interfaces to try for multicasting adverts")
 	flag.StringVar(&listenAddress, "listen", listenAddress, "TCP/IP listen address")
 }
 
 func initializePostFlagsParsed() error {
-	err := setMcastInterface()
+	err := setDataInterface()
 	if err != nil {
 		return err
 	}
+
+	err = setAdvertInterface()
+	if err != nil {
+		return err
+	}
+
 	return setListenAddress()
 }
 
-func mcastAddrFor(name string) (string, error) {
+func getMcastAddrFor(name string) (string, error) {
 	addrLock.Lock()
 	defer addrLock.Unlock()
+
 	addr := ""
 	for x := 0; x < 256; x++ {
 		if !addrsAssigned[baseMCastGroup.String()] {
@@ -112,7 +124,7 @@ func releasePort(portNumber int) {
 	delete(portPicker.inUse, portNumber)
 }
 
-func initAddrs() error {
+func initInterfaceResolver() error {
 	var err error
 	hostName, err = os.Hostname()
 	if err != nil {
@@ -136,7 +148,7 @@ func initAddrs() error {
 	}
 
 	for _, iface := range ifaces {
-		if iface.Flags&net.FlagLoopback != 0 {
+		if (iface.Flags & net.FlagLoopback) != 0 {
 			continue
 		}
 
@@ -151,36 +163,54 @@ func initAddrs() error {
 	return nil
 }
 
-func setMcastInterface() error {
-	if mcastInterface != "" {
+func setDataInterface() error {
+	if dataInterface != "" {
 		return nil
 	}
 
-	for _, mcastInterfaceToTry := range strings.Split(mcastInterfacesToTry, ",") {
-		if _, ok := ifaceToIp[mcastInterfaceToTry]; ok {
-			mcastInterface = mcastInterfaceToTry
-			log.Println("Setting mcastInterface to ", mcastInterface)
+	for _, dataInterfaceToTry := range strings.Split(dataInterfacesToTry, ",") {
+		if _, ok := ifaceToIp[dataInterfaceToTry]; ok {
+			dataInterface = dataInterfaceToTry
+			log.Println("Setting data interface to ", dataInterface)
 			return nil
 		} else {
-			log.Println("No valid interface named '", mcastInterfaceToTry, "' was found")
+			log.Println("No valid data interface named '", dataInterfaceToTry, "' was found")
 		}
 	}
 
-	return errors.New("No valid interface found. Tried " + mcastInterfacesToTry)
+	return errors.New("No valid interface found. Tried " + dataInterfacesToTry)
+}
+
+func setAdvertInterface() error {
+	if advertInterface != "" {
+		return nil
+	}
+
+	for _, advertInterfaceToTry := range strings.Split(advertInterfacesToTry, ",") {
+		if _, ok := ifaceToIp[advertInterfaceToTry]; ok {
+			advertInterface = advertInterfaceToTry
+			log.Println("Setting advert interface to ", advertInterface)
+			return nil
+		} else {
+			log.Println("No valid advert interface named '", advertInterfaceToTry, "' was found")
+		}
+	}
+
+	return errors.New("No valid interface found. Tried " + advertInterfacesToTry)
 }
 
 func setListenAddress() error {
 	if listenAddress != "" {
-		log.Println("Listen address already defined to ", listenAddress)
+		log.Println("Listen address already defined as ", listenAddress)
 		return nil
 	}
 
-	err := setMcastInterface()
+	err := setDataInterface()
 	if err != nil {
 		return err
 	}
 
-	listenAddress = ifaceToIp[mcastInterface]
-	log.Println("Setting listenAddress to", listenAddress)
+	listenAddress = ifaceToIp[dataInterface]
+	log.Println("Setting listen address to", listenAddress)
 	return nil
 }

@@ -32,9 +32,10 @@ static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-a ADVERT-ADDRESS:PORT] "
 			"[-A ADVERT-PERIOD] [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] "
-			"[-i DEVICE] [-j|-s] [-l] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] "
-			"[-P MAXIMUM-PACKET-AGE] [-S STATISTICS-UDP-ADDRESS:PORT] "
-			"[-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT\n",
+			"[-i DATA-INTERFACE] [-I ADVERT-INTERFACE] [-j|-s] [-l] "
+			"[-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] "
+			"[-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE "
+			"TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 {
 	advert_handle adv = NULL;
 	thread_handle stats_thread;
-	const char *mmap_file, *mcast_iface = NULL;
+	const char *mmap_file, *mcast_iface = NULL, *adv_iface = NULL;
 	char mcast_addr[64], tcp_addr[64], stats_addr[64], adv_addr[64];
 	unsigned short mcast_port, tcp_port, stats_port, adv_port = 0;
 	boolean pub_advert = FALSE, loopback = FALSE;
@@ -191,7 +192,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:A:e:H:i:jlO:p:P:sS:t:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:A:e:H:i:I:jlO:p:P:sS:t:v")) != -1)
 		switch (opt) {
 		case 'a':
 			if (FAILED(sock_addr_split(optarg, adv_addr,
@@ -213,6 +214,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			mcast_iface = optarg;
+			break;
+		case 'I':
+			adv_iface = optarg;
 			break;
 		case 'j':
 			if (stg_stats)
@@ -278,8 +282,8 @@ int main(int argc, char *argv[])
 							 mcast_ttl, loopback, hb_period,
 							 orphan_timeout, max_pkt_age)) ||
 		(pub_advert &&
-		 (FAILED(advert_create(&adv, adv_addr, adv_port, adv_period,
-							   mcast_ttl, loopback, env)) ||
+		 (FAILED(advert_create(&adv, adv_addr, adv_port, adv_iface,
+							   mcast_ttl, loopback, env, adv_period)) ||
 		  FAILED(advert_publish(adv, sndr)))))
 		error_report_fatal();
 

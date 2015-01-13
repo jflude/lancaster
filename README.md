@@ -55,9 +55,10 @@ messages, to allow easier identification when running multiple instances.
              ===============================================
 
     publisher [-v] [-a ADVERT-ADDRESS:PORT] [-A ADVERT-PERIOD] \
-              [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DEVICE] [-j|-s] [-l] \
-              [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] \
-              [-t TTL] STORAGE-FILE TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
+              [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DATA-INTERFACE] \
+              [-I ADVERT-INTERFACE] [-j|-s] [-l] [-O ORPHAN-TIMEOUT] \
+              [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-t TTL] STORAGE-FILE \
+              TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
     subscriber [-v] [-j] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
                [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
@@ -73,16 +74,18 @@ of data (PUBLISHER will send separate heartbeats over both the TCP and multicast
 channels).  If a heartbeat is not received in time, PUBLISHER will exit with an
 error.  PUBLISHER will attempt to fill a UDP packet with data before sending it,
 but will send a partial packet if the data in it is older than MAX-PACKET-AGE
-microseconds (defaulting to 2 milliseconds).  PUBLISHER will send multicast data
-over the DEVICE interface rather than the system's default, if the -i option is
-specified.  Multicast data will be sent with a TTL other than 1 if the -t option
-is specified.  Multicast data will "loopback" (be delivered also on the sending
-host) if the -l option is specified, which enables testing on a single host.
-If the -a option is specified, PUBLISHER will "advertize" its existence by
-multicasting its connection and storage details every ADVERT-PERIOD microseconds
-(defaulting to 3 seconds).  If the storage has not been recently "touched" by its
-writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), PUBLISHER will
-exit with an error.
+microseconds (defaulting to 2 milliseconds).  PUBLISHER will multicast data over
+the DATA-INTERFACE network interface rather than the system's default, if the -i
+option is specified.  Multicast data will be sent with a TTL other than 1 if the
+-t option is specified.  Multicast data will "loopback" (be delivered also on
+the sending host) if the -l option is specified, which enables testing on a
+single host.  If the -a option is specified, PUBLISHER will "advertize" its
+existence by multicasting its connection and storage details every ADVERT-PERIOD
+microseconds (defaulting to 3 seconds).  Those advertisements will be multicast
+over the ADVERT-INTERFACE network interface if the -I option is specified, or
+the system's default if not.  If the storage has not been recently "touched" by
+its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then
+PUBLISHER will exit with an error.
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure

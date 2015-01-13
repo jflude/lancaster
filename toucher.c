@@ -10,7 +10,7 @@ struct target {
 };
 
 struct toucher {
-	thread_handle thread;
+	thread_handle thr;
 	microsec period;
 	struct target *targets;
 	volatile spin_lock lock;
@@ -56,7 +56,7 @@ status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
 
 	(*ptouch)->period = touch_period_usec;
 
-	if (FAILED(st = thread_create(&(*ptouch)->thread, touch_func, *ptouch))) {
+	if (FAILED(st = thread_create(&(*ptouch)->thr, touch_func, *ptouch))) {
 		error_save_last();
 		toucher_destroy(ptouch);
 		error_restore_last();
@@ -71,7 +71,7 @@ status toucher_destroy(toucher_handle *ptouch)
 	struct target *t;
 
 	if (!ptouch || !*ptouch ||
-		FAILED(st = thread_destroy(&(*ptouch)->thread)))
+		FAILED(st = thread_destroy(&(*ptouch)->thr)))
 		return st;
 
 	for (t = (*ptouch)->targets; t; ) {
@@ -86,13 +86,13 @@ status toucher_destroy(toucher_handle *ptouch)
 
 boolean toucher_is_running(toucher_handle touch)
 {
-	return touch->thread && thread_is_running(touch->thread);
+	return touch->thr && thread_is_running(touch->thr);
 }
 
 status toucher_stop(toucher_handle touch)
 {
 	void *p;
-	status st = thread_stop(touch->thread, &p);
+	status st = thread_stop(touch->thr, &p);
 	if (!FAILED(st))
 		st = (long)p;
 
