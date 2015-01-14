@@ -103,15 +103,18 @@ static void *mcast_func(thread_handle thr)
 	status st = OK, st2;
 
 	while (!thread_is_stopping(thr)) {
-		if (!FAILED(st = spin_write_lock(&advert->lock, NULL))) {
-			if (advert->json_msg)
-				st = sock_sendto(advert->mcast_sock, advert->sendto_addr,
-								 advert->json_msg, advert->json_sz);
+		if (FAILED(st = spin_write_lock(&advert->lock, NULL)))
+			break;
 
+		if (advert->json_msg &&
+			FAILED(st = sock_sendto(advert->mcast_sock, advert->sendto_addr,
+									advert->json_msg, advert->json_sz))) {
 			spin_unlock(&advert->lock, 0);
+			break;
 		}
 
-		if (FAILED(st) || FAILED(st = clock_sleep(advert->tx_period_usec)))
+		spin_unlock(&advert->lock, 0);
+		if (FAILED(st = clock_sleep(advert->tx_period_usec)))
 			break;
 	}
 
