@@ -77,13 +77,13 @@ status storage_get_id(storage_handle store, record_handle rec,
 status storage_get_record(storage_handle store, identifier id,
 						  record_handle *prec);
 
-status storage_find_first_unused(storage_handle store, record_handle *prec,
-								 revision *old_rev);
-status storage_find_last_used(storage_handle store, record_handle *prec,
-							  revision *old_rev);
+status storage_find_next_unused(storage_handle store, record_handle prior,
+								record_handle *prec, revision *old_rev);
+status storage_find_prev_used(storage_handle store, record_handle prior,
+							  record_handle *prec, revision *old_rev);
 
-status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
-					   record_handle prev, void *param);
+status storage_iterate(storage_handle store,  record_handle prior,
+					   storage_iterate_func iter_fn, void *param);
 
 status storage_sync(storage_handle store);
 status storage_reset(storage_handle store);

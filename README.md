@@ -114,7 +114,7 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
              ===============================================
 
-    inspector [-v] [-a] [-p] [-q] [-r] STORAGE-FILE [RECORD ID...|all]
+    inspector [-v] [-a] [-p] [-q] [-r] [-V] STORAGE-FILE [RECORD-ID...]
 
     grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
            NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
@@ -126,12 +126,12 @@ These are utility programs to show, modify or delete a storage.
 INSPECTOR, given the -a option, outputs the attribute values of a storage, such
 as the size of a record within it, the capacity of its change queue, the
 description associated with it, etc.  The -q option will cause the change queue,
-if any, to be output, while the -r option will cause the values of records to be
-output.  Properties for records will be included in the output if the -p option
-is specified.  Individual records can be chosen for output by specifying their
-record ID, or every record can be selected by specifying "all".  If no option is
-specified, the program will attempt to open and verify the storage, exiting with
-zero (success) if the format of the storage is valid.
+if any, to be output, while the -r option will cause the timestamp and revision
+of the specified records to be output - for all records, if no record
+identifier(s) are specified).  Properties for records will be included in the
+output if the -p option is given.  If no option is specified, the program will
+only attempt to open and verify the storage, exiting with zero (success) if the
+format of the storage is valid.
 
 The GROWER program will create a new storage based upon an existing storage, and
 containing the same data copied to its records (as applicable).  Any attribute
@@ -152,7 +152,7 @@ then it is not an error if a storage does not exist.
 
              ===============================================
 
-    eraser [-v] [-H] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
+    eraser [-v] [-c] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
 
     copier [-v] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
            SOURCE-RECORD-ID [SOURCE-RECORD-ID ...]
@@ -160,9 +160,9 @@ then it is not an error if a storage does not exist.
 These are utility programs to modify the contents of storages.
 
 ERASER removes the specified records from the specified storage.  The storage
-is compacted to eliminate the holes left behind, unless the -H option is given.
-(The compaction is performed by moving the last record in the storage to the
-place where the erased record used to be).
+is compacted to eliminate the holes left behind if the -c option is given.  (The
+compaction is performed by moving the last record in the storage to the place
+where the erased record used to be).
 
 COPIER makes a copy of the specified source record in the destination storage.
 

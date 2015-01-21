@@ -16,7 +16,8 @@
 #define SHOW_ATTRIBUTES 1
 #define SHOW_QUEUE 2
 #define SHOW_RECORDS 4
-#define SHOW_PROPERTIES 8
+#define SHOW_VALUES 8
+#define SHOW_PROPERTIES 16
 
 #define SHOW_DIV1 (SHOW_ATTRIBUTES | SHOW_QUEUE)
 #define SHOW_DIV2 (SHOW_RECORDS | SHOW_PROPERTIES)
@@ -30,8 +31,8 @@ static const void *prop_base;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-r] "
-			"STORAGE-FILE [RECORD-ID...|all]\n",
+	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-r] [-V] STORAGE-FILE "
+			"[RECORD-ID]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -170,7 +171,7 @@ static status copy_record(storage_handle store, record_handle rec)
 	return OK;
 }
 
-static status print_record_header(storage_handle store, record_handle rec)
+static status print_record(storage_handle store, record_handle rec)
 {
 	status st;
 	identifier id;
@@ -230,8 +231,8 @@ static status iter_func(storage_handle store, record_handle rec, void *param)
 	int show = (long)param;
 
 	if (FAILED(st = copy_record(store, rec)) ||
-		FAILED(st = print_record_header(store, rec)) ||
-		((show & SHOW_RECORDS) && FAILED(st = print_value(store))) ||
+		((show & SHOW_RECORDS) && FAILED(st = print_record(store, rec))) ||
+		((show & SHOW_VALUES) && FAILED(st = print_value(store))) ||
 		(((show & SHOW_DIV2) == SHOW_DIV2) && FAILED(print_div2())) ||
 		((show & SHOW_PROPERTIES) && FAILED(st = print_property(store))))
 		return st;
@@ -247,13 +248,13 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "apqrv")) != -1)
+	while ((opt = getopt(argc, argv, "apqrvV")) != -1)
 		switch (opt) {
 		case 'a':
 			show |= SHOW_ATTRIBUTES;
 			break;
 		case 'p':
-			show |= SHOW_PROPERTIES;
+			show |= SHOW_PROPERTIES | SHOW_RECORDS;
 			break;
 		case 'q':
 			show |= SHOW_QUEUE;
@@ -263,6 +264,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			show_version();
+		case 'V':
+			show |= SHOW_VALUES | SHOW_RECORDS;
+			break;
 		default:
 			show_syntax();
 		}
@@ -278,17 +282,19 @@ int main(int argc, char *argv[])
 		((show & SHOW_QUEUE) && FAILED(print_queue(store))))
 		error_report_fatal();
 
-	if (argc > optind && strcmp(argv[optind], "all") == 0) {
-		if (FAILED(storage_iterate(store, iter_func, NULL,
-								   (void *)(long)show)))
-			error_report_fatal();
-	} else {
-		for (; optind < argc; ++optind) {
-			identifier id;
-			record_handle rec = NULL;
-			if (FAILED(a2i(argv[optind], "%ld", &id)) ||
-				FAILED(storage_get_record(store, id, &rec)) ||
-				FAILED(iter_func(store, rec, (void *)(long)show)))
+	if (show & SHOW_RECORDS) {
+		if (optind < argc) {
+			for (; optind < argc; ++optind) {
+				identifier id;
+				record_handle rec = NULL;
+				if (FAILED(a2i(argv[optind], "%ld", &id)) ||
+					FAILED(storage_get_record(store, id, &rec)) ||
+					FAILED(iter_func(store, rec, (void *)(long)show)))
+					error_report_fatal();
+			}
+		} else {
+			if (FAILED(storage_iterate(store, NULL, iter_func,
+									   (void *)(long)show)))
 				error_report_fatal();
 		}
 	}

@@ -628,28 +628,35 @@ status storage_get_record(storage_handle store, identifier id,
 	return OK;
 }
 
-status storage_find_first_unused(storage_handle store, record_handle *prec,
-								 revision *old_rev)
+status storage_find_next_unused(storage_handle store, record_handle prior,
+								record_handle *prec, revision *old_rev)
 {
-	record_handle r;
 	if (!prec)
-		return error_invalid_arg("storage_find_first_unused");
+		return error_invalid_arg("storage_find_next_unused");
 
 	if (old_rev && store->is_read_only)
-		return error_msg("storage_find_first_unused: storage is read-only",
+		return error_msg("storage_find_next_unused: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	for (r = store->first; r < store->limit; r = STORAGE_RECORD(store, r, 1)) {
+	if (prior) {
+		if (prior < store->first || prior >= store->limit)
+			return error_invalid_arg("storage_find_next_unused");
+
+		prior = STORAGE_RECORD(store, prior, 1);
+	} else
+		prior = store->first;
+
+	for (; prior < store->limit; prior = STORAGE_RECORD(store, prior, 1)) {
 		revision rev;
 		if (old_rev) {
 			status st;
-			if (FAILED(st = spin_write_lock(&r->rev, &rev)))
+			if (FAILED(st = spin_write_lock(&prior->rev, &rev)))
 				return st;
 		} else
-			rev = r->rev;
+			rev = prior->rev;
 
 		if (rev == 0) {
-			*prec = r;
+			*prec = prior;
 			if (old_rev)
 				*old_rev = rev;
 
@@ -657,36 +664,41 @@ status storage_find_first_unused(storage_handle store, record_handle *prec,
 		}
 
 		if (old_rev)
-			spin_unlock(&r->rev, rev);
+			spin_unlock(&prior->rev, rev);
 	}
 
 	return FALSE;
 }
 
-status storage_find_last_used(storage_handle store, record_handle *prec,
-							  revision *old_rev)
+status storage_find_prev_used(storage_handle store, record_handle prior,
+							  record_handle *prec, revision *old_rev)
 {
-	record_handle r;
 	if (!prec)
-		return error_invalid_arg("storage_find_last_used");
+		return error_invalid_arg("storage_find_prev_used");
 
 	if (old_rev && store->is_read_only)
-		return error_msg("storage_find_last_used: storage is read-only",
+		return error_msg("storage_find_prev_used: storage is read-only",
 						 STORAGE_READ_ONLY);
 
-	for (r = STORAGE_RECORD(store, store->limit, -1);
-		 r >= store->first; 
-		 r = STORAGE_RECORD(store, r, -1)) {
+	if (prior) {
+		if (prior < store->first || prior >= store->limit)
+			return error_invalid_arg("storage_find_prev_unused");
+
+		prior = STORAGE_RECORD(store, prior, -1);
+	} else
+		prior = STORAGE_RECORD(store, store->limit, -1);
+
+	for (; prior >= store->first; prior = STORAGE_RECORD(store, prior, -1)) {
 		revision rev;
 		if (old_rev) {
 			status st;
-			if (FAILED(st = spin_write_lock(&r->rev, &rev)))
+			if (FAILED(st = spin_write_lock(&prior->rev, &rev)))
 				return st;
 		} else
-			rev = r->rev;
+			rev = prior->rev;
 
 		if (rev != 0) {
-			*prec = r;
+			*prec = prior;
 			if (old_rev)
 				*old_rev = rev;
 
@@ -694,23 +706,23 @@ status storage_find_last_used(storage_handle store, record_handle *prec,
 		}
 
 		if (old_rev)
-			spin_unlock(&r->rev, rev);
+			spin_unlock(&prior->rev, rev);
 	}
 
 	return FALSE;
 }
 
-status storage_iterate(storage_handle store, storage_iterate_func iter_fn,
-					   record_handle prev, void *param)
+status storage_iterate(storage_handle store, record_handle prior,
+					   storage_iterate_func iter_fn, void *param)
 {
 	status st = TRUE;
-	if (!iter_fn)
+	if (!iter_fn || (prior && (prior < store->first || prior >= store->limit)))
 		return error_invalid_arg("storage_iterate");
 
-	for (prev = (prev ? STORAGE_RECORD(store, prev, 1) : store->first);
-		 prev < store->limit; 
-		 prev = STORAGE_RECORD(store, prev, 1))
-		if (FAILED(st = iter_fn(store, prev, param)) || !st)
+	for (prior = (prior ? STORAGE_RECORD(store, prior, 1) : store->first);
+		 prior < store->limit;
+		 prior = STORAGE_RECORD(store, prior, 1))
+		if (FAILED(st = iter_fn(store, prior, param)) || !st)
 			break;
 
 	return st;

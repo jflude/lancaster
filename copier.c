@@ -8,6 +8,12 @@
 #include "error.h"
 #include "storage.h"
 #include "version.h"
+#include "xalloc.h"
+
+struct arg {
+	identifier id;
+	record_handle rec;
+};
 
 static void show_syntax(void)
 {
@@ -28,7 +34,11 @@ static void show_version(void)
 int main(int argc, char *argv[])
 {
 	storage_handle src_store, dest_store;
+	const char *src_file, *dest_file;
 	boolean verbose = FALSE;
+	struct arg *args, *parg, *last_arg;
+	record_handle dest_rec = NULL;
+	size_t nrec;
 	int opt;
 
 	error_set_program_name(argv[0]);
@@ -47,56 +57,68 @@ int main(int argc, char *argv[])
 	if ((argc - optind) < 3)
 		show_syntax();
 
-	if (FAILED(storage_open(&src_store, argv[optind++], O_RDWR)) ||
-		FAILED(storage_open(&dest_store, argv[optind++], O_RDWR)))
+	src_file = argv[optind++];
+	dest_file = argv[optind++];
+
+	if (FAILED(storage_open(&src_store, src_file, O_RDWR)) ||
+		FAILED(storage_open(&dest_store, dest_file, O_RDWR)))
 		error_report_fatal();
 
-	for (; optind < argc; ++optind) {
-		record_handle src_rec, dest_rec;
-		revision src_rev, dest_rev;
-		identifier id;
-		status st = OK;
+	nrec = argc - optind;
+	args = xmalloc(nrec * sizeof(struct arg));
+	if (!args)
+		error_report_fatal();
 
-		if (FAILED(a2i(argv[optind], "%ld", &id)))
+	last_arg = args + nrec;
+
+	for (parg = args; parg < last_arg; ++parg)
+		if (FAILED(a2i(argv[optind++], "%ld", &parg->id)) ||
+			FAILED(storage_get_record(src_store, parg->id, &parg->rec)))
 			error_report_fatal();
 
+	for (parg = args; parg < last_arg; ++parg) {
+		status st;
+		revision src_rev, dest_rev;
 		if (verbose)
-			printf("%ld", id);
+			printf("copying #%08ld [%s]", parg->id, src_file);
 
-		if (FAILED(storage_get_record(src_store, id, &src_rec)) ||
-			FAILED(st = storage_find_first_unused(dest_store, &dest_rec, &dest_rev))) {
+		if (FAILED(st = storage_find_next_unused(dest_store, dest_rec,
+												 &dest_rec, &dest_rev))) {
 			putchar('\n');
 			error_report_fatal();
 		}
 
 		if (!st) {
-			putchar('\n');
 			error_msg("error: storage is full", STORAGE_FULL);
+			putchar('\n');
 			error_report_fatal();
 		}
 
-		if (FAILED(record_write_lock(src_rec, &src_rev))) {
+		if (FAILED(record_write_lock(parg->rec, &src_rev))) {
 			record_set_revision(dest_rec, dest_rev);
 			putchar('\n');
 			error_report_fatal();
 		}
 
-		st = storage_copy_record(src_store, src_rec, dest_store, dest_rec,
-								 record_get_timestamp(src_rec), TRUE);
+		st = storage_copy_record(src_store, parg->rec, dest_store, dest_rec,
+								 record_get_timestamp(parg->rec), TRUE);
 
 		record_set_revision(dest_rec, src_rev);
-		record_set_revision(src_rec, src_rev);
+		record_set_revision(parg->rec, src_rev);
 
 		if (FAILED(st)) {
 			putchar('\n');
 			error_report_fatal();
-		} else {
+		}
+
+		if (verbose) {
+			identifier id;
 			if (FAILED(storage_get_id(dest_store, dest_rec, &id))) {
 				putchar('\n');
 				error_report_fatal();
 			}
 
-			printf(" --> %ld\n", id);
+			printf(" to #%08ld [%s]\n", id, dest_file);
 		}
 	}
 
