@@ -181,6 +181,9 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "jp:q:S:T:v")) != -1)
 		switch (opt) {
 		case 'j':
+			if (FAILED(sock_get_hostname(hostname, sizeof(hostname))))
+				error_report_fatal();
+
 			as_json = TRUE;
 			break;
 		case 'p':
