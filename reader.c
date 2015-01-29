@@ -29,8 +29,8 @@ static int event;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] "
-			"[-s] STORAGE-FILE\n",
+	fprintf(stderr, "Syntax: %s [-v] [-L] [-O ORPHAN-TIMEOUT] "
+			"[-p ERROR PREFIX] [-s] STORAGE-FILE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -110,8 +110,11 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "O:p:sv")) != -1)
+	while ((opt = getopt(argc, argv, "LO:p:sv")) != -1)
 		switch (opt) {
+		case 'L':
+			error_with_timestamp(TRUE);
+			break;
 		case 'O':
 			if (FAILED(a2i(optarg, "%ld", &orphan_timeout)))
 				error_report_fatal();

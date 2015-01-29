@@ -31,8 +31,8 @@ static const void *prop_base;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-a] [-p] [-q] [-r] [-V] STORAGE-FILE "
-			"[RECORD-ID]\n",
+	fprintf(stderr, "Syntax: %s [-v] [-a] [-L] [-p] [-q] [-r] [-V] "
+			"STORAGE-FILE [RECORD-ID]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -248,10 +248,13 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "apqrvV")) != -1)
+	while ((opt = getopt(argc, argv, "aLpqrvV")) != -1)
 		switch (opt) {
 		case 'a':
 			show |= SHOW_ATTRIBUTES;
+			break;
+		case 'L':
+			error_with_timestamp(TRUE);
 			break;
 		case 'p':
 			show |= SHOW_PROPERTIES | SHOW_RECORDS;

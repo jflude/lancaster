@@ -27,7 +27,7 @@ static microsec delay;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-p ERROR PREFIX] "
+	fprintf(stderr, "Syntax: %s [-v] [-L] [-p ERROR PREFIX] "
 			"[-q CHANGE-QUEUE-CAPACITY] [-r] [-T TOUCH-PERIOD] "
 			"STORAGE-FILE DELAY\n",
 			error_get_program_name());
@@ -90,8 +90,11 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "p:q:rT:v")) != -1)
+	while ((opt = getopt(argc, argv, "Lp:q:rT:v")) != -1)
 		switch (opt) {
+		case 'L':
+			error_with_timestamp(TRUE);
+			break;
 		case 'p':
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);

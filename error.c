@@ -3,13 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include "error.h"
 #include "spin.h"
-#include "status.h"
 
 static volatile spin_lock msg_lock;
 static char prog_name[256], last_msg[512], saved_msg[512];
 static int last_code, saved_code, saved_errno;
+static boolean with_ts;
 
 const char *error_get_program_name(void)
 {
@@ -24,6 +26,13 @@ void error_set_program_name(const char *name)
 
 	strncpy(prog_name, name, sizeof(prog_name) - 1);
 	prog_name[sizeof(prog_name) - 1] = '\0';
+}
+
+boolean error_with_timestamp(boolean with_timestamp)
+{
+	boolean old = with_ts;
+	with_ts = with_timestamp;
+	return old;
 }
 
 int error_last_code(void)
@@ -95,8 +104,23 @@ int error_msg(const char *msg, int code, ...)
 	last_code = code;
 	last_msg[0] = '\0';
 
+	if (with_ts) {
+		struct timeval tv;
+		struct tm *ptm;
+		char fract[32];
+
+		if (gettimeofday(&tv, NULL) == -1 ||
+			!(ptm = localtime(&tv.tv_sec)) ||
+			!strftime(last_msg, sizeof(last_msg) - 8,
+					  "%Y/%m/%d %H:%M:%S", ptm) ||
+			sprintf(fract, "%.6f ", tv.tv_usec / 1000000.0) < 0)
+			abort();
+
+		strcat(last_msg, fract + 1);
+	}
+
 	if (prog_name[0] != '\0') {
-		strcpy(last_msg, prog_name);
+		strcat(last_msg, prog_name);
 		strcat(last_msg, ": ");
 	}
 

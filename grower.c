@@ -15,8 +15,9 @@ static storage_handle old_store, new_store;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID "
-			"NEW-MAX-ID NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY\n",
+	fprintf(stderr, "Syntax: %s [-v] [-L] STORAGE-FILE NEW-STORAGE-FILE "
+			"NEW-BASE-ID NEW-MAX-ID NEW-VALUE-SIZE NEW-PROPERTY-SIZE "
+			"NEW-QUEUE-CAPACITY\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -49,8 +50,11 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "v")) != -1)
+	while ((opt = getopt(argc, argv, "Lv")) != -1)
 		switch (opt) {
+		case 'L':
+			error_with_timestamp(TRUE);
+			break;
 		case 'v':
 			show_version();
 		default:

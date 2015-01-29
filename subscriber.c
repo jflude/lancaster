@@ -27,7 +27,7 @@ static boolean as_json;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j] [-p ERROR PREFIX] "
+	fprintf(stderr, "Syntax: %s [-v] [-j] [-L] [-p ERROR PREFIX] "
 			"[-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] "
 			"[-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT\n",
 			error_get_program_name());
@@ -178,13 +178,16 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jp:q:S:T:v")) != -1)
+	while ((opt = getopt(argc, argv, "jLp:q:S:T:v")) != -1)
 		switch (opt) {
 		case 'j':
 			if (FAILED(sock_get_hostname(hostname, sizeof(hostname))))
 				error_report_fatal();
 
 			as_json = TRUE;
+			break;
+		case 'L':
+			error_with_timestamp(TRUE);
 			break;
 		case 'p':
 			strcat(prog_name, ": ");

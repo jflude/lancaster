@@ -10,10 +10,10 @@ Justin Flude <jflude@peak6.com>
 
              ===============================================
 
-    writer [-v] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
+    writer [-v] [-L] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
            [-T TOUCH-PERIOD] STORAGE-FILE DELAY
 
-    reader [-v] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-s] STORAGE-FILE
+    reader [-v] [-L] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-s] STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -52,15 +52,18 @@ will exit with an error.
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
 
+The -L option causes error and warning messages to be prefixed with a timestamp,
+suitable for outputing to a log file.
+
              ===============================================
 
     publisher [-v] [-a ADVERT-ADDRESS:PORT] [-A ADVERT-PERIOD] \
               [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DATA-INTERFACE] \
-              [-I ADVERT-INTERFACE] [-j|-s] [-l] [-O ORPHAN-TIMEOUT] \
+              [-I ADVERT-INTERFACE] [-j|-s] [-l] [-L] [-O ORPHAN-TIMEOUT] \
               [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-t TTL] STORAGE-FILE \
               TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
-    subscriber [-v] [-j] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
+    subscriber [-v] [-j] [-L] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
                [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
@@ -114,12 +117,12 @@ run on pslchi6dpricedev45 (10.2.2.152):-
 
              ===============================================
 
-    inspector [-v] [-a] [-p] [-q] [-r] [-V] STORAGE-FILE [RECORD-ID...]
+    inspector [-v] [-a] [-L] [-p] [-q] [-r] [-V] STORAGE-FILE [RECORD-ID...]
 
-    grower [-v] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
+    grower [-v] [-L] STORAGE-FILE NEW-STORAGE-FILE NEW-BASE-ID NEW-MAX-ID \
            NEW-VALUE-SIZE NEW-PROPERTY-SIZE NEW-QUEUE-CAPACITY
 
-    deleter [-v] [-f] STORAGE-FILE [STORAGE-FILE ...]
+    deleter [-v] [-f] [-L] STORAGE-FILE [STORAGE-FILE ...]
 
 These are utility programs to show, modify or delete a storage.
 
@@ -152,9 +155,9 @@ then it is not an error if a storage does not exist.
 
              ===============================================
 
-    eraser [-v] [-c] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
+    eraser [-v] [-c] [-L] [-V] STORAGE-FILE RECORD-ID [RECORD-ID ...]
 
-    copier [-v] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
+    copier [-v] [-L] [-V] SOURCE-STORAGE-FILE DESTINATION-STORAGE-FILE \
            SOURCE-RECORD-ID [SOURCE-RECORD-ID ...]
 
 These are utility programs to modify the contents of storages.

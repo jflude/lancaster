@@ -9,7 +9,8 @@
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-f] STORAGE-FILE [STORAGE-FILE ...]\n",
+	fprintf(stderr, "Syntax: %s [-v] [-f] [-L] STORAGE-FILE "
+			"[STORAGE-FILE ...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -28,10 +29,13 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "fv")) != -1)
+	while ((opt = getopt(argc, argv, "fLv")) != -1)
 		switch (opt) {
 		case 'f':
 			force = TRUE;
+			break;
+		case 'L':
+			error_with_timestamp(TRUE);
 			break;
 		case 'v':
 			show_version();

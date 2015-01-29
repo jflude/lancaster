@@ -56,6 +56,8 @@ func makeFilePattern(pattern string) filePattern {
 }
 
 func init() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	var err error
 	if env, err = mmd.LookupEnvironment(); err != nil {
 		log.Fatal(err)
@@ -223,6 +225,7 @@ func startIfNeeded(path string) {
 			log.Println("Reserving port", state.port, "for", name)
 
 			opts := []string{
+				"-L",
 				"-j",
 				"-a", advertAddr,
 				"-i", dataInterface,

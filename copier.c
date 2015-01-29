@@ -17,7 +17,7 @@ struct arg {
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-V] SOURCE-STORAGE-FILE "
+	fprintf(stderr, "Syntax: %s [-v] [-L] [-V] SOURCE-STORAGE-FILE "
 			"DESTINATION-STORAGE-FILE SOURCE-RECORD-ID "
 			"[SOURCE-RECORD-ID ...]\n",
 			error_get_program_name());
@@ -43,8 +43,11 @@ int main(int argc, char *argv[])
 
 	error_set_program_name(argv[0]);
 
-	while ((opt = getopt(argc, argv, "Vv")) != -1)
+	while ((opt = getopt(argc, argv, "LVv")) != -1)
 		switch (opt) {
+		case 'L':
+			error_with_timestamp(TRUE);
+			break;
 		case 'V':
 			verbose = TRUE;
 			break;

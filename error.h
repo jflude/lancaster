@@ -3,12 +3,16 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include "status.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 const char *error_get_program_name(void);
 void error_set_program_name(const char *name);
+
+boolean error_with_timestamp(boolean with_timestamp);
 
 int error_last_code(void);
 const char *error_last_msg(void);

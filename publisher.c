@@ -32,7 +32,7 @@ static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-a ADVERT-ADDRESS:PORT] "
 			"[-A ADVERT-PERIOD] [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] "
-			"[-i DATA-INTERFACE] [-I ADVERT-INTERFACE] [-j|-s] [-l] "
+			"[-i DATA-INTERFACE] [-I ADVERT-INTERFACE] [-j|-s] [-l] [-L] "
 			"[-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] "
 			"[-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE "
 			"TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT\n",
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:A:e:H:i:I:jlO:p:P:sS:t:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:A:e:H:i:I:jlLO:p:P:sS:t:v")) != -1)
 		switch (opt) {
 		case 'a':
 			if (FAILED(sock_addr_split(optarg, adv_addr,
@@ -229,6 +229,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			loopback = TRUE;
+			break;
+		case 'L':
+			error_with_timestamp(TRUE);
 			break;
 		case 'O':
 			if (FAILED(a2i(optarg, "%ld", &orphan_timeout)))
