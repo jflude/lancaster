@@ -64,7 +64,7 @@ func (si *SubscriberInstance) String() string {
 }
 
 func init() {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
 
 	var err error
 	if env, err = mmd.LookupEnvironment(); err != nil {
@@ -232,10 +232,10 @@ func (si *SubscriberInstance) run() {
 	storePath := "shm:/client." + si.disc.Data[0].Description
 
 	opts := []string{
-		"-L",
-		"-j",
+		"-p", si.disc.Data[0].Description,
 		"-T", fmt.Sprint(touchPeriodMS * 1000),
-		"-p", si.disc.Data[0].Description}
+		"-L",
+		"-j" }
 
 	if queueSize != -1 {
 		opts = append(opts, "-q", strconv.FormatInt(queueSize, 10))
