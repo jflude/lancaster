@@ -18,7 +18,6 @@
 #include "xalloc.h"
 
 #define INITIAL_MC_HB_USEC (10 * 1000000)
-#define MAX_MISSED_HB 5
 #define RECV_BUFSIZ (1024 * 1024)
 
 #if defined(DEBUG_PROTOCOL)
@@ -385,7 +384,8 @@ static status event_func(poller_handle poller, sock_handle sock,
 static status init(receiver_handle *precv, const char *mmap_file,
 				   mode_t mode_flags, size_t property_size,
 				   size_t q_capacity, microsec touch_period_usec,
-				   const char *tcp_address, unsigned short tcp_port)
+				   unsigned max_missed_hb, const char *tcp_address,
+				   unsigned short tcp_port)
 {
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
@@ -447,7 +447,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->next_seq = 0;
 	(*precv)->touched_time = 0;
 	(*precv)->touch_period_usec = touch_period_usec;
-	(*precv)->timeout_usec = hb_usec * MAX_MISSED_HB;
+	(*precv)->timeout_usec = hb_usec * (max_missed_hb + 1) - 1;
 
 	if (q_capacity == SENDER_QUEUE_CAPACITY)
 		q_capacity = pub_q_capacity;
@@ -518,7 +518,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   mode_t mode_flags, size_t property_size,
 					   size_t q_capacity, microsec touch_period_usec,
-					   const char *tcp_address, unsigned short tcp_port)
+					   unsigned max_missed_hb, const char *tcp_address,
+					   unsigned short tcp_port)
 {
 	status st;
 	if (!precv || !mmap_file || touch_period_usec <= 0 || !tcp_address)
@@ -529,7 +530,7 @@ status receiver_create(receiver_handle *precv, const char *mmap_file,
 		return NO_MEMORY;
 
 	if (FAILED(st = init(precv, mmap_file, mode_flags, property_size,
-						 q_capacity, touch_period_usec,
+						 q_capacity, touch_period_usec, max_missed_hb,
 						 tcp_address, tcp_port))) {
 		error_save_last();
 		receiver_destroy(precv);

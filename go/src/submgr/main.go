@@ -34,6 +34,7 @@ var udpStatsAddr = "127.0.0.1:9411"
 var dataInterfaces = "bond0,eth0"
 var restartOnExit bool
 var deleteOld bool
+var maxMissedHB int
 var queueSize int64
 var touchPeriodMS = 1000
 var registerAppInfo = true
@@ -82,7 +83,8 @@ func init() {
 	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
 	flag.BoolVar(&deleteOld, "delete", true, "Delete old storage files before (re)starting")
 	flag.IntVar(&touchPeriodMS, "touch", touchPeriodMS, "Period (in ms) of storage touches by subscribers")
-	flag.Int64Var(&queueSize, "queueSize", -1, "Size of subscriber's change queue (default: use publisher's size)")
+	flag.IntVar(&maxMissedHB, "missed", -1, "Number of missed heartbeats allowed (default: use subscriber's value")
+	flag.Int64Var(&queueSize, "queue", -1, "Size of subscriber's change queue (default: use publisher's value)")
 	flag.StringVar(&dataInterfaces, "i", dataInterfaces, "Networtk interfaces to receive multicast data on")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
 	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
@@ -92,8 +94,8 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "submgr "+sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS]")
+	fmt.Fprintln(os.Stderr, "submgr " + sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
@@ -111,6 +113,10 @@ func main() {
 	var err error
 	if _, err := os.Stat(execPath + "subscriber"); err != nil {
 		log.Fatalln(err)
+	}
+
+	if maxMissedHB < 0 && maxMissedHB != -1 {
+		log.Fatal("Invalid value for allowed missed heartbeats")
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
@@ -243,6 +249,10 @@ func (si *SubscriberInstance) run() {
 
 	if udpStatsAddr != "" {
 		opts = append(opts, "-S", udpStatsAddr)
+	}
+
+	if maxMissedHB != -1 {
+		opts = append(opts, "-H", fmt.Sprint(maxMissedHB))
 	}
 
 	si.cmdr, err = commander.New(execPath + "subscriber")

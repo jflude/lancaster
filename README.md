@@ -63,8 +63,9 @@ suitable for outputing to a log file.
               [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-t TTL] STORAGE-FILE \
               TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
-    subscriber [-v] [-j] [-L] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] \
-               [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
+    subscriber [-v] [-H MAX-MISSED-HEARTBEATS] [-j] [-L] [-p ERROR PREFIX] \
+               [-q CHANGE-QUEUE-CAPACITY] [-T TOUCH-PERIOD] STORAGE-FILE \
+               TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
@@ -74,8 +75,8 @@ from subscribers.  When one is made, PUBLISHER will send the subscriber the
 MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds
 (defaulting to one second) it should expect to receive heartbeats in the absence
 of data (PUBLISHER will send separate heartbeats over both the TCP and multicast
-channels).  If a heartbeat is not received in time, PUBLISHER will exit with an
-error.  PUBLISHER will attempt to fill a UDP packet with data before sending it,
+channels.  If a heartbeat is not received in time, SUBSCRIBER will exit with an
+error.)  PUBLISHER will attempt to fill a UDP packet with data before sending it,
 but will send a partial packet if the data in it is older than MAX-PACKET-AGE
 microseconds (defaulting to 2 milliseconds).  PUBLISHER will multicast data over
 the DATA-INTERFACE network interface rather than the system's default, if the -i
@@ -96,6 +97,9 @@ to PUBLISHER's (except for the change queue capacity, which may be specified for
 SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
 multicast to SUBSCRIBER and written to SUBSCRIBER's storage.  SUBSCRIBER will
 "touch" the storage every TOUCH-PERIOD microseconds (defaulting to one second).
+It will expect to receive regular heartbeats from PUBLISHER and will exit with
+an error if more than MAX-MISSED-HEARTBEATS are not received, as configurable
+by the -H option (the default value is 5).
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
 output of statistics to be output in JSON format.  PUBLISHER also has a -s

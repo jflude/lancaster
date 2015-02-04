@@ -27,9 +27,10 @@ static boolean as_json;
 
 static void show_syntax(void)
 {
-	fprintf(stderr, "Syntax: %s [-v] [-j] [-L] [-p ERROR PREFIX] "
-			"[-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] "
-			"[-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT\n",
+	fprintf(stderr, "Syntax: %s [-v] [-H MAX-MISSED-HEARTBEATS] [-j] [-L] "
+			"[-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] "
+			"[-S STATISTICS-UDP-ADDRESS:PORT] [-T TOUCH-PERIOD] STORAGE-FILE "
+			"TCP-ADDRESS:PORT\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -171,6 +172,7 @@ int main(int argc, char *argv[])
 	unsigned short tcp_port, stats_port;
 	size_t q_capacity = SENDER_QUEUE_CAPACITY;
 	microsec touch_period = DEFAULT_TOUCH_USEC;
+	unsigned max_missed_hb = 5;
 	void *stats_result;
 	int opt;
 
@@ -178,8 +180,12 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "jLp:q:S:T:v")) != -1)
+	while ((opt = getopt(argc, argv, "H:jLp:q:S:T:v")) != -1)
 		switch (opt) {
+		case 'H':
+			if (FAILED(a2i(optarg, "%u", &max_missed_hb)))
+				error_report_fatal();
+			break;
 		case 'j':
 			if (FAILED(sock_get_hostname(hostname, sizeof(hostname))))
 				error_report_fatal();
@@ -225,7 +231,7 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(receiver_create(&rcvr, mmap_file, STORAGE_PERM, 0,
-							   q_capacity, touch_period,
+							   q_capacity, touch_period, max_missed_hb,
 							   tcp_addr, tcp_port)) ||
 		FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
 		FAILED(receiver_run(rcvr)) ||
