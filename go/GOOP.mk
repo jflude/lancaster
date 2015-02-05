@@ -5,12 +5,11 @@ SCRIPTS_DIR := $(CACHESTER_DIR)/scripts
 CACHESTER_VENDOR_DIR := $(SELF_DIR)/.vendor
 CACHESTER_GOOP_DIR := $(CACHESTER_VENDOR_DIR)/..
 
-export GOPATH := $(CACHESTER_VENDOR_DIR):$(GOPATH)
+export GOPATH := $(CACHESTER_VENDOR_DIR)
 export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 
 .ensurePrivateGithubSSH:
 	git config --global url."git@github.peak6.net:".insteadOf https://github.peak6.net
-	echo "GOPATH: " $(GOPATH)
 	
 .getGoop: .ensurePrivateGithubSSH
 	go get github.com/nitrous-io/goop
