@@ -447,7 +447,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->next_seq = 0;
 	(*precv)->touched_time = 0;
 	(*precv)->touch_period_usec = touch_period_usec;
-	(*precv)->timeout_usec = hb_usec * (max_missed_hb + 1) - 1;
+	(*precv)->timeout_usec = hb_usec * (max_missed_hb + 1) + 100000;
 
 	if (q_capacity == SENDER_QUEUE_CAPACITY)
 		q_capacity = pub_q_capacity;
