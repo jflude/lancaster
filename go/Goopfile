@@ -1,6 +1,6 @@
 github.com/golang/glog #d1c4472bf2efd3826f2b5bdcc02d8416798d678c
 github.com/lib/pq #fbed41b4c063a307ab21bf37ae6705519fb34ca3
-github.com/peak6/go-mmd/mmd #dd8101c1a3a086bad3358b7a4f0b22157b09993a
+github.com/peak6/go-mmd/mmd #fc3078a68586c57ecf2d01e92375979129e1ef35
 github.peak6.net/platform/gocore.git/appinfo #3914fc5aaf44a7f9f177a946efad10f6c9242981
 github.peak6.net/platform/gocore.git/commander #3914fc5aaf44a7f9f177a946efad10f6c9242981
 github.peak6.net/platform/gocore.git/mmd #3914fc5aaf44a7f9f177a946efad10f6c9242981
