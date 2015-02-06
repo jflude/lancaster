@@ -4,8 +4,7 @@ package quotester
 // #include "../../../storage.h"
 // #include "../../../error.h"
 // #include "../../../datum.h"
-// #cgo linux LDFLAGS: ../../../libcachester.a -lrt -lm -w
-// #cgo darwin LDFLAGS: ../../../libcachester.a -lm -w
+// #cgo LDFLAGS: -L../../../bin -lcachester
 import "C"
 import (
 	"errors"
@@ -48,6 +47,7 @@ func NewCachesterSource(name string) (*CachesterSource, error) {
 	if err := chkStatus(C.storage_open(&cs.store, C.CString(name), syscall.O_RDONLY)); err != nil {
 		return nil, err
 	}
+
 	cs.maxRecords = int(C.storage_get_max_id(cs.store))
 	cs.rBaseAddr = (unsafe.Pointer(C.storage_get_array(cs.store)))
 	cs.rSize = C.storage_get_record_size(cs.store)
@@ -61,16 +61,20 @@ func NewCachesterSource(name string) (*CachesterSource, error) {
 	cs.qArr = (*[1 << 30]C.identifier)(cs.qBasePtr)
 	cs.Description = C.GoString(C.storage_get_description(cs.store))
 	cs.tsOffset = 8
+
 	return cs, nil
 }
+
 func (cs *CachesterSource) Destroy() {
 	C.storage_destroy(&cs.store)
 }
+
 func (cs *CachesterSource) GetRecord(record int) *Record {
 	r := &Record{cs: cs}
 	r.Select(record)
 	return r
 }
+
 func (cs *CachesterSource) GetRecordPtr(record int) unsafe.Pointer {
 	return unsafe.Pointer((uintptr(cs.rBaseAddr) + (uintptr(cs.rSize) * uintptr((record - cs.rBaseId)))))
 }
@@ -82,11 +86,13 @@ func (r *Record) Select(record int) {
 func (r *Record) GetData() Data {
 	return Data(uintptr(r.ptr) + r.cs.vOffset)
 }
+
 func (r *Record) GetTimeStamp() time.Time {
 	tsPtr := unsafe.Pointer(uintptr(r.ptr) + r.cs.tsOffset)
 	tsval := *((*C.long)(tsPtr))
 	return usToTime(uint64(tsval))
 }
+
 func (r *Record) GetRevision() uint {
 	return uint(*((*C.uint)(r.ptr)))
 }
@@ -138,6 +144,7 @@ func (cs *CachesterSource) TailRecords(handler RecordHandler) error {
 	return nil
 }
 */
+
 func chkStatus(status C.status) error {
 	if status == 0 {
 		return nil
