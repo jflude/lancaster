@@ -32,6 +32,9 @@ APP_SRCS = \
 	eraser.c \
 	copier.c
 
+LIB_STATIC = libcachester.a
+LIB_DYNAMIC = libcachester$(SO_EXT)
+
 COMPONENTS = go
 
 BIN_DIR = bin
@@ -50,7 +53,9 @@ CFLAGS = \
 LDLIBS = -lm
 
 LIB_OBJS = $(LIB_SRCS:.c=.o)
-LIB_BINS = $(BIN_DIR)/libcachester.a $(BIN_DIR)/libcachester$(SO_EXT)
+LIB_STATIC_BIN = $(BIN_DIR)/$(LIB_STATIC)
+LIB_DYNAMIC_BIN = $(BIN_DIR)/$(LIB_DYNAMIC)
+LIB_BINS = $(LIB_STATIC_BIN) $(LIB_DYNAMIC_BIN)
 
 APP_OBJS = $(APP_SRCS:.c=.o)
 APP_BINS = $(APP_OBJS:%.o=$(BIN_DIR)/%)
@@ -85,13 +90,13 @@ all:
 		$(MAKE) -C $$dir all; \
 	done
 
-$(BIN_DIR)/libcachester.a: $(LIB_OBJS)
-	ar -r $(BIN_DIR)/libcachester.a $(LIB_OBJS)
+$(LIB_STATIC_BIN): $(LIB_OBJS)
+	ar -r $@ $(LIB_OBJS)
 
-$(BIN_DIR)/libcachester$(SO_EXT): $(LIB_OBJS)
+$(LIB_DYNAMIC_BIN): $(LIB_OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(BIN_DIR)/%: %.o $(LIB_BINS)
+$(BIN_DIR)/%: %.o $(LIB_STATIC_BIN)
 	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(BIN_DIR)/%.o: %.c
