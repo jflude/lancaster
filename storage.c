@@ -123,7 +123,10 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			if (errno == EINTR)
 				goto trunc_loop;
 
-			return error_errno("ftruncate");
+#ifdef DARWIN_OS
+			if (errno != EINVAL)
+#endif
+				return error_errno("ftruncate");
 		}
 	} else {
 		struct stat file_stat;
@@ -446,6 +449,11 @@ identifier storage_get_base_id(storage_handle store)
 identifier storage_get_max_id(storage_handle store)
 {
 	return store->seg->max_id;
+}
+
+size_t storage_get_segment_size(storage_handle store)
+{
+	return store->seg->seg_size;
 }
 
 size_t storage_get_record_size(storage_handle store)

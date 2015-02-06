@@ -48,6 +48,7 @@ record_handle storage_get_array(storage_handle store);
 identifier storage_get_base_id(storage_handle store);
 identifier storage_get_max_id(storage_handle store);
 
+size_t storage_get_segment_size(storage_handle store);
 size_t storage_get_record_size(storage_handle store);
 size_t storage_get_value_size(storage_handle store);
 size_t storage_get_property_size(storage_handle store);

@@ -67,6 +67,7 @@ static status print_attributes(storage_handle store)
 			   "data version:     %d.%d\n"
 			   "base id:          %ld\n"
 			   "max id:           %ld\n"
+			   "segment size:     %ld\n"
 			   "record size:      %lu\n"
 			   "value size:       %lu\n"
 			   "property size:    %lu\n"
@@ -88,6 +89,7 @@ static status print_attributes(storage_handle store)
 			   (int)data_ver & 0xFF,
 			   storage_get_base_id(store),
 			   storage_get_max_id(store),
+			   storage_get_segment_size(store),
 			   storage_get_record_size(store),
 			   storage_get_value_size(store),
 			   storage_get_property_size(store),
