@@ -144,8 +144,10 @@ DEPEND.mk:
 releaselog:
 	git log -n1 > RELEASE_LOG
 
-include DEPEND.mk
-
 .PHONY: all release profile protocol gaps
 .PHONY: depend fetch clean distclean releaselog
 .PHONY: $(COMPONENTS)
+
+.SECONDARY: $(APP_OBJS)
+
+include DEPEND.mk
