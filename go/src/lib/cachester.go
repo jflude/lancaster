@@ -4,7 +4,8 @@ package quotester
 // #include "../../../storage.h"
 // #include "../../../error.h"
 // #include "../../../datum.h"
-// #cgo LDFLAGS: -L../../../bin -lcachester
+// #cgo linux LDFLAGS: ../../../bin/libcachester.a -lrt
+// #cgo darwin LDFLAGS: ../../../bin/libcachester.a
 import "C"
 import (
 	"errors"
