@@ -15,16 +15,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var verbose bool
 var stop = make(chan struct{})
 var ignore = make(map[string]bool)
-var feeds = make(map[string]*SubscriberInstance)
+var subscribers = make(map[string]*Subscriber)
 var hasRun = make(map[string]bool)
 var advertAddr = "227.1.1.227:11227"
 var hostPattern string
-var feedPattern string
+var descPattern string
 var env string
 var run = true
 var wireProtocolVersion = "*"
@@ -35,6 +36,7 @@ var dataInterfaces = "bond0,eth0"
 var restartOnExit bool
 var deleteOld bool
 var maxMissedHB int
+var pauseSecs int
 var queueSize int64
 var touchPeriodMS = 1000
 var registerAppInfo = true
@@ -54,13 +56,13 @@ type Discovery struct {
 	}
 }
 
-type SubscriberInstance struct {
+type Subscriber struct {
 	name string
-	disc Discovery
+	disco Discovery
 	cmdr *commander.Command
 }
 
-func (si *SubscriberInstance) String() string {
+func (si *Subscriber) String() string {
 	return si.cmdr.String()
 }
 
@@ -74,20 +76,21 @@ func init() {
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
-	flag.StringVar(&advertAddr, "aa", advertAddr, "Address to listen for advertised feeds on")
-	flag.StringVar(&feedPattern, "fp", ".*", "Regex to match against feed descriptors")
-	flag.StringVar(&hostPattern, "hp", ".*", "Regex to match against host names")
-	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
-	flag.StringVar(&wireProtocolVersion, "wpv", wireProtocolVersion, "Required wire protocol version (* means any)")
+	flag.StringVar(&advertAddr, "advert", advertAddr, "Address to listen on for advertised publishers")
+	flag.StringVar(&descPattern, "desc", ".*", "Regex to match against advertised descriptions")
+	flag.StringVar(&hostPattern, "host", ".*", "Regex to match against advertised hostnames")
+	flag.StringVar(&env, "env", env, "Environment to match against advertised environments (default: local MMD environment)")
+	flag.StringVar(&wireProtocolVersion, "protocol", wireProtocolVersion, "Required wire protocol version (* means any)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
-	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscriber instances when they exit")
+	flag.BoolVar(&restartOnExit, "restart", true, "Restart subscribers when they exit")
 	flag.BoolVar(&deleteOld, "delete", true, "Delete old storage files before (re)starting")
 	flag.IntVar(&touchPeriodMS, "touch", touchPeriodMS, "Period (in ms) of storage touches by subscribers")
 	flag.IntVar(&maxMissedHB, "missed", -1, "Number of missed heartbeats allowed (default: use subscriber's value")
+	flag.IntVar(&pauseSecs, "pause", 0, "Number of seconds to pause between subscriber launches")
 	flag.Int64Var(&queueSize, "queue", -1, "Size of subscriber's change queue (default: use publisher's value)")
-	flag.StringVar(&dataInterfaces, "i", dataInterfaces, "Networtk interfaces to receive multicast data on")
+	flag.StringVar(&dataInterfaces, "i", dataInterfaces, "Network interfaces to receive multicast data on")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
-	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
+	flag.StringVar(&releaseLogPath, "release", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -166,7 +169,7 @@ func discoveryLoop() error {
 	}
 
 	data := make([]byte, 4096)
-	fp, err := regexp.Compile(feedPattern)
+	fp, err := regexp.Compile(descPattern)
 	if err != nil {
 		return err
 	}
@@ -189,39 +192,40 @@ func discoveryLoop() error {
 		}
 
 		ignore[jsstr] = true
-		var disc Discovery
-		err = json.Unmarshal(jsbin, &disc)
+		var disco Discovery
+		err = json.Unmarshal(jsbin, &disco)
 
 		if err != nil {
 			logln("Bad discovery format \"", err, "\", ignoring: ", jsstr)
-		} else if wireProtocolVersion != "*" && disc.Version != wireProtocolVersion {
-			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got version ", disc.Version, " from ", jsstr)
-		} else if len(disc.Data) != 1 {
+		} else if wireProtocolVersion != "*" && disco.Version != wireProtocolVersion {
+			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got version ", disco.Version, " from ", jsstr)
+		} else if len(disco.Data) != 1 {
 			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
 		} else {
-			desc := disc.Data[0].Description
-			if env != disc.Env {
-				logln("No match on env: ", env, ", ignoring: ", jsstr)
-			} else if !hp.MatchString(disc.Hostname) {
-				logln("No match on host pattern: ", hostPattern, ", ignoring: ", jsstr)
+			desc := disco.Data[0].Description
+			if env != disco.Env {
+				logln("No match on env: ", env, " [", jsstr, "]")
+			} else if !hp.MatchString(disco.Hostname) {
+				logln("No match on hostname: ", hostPattern, " [", jsstr, "]")
 			} else if !fp.MatchString(desc) {
-				logln("No match on feed pattern: ", feedPattern, ", ignoring: ", jsstr)
-			} else if feeds[desc] != nil {
-				//logln("Already have a feed for: ", desc, ", ignoring: ", jsstr)
+				logln("No match on description: ", descPattern, " [", jsstr, "]")
+			} else if subscribers[desc] != nil {
+				//logln("Already have a subscriber for: ", desc, " [", jsstr, "]")
 			} else {
 				if !restartOnExit {
 					if _, exists := hasRun[desc]; exists {
-						logln("Spent feed:", desc, ", from, ", ", disc: ", jsstr)
+						logln("Spent subscriber:", desc, ", from, ", " [", jsstr, "]")
 						continue
 					}
 				}
 
-				logln("New feed:", desc, ", from: ", from, ", disc: ", jsstr)
-
-				si := &SubscriberInstance{name: desc, disc: disc}
-				feeds[desc] = si
+				si := &Subscriber{name: desc, disco: disco}
+				subscribers[desc] = si
 				hasRun[desc] = true
+
+				logln("New subscriber:", desc, ", from: ", from, " [", jsstr, "]")
 				go si.run()
+				time.Sleep(time.Duration(pauseSecs) * time.Second)
 			}
 		}
 	}
@@ -229,16 +233,16 @@ func discoveryLoop() error {
 	return nil
 }
 
-func (si *SubscriberInstance) run() {
-	addr, err := net.LookupHost(si.disc.Hostname)
+func (si *Subscriber) run() {
+	addr, err := net.LookupHost(si.disco.Hostname)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	storePath := "shm:/client." + si.disc.Data[0].Description
+	storePath := "shm:/client." + si.disco.Data[0].Description
 
 	opts := []string{
-		"-p", si.disc.Data[0].Description,
+		"-p", si.disco.Data[0].Description,
 		"-T", fmt.Sprint(touchPeriodMS * 1000),
 		"-L",
 		"-j" }
@@ -261,11 +265,11 @@ func (si *SubscriberInstance) run() {
 	}
 
 	si.cmdr.Name = "subscriber(" + si.name + ")"
-	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disc.Data[0].Port))
+	si.cmdr.Args = append(opts, storePath, addr[0] + ":" + strconv.Itoa(si.disco.Data[0].Port))
 
 	if deleteOld {
 		si.cmdr.BeforeStart = func(*commander.Command) error {
-			removeFileCommand := exec.Command(execPath+"deleter", "-f", storePath)
+			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
 				log.Fatalln("Could not delete storage file at ", storePath)
@@ -278,8 +282,8 @@ func (si *SubscriberInstance) run() {
 	err = si.cmdr.Run()
 	logln("Commander for: ", si, " exited: ", err)
 
-	delete(feeds, si.name)         // deregister this feed
-	ignore = make(map[string]bool) // reset ignore list, allow us to rediscover this stripe
+	delete(subscribers, si.name)
+	ignore = make(map[string]bool)
 }
 
 func interfaceExists(interfaceName string) bool {

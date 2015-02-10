@@ -1,10 +1,5 @@
-MAILTO=mvanderpluym@peak6.com,jflude@peak6.com,boropeza@peak6.com,jrobertson@peak6.com
+MAILTO=boropeza@peak6.com,jflude@peak6.com,jrobertson@peak6.com,mvanderpluym@peak6.com
 
-STATS=""
-VM_MAX_HB=20
+05 01 * * mon-fri exec submgr/latest/scripts/cron.submgr.start
 
-GOPATH=~/go
-
-05 01 * * mon-fri mkdir -p /plogs/submgr ; exec submgr/latest/scripts/startSubMgr `hostname | sed -n 's/^pv.*$/-missed '$VM_MAX_HB'/p'` $STATS
-
-45 23 * * mon-fri submgr/latest/scripts/stopSubMgr ; exec submgr/latest/scripts/rollLogs /plogs/submgr
+45 23 * * mon-fri submgr/latest/scripts/cron.submgr.stop ; exec submgr/latest/scripts/cron.submgr.roll

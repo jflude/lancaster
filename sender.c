@@ -640,7 +640,7 @@ static status event_func(poller_handle poller, sock_handle sock,
 	st = (*revents & POLLIN
 		  ? tcp_on_read(sndr, sock) : tcp_on_read_blocked(sndr, sock));
 
-	if (!FAILED(st) && *revents & POLLOUT)
+	if (!FAILED(st) && (*revents & POLLOUT))
 		st = tcp_on_write(sndr, sock);
 
 	return FAILED(st) ? tcp_on_hup(sndr, sock) : st;

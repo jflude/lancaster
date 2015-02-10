@@ -1,0 +1,3 @@
+#! /bin/sh
+cd
+exec submgr/latest/scripts/rollLogs /plogs/submgr

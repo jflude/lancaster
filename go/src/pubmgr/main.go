@@ -12,11 +12,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"time"
 )
 
-type filePattern []*regexp.Regexp
+type StoragePattern []*regexp.Regexp
 
-type PublisherInstance struct {
+type Publisher struct {
 	name      string
 	commander *commander.Command
 }
@@ -25,11 +26,12 @@ var stop = make(chan struct{})
 var env string
 var execPath = getExecDir()
 var sourceVersion = "<DEV>"
-var filePatternFlag filePattern = makeFilePattern("feed.*")
+var storePattern StoragePattern = StoragePattern{}
 var publishers = make(map[string]*commander.Command)
 var heartBeatMS = 1000
 var maxAgeMS = 2
 var orphanTimeoutMS = 3000
+var pauseSecs int
 var loopback = true
 var udpStatsAddr = "127.0.0.1:9411"
 var defaultDirectory = "/dev/shm/"
@@ -37,22 +39,17 @@ var restartOnExit bool
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 
-func (fp *filePattern) String() string {
+func (fp *StoragePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
 }
 
-func (fp *filePattern) Set(v string) error {
+func (fp *StoragePattern) Set(v string) error {
 	*fp = append(*fp, regexp.MustCompile(v))
 	return nil
 }
 
-func (pi *PublisherInstance) String() string {
+func (pi *Publisher) String() string {
 	return pi.commander.String()
-}
-
-func makeFilePattern(pattern string) filePattern {
-	aFilePattern := filePattern{}
-	return append(aFilePattern, regexp.MustCompile(pattern))
 }
 
 func init() {
@@ -64,24 +61,25 @@ func init() {
 	}
 
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
-	flag.Var(&filePatternFlag, "fp", "Pattern to match for files")
+	flag.Var(&storePattern, "store", "Pattern(s) to match for storages to be published")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
-	flag.IntVar(&maxAgeMS, "maxAge", maxAgeMS, "Maximum packet age (in ms) allowed before sending a partial packet")
+	flag.IntVar(&maxAgeMS, "age", maxAgeMS, "Maximum packet age (in ms) allowed before sending a partial packet")
 	flag.IntVar(&orphanTimeoutMS, "orphan", orphanTimeoutMS, "Maximum time (in ms) allowed between storage touches")
-	flag.BoolVar(&loopback, "loopback", loopback, "Enable loopback of multicast data & adverts")
-	flag.StringVar(&env, "env", env, "Environment to match against feed environment (default: local MMD environment)")
+	flag.BoolVar(&loopback, "loopback", loopback, "Enable loopback of multicast data and adverts")
+	flag.StringVar(&env, "env", env, "Environment to associate with publishers (default: local MMD environment)")
 	flag.StringVar(&execPath, "path", execPath, "Path to Cachester executables")
-	flag.BoolVar(&restartOnExit, "restart", true, "Restart publisher instances when they exit")
+	flag.BoolVar(&restartOnExit, "restart", true, "Restart publishers when they exit")
+	flag.IntVar(&pauseSecs, "pause", 0, "Number of seconds to pause between publisher launches")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.pubmgr service")
-	flag.StringVar(&releaseLogPath, "releaseLogPath", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
+	flag.StringVar(&releaseLogPath, "release", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
 
 	flag.Usage = usage
 	flag.Parse()
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "pubmgr "+sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS] DIRECTORY [DIRECTORY ...]")
+	fmt.Fprintln(os.Stderr, "pubmgr " + sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS] DIRECTORY [DIRECTORY ...]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
@@ -96,7 +94,11 @@ func getExecDir() string {
 }
 
 func main() {
-	log.Println("Patterns:", filePatternFlag)
+	if len(storePattern) == 0 {
+		log.Fatalln("No store pattern specified")
+	}
+
+	log.Println("Store pattern:", storePattern)
 
 	var err error
 	err = initializePostFlagsParsed()
@@ -126,7 +128,7 @@ func main() {
 }
 
 func matchPattern(s string) bool {
-	for _, p := range filePatternFlag {
+	for _, p := range storePattern {
 		if p.MatchString(s) {
 			return true
 		}
@@ -259,8 +261,9 @@ func startIfNeeded(path string) {
 			return nil
 		}
 
-		log.Println("CMD:", cmd)
+		log.Println("New publisher:", cmd)
 		go cmd.Run()
+		time.Sleep(time.Duration(pauseSecs) * time.Second)
 	}
 }
 

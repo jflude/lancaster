@@ -48,9 +48,9 @@ func init() {
 		log.Fatal(err)
 	}
 
-	flag.Var(&baseMCastGroup, "bg", "Base multicast group (each feed increments the 3rd octet)")
-	flag.IntVar(&portPicker.rangeStart, "ps", portPicker.rangeStart, "Port range start")
-	flag.IntVar(&portPicker.rangeEnd, "pe", portPicker.rangeEnd, "Port range end")
+	flag.Var(&baseMCastGroup, "base", "Base multicast group (each feed increments the 3rd octet)")
+	flag.IntVar(&portPicker.rangeStart, "start", portPicker.rangeStart, "Port range start")
+	flag.IntVar(&portPicker.rangeEnd, "end", portPicker.rangeEnd, "Port range end")
 	flag.StringVar(&dataInterfacesToTry, "i", dataInterfacesToTry,
 		"Comma-separated list of network interfaces to try for multicasting data")
 	flag.StringVar(&advertInterfacesToTry, "I", advertInterfacesToTry,
