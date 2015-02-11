@@ -87,7 +87,7 @@ endif
 all: $(LIB_BINS) $(APP_BINS) releaselog
 all: 
 	@for dir in $(COMPONENTS); do \
-		$(MAKE) -C $$dir all; \
+		$(MAKE) -C $$dir all || break ; \
 	done
 
 $(LIB_STATIC_BIN): $(LIB_OBJS)
@@ -106,7 +106,7 @@ release: CFLAGS += -DNDEBUG -O3
 release: fetch depend all
 release:
 	@for dir in $(COMPONENTS); do \
-		$(MAKE) -C $$dir release; \
+		$(MAKE) -C $$dir release || break ; \
 	done
 
 profile: CFLAGS += -pg
@@ -127,13 +127,13 @@ depend: DEPEND.mk
 fetch:
 	@rm -f go/Goopfile.lock
 	@for dir in $(COMPONENTS); do \
-		$(MAKE) -C $$dir fetch; \
+		$(MAKE) -C $$dir fetch || break ; \
 	done
 
 clean: 
 	rm -rf $(LIB_OBJS) $(LIB_BINS) $(APP_OBJS) $(APP_BINS)
 	@for dir in $(COMPONENTS); do \
-		$(MAKE) -C $$dir clean; \
+		$(MAKE) -C $$dir clean || break ; \
 	done
 
 distclean: clean

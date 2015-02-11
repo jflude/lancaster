@@ -1,12 +1,12 @@
 #! /bin/sh
 
-PAUSE="-pause 1"
-STATS=""
-VM_MAX_HB=20
+pause="-pause 1"
+stats=""
+vm_max_hb=20
 
 GOPATH=~/go
 export GOPATH
 
 cd
 mkdir -p /plogs/submgr
-exec submgr/latest/scripts/startSubMgr `hostname | sed -n 's/^pv.*$/-missed '$VM_MAX_HB'/p'` $PAUSE $STATS
+exec submgr/latest/scripts/startSubMgr $pause $stats `hostname | sed -n 's/^pv.*$/-missed '$vm_max_hb'/p'`

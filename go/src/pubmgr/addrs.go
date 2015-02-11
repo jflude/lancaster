@@ -87,7 +87,7 @@ func getMcastAddrFor(name string) (string, error) {
 	}
 
 	if addr == "" {
-		return "", errors.New("Out of multicast addresses")
+		return "", errors.New("error: exhausted multicast addresses")
 	}
 
 	addrsAssigned[addr] = true
@@ -112,7 +112,7 @@ func reservePort() (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("Port range leaked or too narrow. Ports in use: %d, range: %d - %d",
+	return 0, fmt.Errorf("error: port range leaked or too narrow - in use: %d, range: %d-%d",
 		len(portPicker.inUse), portPicker.rangeStart, portPicker.rangeEnd)
 }
 
@@ -120,7 +120,7 @@ func releasePort(portNumber int) {
 	addrLock.Lock()
 	defer addrLock.Unlock()
 
-	log.Println("Releasing:", portNumber)
+	log.Println("releasing port", portNumber)
 	delete(portPicker.inUse, portNumber)
 }
 
@@ -171,14 +171,14 @@ func setDataInterface() error {
 	for _, dataInterfaceToTry := range strings.Split(dataInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[dataInterfaceToTry]; ok {
 			dataInterface = dataInterfaceToTry
-			log.Println("Setting data interface to ", dataInterface)
+			log.Println("setting data interface to", dataInterface)
 			return nil
 		} else {
-			log.Println("No valid data interface named '", dataInterfaceToTry, "' was found")
+			log.Println("warning: unknown data interface:", dataInterfaceToTry)
 		}
 	}
 
-	return errors.New("No valid interface found. Tried " + dataInterfacesToTry)
+	return errors.New("error: no valid data interface, tried: " + dataInterfacesToTry)
 }
 
 func setAdvertInterface() error {
@@ -189,19 +189,19 @@ func setAdvertInterface() error {
 	for _, advertInterfaceToTry := range strings.Split(advertInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[advertInterfaceToTry]; ok {
 			advertInterface = advertInterfaceToTry
-			log.Println("Setting advert interface to ", advertInterface)
+			log.Println("setting advert interface to", advertInterface)
 			return nil
 		} else {
-			log.Println("No valid advert interface named '", advertInterfaceToTry, "' was found")
+			log.Println("warning: unknown advert interface:", advertInterfaceToTry)
 		}
 	}
 
-	return errors.New("No valid interface found. Tried " + advertInterfacesToTry)
+	return errors.New("error: no valid advert interface, tried: " + advertInterfacesToTry)
 }
 
 func setListenAddress() error {
 	if listenAddress != "" {
-		log.Println("Listen address already defined as ", listenAddress)
+		log.Println("listen address already defined as", listenAddress)
 		return nil
 	}
 
@@ -211,6 +211,6 @@ func setListenAddress() error {
 	}
 
 	listenAddress = ifaceToIp[dataInterface]
-	log.Println("Setting listen address to", listenAddress)
+	log.Println("setting listen address to", listenAddress)
 	return nil
 }

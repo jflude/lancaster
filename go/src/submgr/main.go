@@ -119,7 +119,7 @@ func main() {
 	}
 
 	if maxMissedHB < 0 && maxMissedHB != -1 {
-		log.Fatal("Invalid value for allowed missed heartbeats")
+		log.Fatal("error: invalid value for allowed missed heartbeats")
 	}
 
 	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
@@ -127,7 +127,7 @@ func main() {
 	if registerAppInfo {
 		err = appinfo.Setup("submgr", releaseLogPath, func() bool { return true })
 		if err != nil {
-			log.Println("Couldn't register appinfo service:", err)
+			log.Println("warning: cannot register appinfo service:", err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logln("Done")
+	logln("done")
 }
 
 func discoveryLoop() error {
@@ -144,7 +144,7 @@ func discoveryLoop() error {
 	var err error
 	for _, dataInterface := range strings.Split(dataInterfaces, ",") {
 		if !interfaceExists(dataInterface) {
-			logln("Interface ", dataInterface, " not found")
+			logln("interface", dataInterface, "not found")
 		} else {
 			iface, err = net.InterfaceByName(dataInterface)
 			if err != nil {
@@ -157,11 +157,11 @@ func discoveryLoop() error {
 	advertAddrHost := advertAddrHostPort[0]
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
-		log.Fatal("Error parsing advert address ", advertAddr, ": ", err)
+		log.Fatal("error: cannot parse advert address", advertAddr, ":", err)
 	}
 
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
-	logln("Listening for adverts on: ", addr)
+	logln("listening for adverts on:", addr)
 
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	if err != nil {
@@ -196,25 +196,24 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disco)
 
 		if err != nil {
-			logln("Bad discovery format \"", err, "\", ignoring: ", jsstr)
+			logln("error: invalid discovery format:", err, "from:", from, "[" + jsstr + "]")
 		} else if wireProtocolVersion != "*" && disco.Version != wireProtocolVersion {
-			logln("Wire version mismatch, expected: ", wireProtocolVersion, ", got version ", disco.Version, " from ", jsstr)
+			logln("warning: wire version mismatch, expected", wireProtocolVersion,
+				"but got version", disco.Version, "from", from, "[" + jsstr + "]")
 		} else if len(disco.Data) != 1 {
-			logln("Unsupported discovery message, wrong number of data elements: ", jsstr)
+			logln("error: unsupported discovery message, wrong number of data elements [" + jsstr + "]")
 		} else {
 			desc := disco.Data[0].Description
 			if env != disco.Env {
-				logln("No match on env: ", env, " [", jsstr, "]")
+				logln("no match on environment:", env, "[" + jsstr + "]")
 			} else if !hp.MatchString(disco.Hostname) {
-				logln("No match on hostname: ", hostPattern, " [", jsstr, "]")
+				logln("no match on hostname:", hostPattern, "[" + jsstr + "]")
 			} else if !fp.MatchString(desc) {
-				logln("No match on description: ", descPattern, " [", jsstr, "]")
-			} else if subscribers[desc] != nil {
-				//logln("Already have a subscriber for: ", desc, " [", jsstr, "]")
-			} else {
+				logln("no match on description:", descPattern, "[" + jsstr + "]")
+			} else if subscribers[desc] == nil {
 				if !restartOnExit {
 					if _, exists := hasRun[desc]; exists {
-						logln("Spent subscriber:", desc, ", from, ", " [", jsstr, "]")
+						logln("spent subscriber:", desc, "from:", from, "[" + jsstr + "]")
 						continue
 					}
 				}
@@ -223,8 +222,9 @@ func discoveryLoop() error {
 				subscribers[desc] = si
 				hasRun[desc] = true
 
-				logln("New subscriber:", desc, ", from: ", from, " [", jsstr, "]")
+				logln("new subscriber:", desc, "from:", from, "[" + jsstr + "]")
 				go si.run()
+
 				time.Sleep(time.Duration(pauseSecs) * time.Second)
 			}
 		}
@@ -261,7 +261,7 @@ func (si *Subscriber) run() {
 
 	si.cmdr, err = commander.New(execPath + "subscriber")
 	if err != nil {
-		log.Fatalln("Failed to create commander for: ", si, ", error: ", err)
+		log.Fatalln("error: cannot create commander for:", si, ":", err)
 	}
 
 	si.cmdr.Name = "subscriber(" + si.name + ")"
@@ -272,7 +272,7 @@ func (si *Subscriber) run() {
 			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
-				log.Fatalln("Could not delete storage file at ", storePath)
+				log.Fatalln("error: cannot delete storage file:", storePath)
 			}
 
 			return err
@@ -280,7 +280,7 @@ func (si *Subscriber) run() {
 	}
 
 	err = si.cmdr.Run()
-	logln("Commander for: ", si, " exited: ", err)
+	logln("commander for:", si, "exited:", err)
 
 	delete(subscribers, si.name)
 	ignore = make(map[string]bool)

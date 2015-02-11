@@ -95,10 +95,10 @@ func getExecDir() string {
 
 func main() {
 	if len(storePattern) == 0 {
-		log.Fatalln("No store pattern specified")
+		log.Fatalln("error: no store pattern specified")
 	}
 
-	log.Println("Store pattern:", storePattern)
+	log.Println("store pattern:", storePattern)
 
 	var err error
 	err = initializePostFlagsParsed()
@@ -115,7 +115,7 @@ func main() {
 	if registerAppInfo {
 		err = appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true })
 		if err != nil {
-			log.Println("Couldn't register appinfo service:", err)
+			log.Println("warning: cannot register appinfo service:", err)
 		}
 	}
 
@@ -157,11 +157,10 @@ func discoveryLoop() error {
 				return err
 			}
 
-			if info.IsDir() || !matchPattern(path) {
-				return nil
+			if !info.IsDir() && matchPattern(path) {
+				startIfNeeded(path)
 			}
 
-			startIfNeeded(path)
 			return nil
 		})
 
@@ -179,7 +178,7 @@ func discoveryLoop() error {
 				case fsnotify.Create, fsnotify.Write:
 					startIfNeeded(event.Name)
 				default:
-					log.Println("Event:", event)
+					log.Println("event:", event)
 				}
 				break
 			}
@@ -195,76 +194,76 @@ func startIfNeeded(path string) {
 	name := filepath.Base(path)
 	_, ok := publishers[name]
 	if ok {
-		log.Println("Already publishing:", name)
-	} else {
-		publishers[name] = nil
-		addr, err := getMcastAddrFor(name)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Starting publisher for:", name, "on", addr)
-
-		var state struct {
-			port int
-		}
-
-		cmd, err := commander.New(execPath + "publisher")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		cmd.Name = "publisher(" + name + ")"
-		cmd.AutoRestart = restartOnExit
-
-		cmd.BeforeStart = func(c *commander.Command) error {
-			state.port, err = reservePort()
-			if err != nil {
-				return err
-			}
-
-			log.Println("Reserving port", state.port, "for", name)
-
-			opts := []string{
-				"-p", name,
-				"-e", env,
-				"-i", dataInterface,
-				"-a", advertAddr,
-				"-I", advertInterface,
-				"-P", fmt.Sprint(maxAgeMS * 1000),
-				"-H", fmt.Sprint(heartBeatMS * 1000),
-				"-O", fmt.Sprint(orphanTimeoutMS * 1000),
-				"-L",
-				"-j" }
-
-			if loopback {
-				opts = append(opts, "-l")
-			}
-
-			if udpStatsAddr != "" {
-				opts = append(opts, "-S", udpStatsAddr)
-			}
-
-			c.Args = append(opts,
-				path,
-				listenAddress + ":" + strconv.Itoa(state.port),
-				addr + ":" + strconv.Itoa(state.port),
-			)
-
-			return nil
-		}
-
-		cmd.AfterStop = func(*commander.Command) error {
-			releasePort(state.port)
-			state.port = 0
-			return nil
-		}
-
-		log.Println("New publisher:", cmd)
-		go cmd.Run()
-		time.Sleep(time.Duration(pauseSecs) * time.Second)
+		log.Println("already publishing:", name)
+		return
 	}
+
+	publishers[name] = nil
+	addr, err := getMcastAddrFor(name)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Println("starting publisher for:", name, "on", addr)
+
+	cmd, err := commander.New(execPath + "publisher")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var state struct { port int }
+
+	cmd.Name = "publisher(" + name + ")"
+	cmd.AutoRestart = restartOnExit
+
+	cmd.BeforeStart = func(c *commander.Command) error {
+		state.port, err = reservePort()
+		if err != nil {
+			return err
+		}
+
+		log.Println("reserving port", state.port, "for", name)
+
+		opts := []string{
+			"-p", name,
+			"-e", env,
+			"-i", dataInterface,
+			"-a", advertAddr,
+			"-I", advertInterface,
+			"-P", fmt.Sprint(maxAgeMS * 1000),
+			"-H", fmt.Sprint(heartBeatMS * 1000),
+			"-O", fmt.Sprint(orphanTimeoutMS * 1000),
+			"-L",
+			"-j" }
+
+		if loopback {
+			opts = append(opts, "-l")
+		}
+
+		if udpStatsAddr != "" {
+			opts = append(opts, "-S", udpStatsAddr)
+		}
+
+		c.Args = append(opts,
+			path,
+			listenAddress + ":" + strconv.Itoa(state.port),
+			addr + ":" + strconv.Itoa(state.port),
+		)
+
+		return nil
+	}
+
+	cmd.AfterStop = func(*commander.Command) error {
+		releasePort(state.port)
+		state.port = 0
+		return nil
+	}
+
+	log.Println("new publisher:", cmd)
+	go cmd.Run()
+
+	time.Sleep(time.Duration(pauseSecs) * time.Second)
 }
 
 func fileExists(path string) (bool, error) {

@@ -1,5 +1,5 @@
 #! /bin/sh
-killall -u "$LOGNAME" pubmgr &&
-sleep 2 &&
-test x`pidof pubmgr` = x ||
-killall -u "$LOGNAME" -9 pubmgr
+
+killall -q -u "$LOGNAME" pubmgr &&
+	sleep 2 &&
+		killall -q -u "$LOGNAME" -9 pubmgr
