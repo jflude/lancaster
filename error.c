@@ -6,6 +6,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include "error.h"
+#include "signals.h"
 #include "spin.h"
 
 static volatile spin_lock msg_lock;
@@ -155,6 +156,11 @@ int error_errno(const char *func)
 	return format(func, strerror(errno),
 				  ERRNO_ERROR_BASE_1 - (errno < 128
 										? errno : errno + ERRNO_ERROR_BASE_2));
+}
+
+int error_eintr(const char *func)
+{
+	return (errno == EINTR ? signal_on_eintr : error_errno)(func);
 }
 
 int error_invalid_arg(const char *func)

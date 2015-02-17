@@ -23,6 +23,7 @@ void error_reset(void);
 int error_msg(const char *msg, int code, ...);
 int error_eof(const char *func);
 int error_errno(const char *func);
+int error_eintr(const char *func);
 int error_invalid_arg(const char *func);
 int error_unimplemented(const char *func);
 

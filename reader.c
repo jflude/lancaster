@@ -70,9 +70,7 @@ static status update(q_index qi)
 	long xyz;
 	status st;
 
-	if (FAILED(st = signal_is_raised(SIGHUP)) ||
-		FAILED(st = signal_is_raised(SIGINT)) ||
-		FAILED(st = signal_is_raised(SIGTERM)) ||
+	if (FAILED(st = signal_any_raised()) ||
 		FAILED(st = storage_read_queue(store, qi, &id)) ||
 		FAILED(st = storage_get_record(store, id, &rec)))
 		return st;
@@ -179,9 +177,7 @@ int main(int argc, char *argv[])
 			old_head = new_head;
 		}
 
-		if (FAILED(st = signal_is_raised(SIGHUP)) ||
-			FAILED(st = signal_is_raised(SIGINT)) ||
-			FAILED(st = signal_is_raised(SIGTERM)) ||
+		if (FAILED(st = signal_any_raised()) ||
 			FAILED(st = storage_get_created_time(store, &when)))
 			break;
 

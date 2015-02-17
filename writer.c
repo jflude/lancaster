@@ -49,9 +49,7 @@ static status update(identifier id, long n)
 	microsec now;
 	status st = OK;
 
-	if (FAILED(st = signal_is_raised(SIGHUP)) ||
-		FAILED(st = signal_is_raised(SIGINT)) ||
-		FAILED(st = signal_is_raised(SIGTERM)) ||
+	if (FAILED(st = signal_any_raised()) ||
 		FAILED(st = storage_get_record(store, id, &rec)) ||
 		FAILED(st = clock_time(&now)))
 		return st;

@@ -1,8 +1,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include "error.h"
 #include "h2n2h.h"
@@ -10,11 +12,13 @@
 #include "poller.h"
 #include "sender.h"
 #include "sequence.h"
+#include "signals.h"
 #include "spin.h"
 #include "xalloc.h"
 
 #define IDLE_SLEEP_USEC 10
 #define IDLE_TIMEOUT_USEC 100
+#define ACCEPT_WRITE_TIMEOUT_SEC 10
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 #include <unistd.h>
@@ -327,17 +331,25 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 {
 	struct tcp_client *clnt;
 	sock_handle accepted;
-	status st;
+	status st, st2;
 
 	char buf[512];
 	strcpy(buf, sndr->hello_str);
 	strcat(buf, storage_get_description(sndr->store));
 	strcat(buf, "\r\n");
 
-	if (FAILED(st = sock_accept(sock, &accepted)))
+	if (FAILED(st = sock_accept(sock, &accepted)) ||
+		FAILED(st = signal_add_handler(SIGALRM)))
 		return st;
 
-	if (FAILED(st = sock_write(accepted, buf, strlen(buf)))) {
+	alarm(ACCEPT_WRITE_TIMEOUT_SEC);
+	st = sock_write(accepted, buf, strlen(buf));
+
+	alarm(0);
+	if (FAILED(st2 = signal_remove_handler(SIGALRM)))
+		st = st2;
+
+	if (FAILED(st)) {
 		sock_destroy(&accepted);
 		return st;
 	}

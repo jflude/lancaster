@@ -130,17 +130,8 @@ status poller_set_event(poller_handle poller, sock_handle sock,
 
 status poller_events(poller_handle poller, int timeout)
 {
-	status st;
-loop:
-	st = poll(poller->fds, poller->free_idx, timeout);
-	if (st == -1) {
-		if (errno == EINTR)
-			goto loop;
-
-		error_errno("poller_events");
-	}
-
-	return st;
+	status st = poll(poller->fds, poller->free_idx, timeout);
+	return st == -1 ? error_eintr("poll") : st;
 }
 
 status poller_process(poller_handle poller, poller_func fn, void *param)

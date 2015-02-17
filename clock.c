@@ -26,18 +26,7 @@ status clock_sleep(microsec usec)
 	}
 
 	req.tv_nsec *= 1000;
-
-loop:
-	if (nanosleep(&req, &rem) == -1) {
-		if (errno == EINTR) {
-			req = rem;
-			goto loop;
-		}
-
-		return error_errno("nanosleep");
-	}
-
-	return OK;
+	return nanosleep(&req, &rem) == -1 ? error_eintr("nanosleep") : OK;
 }
 
 status clock_time(microsec *pusec)
@@ -57,15 +46,7 @@ status clock_time(microsec *pusec)
 
 static status usleep2(microsec usec)
 {
-loop:
-	if (usleep(usec) == -1) {
-		if (errno == EINTR)
-			goto loop;
-
-		return error_errno("usleep");
-	}
-
-	return OK;
+	return usleep(usec) == -1 ? error_eintr("usleep") : OK;
 }
 
 status clock_sleep(microsec usec)

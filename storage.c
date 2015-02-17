@@ -98,31 +98,19 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		(hdr_sz + (rec_sz * (max_id - base_id)) + page_sz - 1) & ~(page_sz - 1);
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
-	shm_loop:
 		(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, mode_flags);
-		if ((*pstore)->seg_fd == -1) {
-			if (errno == EINTR)
-				goto shm_loop;
-
-			return error_errno("shm_open");
-		}
+		if ((*pstore)->seg_fd == -1)
+			return error_eintr("shm_open");
 	} else {
-	open_loop:
 		(*pstore)->seg_fd = open(mmap_file, open_flags, mode_flags);
-		if ((*pstore)->seg_fd == -1) {
-			if (errno == EINTR)
-				goto open_loop;
-
-			return error_errno("open");
-		}
+		if ((*pstore)->seg_fd == -1)
+			return error_eintr("open");
 	}
 
 	if (open_flags & O_CREAT) {
-	trunc_loop:
 		if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
 			if (errno == EINTR)
-				goto trunc_loop;
-
+				return error_eintr("ftruncate");
 #ifdef DARWIN_OS
 			if (errno != EINVAL)
 #endif
@@ -229,23 +217,13 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 		mmap_flags |= PROT_WRITE;
 
 	if (strncmp(mmap_file, "shm:", 4) == 0) {
-	shm_loop:
 		(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, 0);
-		if ((*pstore)->seg_fd == -1) {
-			if (errno == EINTR)
-				goto shm_loop;
-
-			return error_errno("shm_open");
-		}
+		if ((*pstore)->seg_fd == -1)
+			return error_eintr("shm_open");
 	} else {
-	open_loop:
 		(*pstore)->seg_fd = open(mmap_file, open_flags);
-		if ((*pstore)->seg_fd == -1) {
-			if (errno == EINTR)
-				goto open_loop;
-
-			return error_errno("open");
-		}
+		if ((*pstore)->seg_fd == -1)
+			return error_eintr("open");
 	}
 
 	if (fstat((*pstore)->seg_fd, &file_stat) == -1)
@@ -367,13 +345,8 @@ status storage_destroy(storage_handle *pstore)
 		return st;
 
 	if ((*pstore)->seg_fd != -1) {
-	loop:
-		if (close((*pstore)->seg_fd) == -1) {
-			if (errno == EINTR)
-				goto loop;
-
-			return error_errno("close");
-		}
+		if (close((*pstore)->seg_fd) == -1)
+			return error_eintr("close");
 
 		(*pstore)->seg_fd = -1;
 	}

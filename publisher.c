@@ -140,9 +140,7 @@ static void *stats_func(thread_handle thr)
 	while (!thread_is_stopping(thr)) {
 		microsec now;
 		double secs;
-		if (FAILED(st = signal_is_raised(SIGHUP)) ||
-			FAILED(st = signal_is_raised(SIGINT)) ||
-			FAILED(st = signal_is_raised(SIGTERM)) ||
+		if (FAILED(st = signal_any_raised()) ||
 			FAILED(st = clock_sleep(DISPLAY_DELAY_USEC)) ||
 			FAILED(st = clock_time(&now)))
 			break;
@@ -160,8 +158,11 @@ static void *stats_func(thread_handle thr)
 			break;
 
 		last_print = now;
-        if (!reporter)
-			fflush(stdout);
+
+        if (!reporter && fflush(stdout) == -1) {
+			st = error_errno("fflush");
+			break;
+		}
 	}
 
     if (!reporter)

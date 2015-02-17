@@ -355,11 +355,9 @@ status sock_accept(sock_handle sock, sock_handle *new_sock)
 		return error_invalid_arg("sock_accept");
 
 	BZERO(&accpt);
-loop:
+
 	accpt.fd = accept(sock->fd, NULL, NULL);
 	if (accpt.fd == -1) {
-		if (errno == EINTR)
-			goto loop;
 #ifdef EAGAIN
 		if (errno == EAGAIN)
 			return BLOCKED;
@@ -368,18 +366,12 @@ loop:
 		if (errno == EWOULDBLOCK)
 			return BLOCKED;
 #endif
-		return error_errno("accept");
+		return error_eintr("accept");
 	}
 
 	*new_sock = XMALLOC(struct sock);
-	if (!*new_sock) {
-	close_loop:
-		if (close(accpt.fd) == -1)
-			if (errno == EINTR)
-				goto close_loop;
-
-		return NO_MEMORY;
-	}
+	if (!*new_sock)
+		return close(accpt.fd) == -1 ? error_eintr("close") : NO_MEMORY;
 
 	**new_sock = accpt;
 	return OK;
@@ -437,11 +429,8 @@ status sock_write(sock_handle sock, const void *data, size_t data_sz)
 	if (!data || data_sz == 0)
 		return error_invalid_arg("sock_write");
 
-loop:
 	count = write(sock->fd, data, data_sz);
 	if (count == -1) {
-		if (errno == EINTR)
-			goto loop;
 #ifdef EAGAIN
 		if (errno == EAGAIN)
 			return BLOCKED;
@@ -453,7 +442,7 @@ loop:
 		if (errno == EPIPE || errno == ECONNRESET)
 			return error_eof("write");
 
-		return error_errno("write");
+		return error_eintr("write");
 	}
 
 	return count;
@@ -465,11 +454,8 @@ status sock_read(sock_handle sock, void *data, size_t data_sz)
 	if (!data || data_sz == 0)
 		return error_invalid_arg("sock_read");
 
-loop:
 	count = read(sock->fd, data, data_sz);
 	if (count == -1) {
-		if (errno == EINTR)
-			goto loop;
 #ifdef EAGAIN
 		if (errno == EAGAIN)
 			return BLOCKED;
@@ -481,7 +467,7 @@ loop:
 		if (errno == ECONNRESET)
 			return error_eof("read");
 
-		return error_errno("read");
+		return error_eintr("read");
 	}
 
 	if (count == 0)
@@ -497,12 +483,9 @@ status sock_sendto(sock_handle sock, sock_addr_handle addr,
 	if (!addr || !data || data_sz == 0)
 		return error_invalid_arg("sock_sendto");
 
-loop:
 	count = sendto(sock->fd, data, data_sz, 0,
 				   (const struct sockaddr *) &addr->sa, sizeof(addr->sa));
 	if (count == -1) {
-		if (errno == EINTR)
-			goto loop;
 #ifdef EAGAIN
 		if (errno == EAGAIN)
 			return BLOCKED;
@@ -514,7 +497,7 @@ loop:
 		if (errno == EPIPE || errno == ECONNRESET)
 			return error_eof("sendto");
 
-		return error_errno("sendto");
+		return error_eintr("sendto");
 	}
 
 	return count;
@@ -528,13 +511,10 @@ status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
 	if (!addr || !data || data_sz == 0)
 		return error_invalid_arg("sock_recvfrom");
 
-loop:
 	addrlen = sizeof(addr->sa);
 	count = recvfrom(sock->fd, data, data_sz, 0,
 					 (struct sockaddr *) &addr->sa, &addrlen);
 	if (count == -1) {
-		if (errno == EINTR)
-			goto loop;
 #ifdef EAGAIN
 		if (errno == EAGAIN)
 			return BLOCKED;
@@ -546,7 +526,7 @@ loop:
 		if (errno == ECONNRESET)
 			return error_eof("recvfrom");
 
-		return error_errno("recvfrom");
+		return error_eintr("recvfrom");
 	}
 
 	if (count == 0)
@@ -566,13 +546,8 @@ status sock_shutdown(sock_handle sock, int how)
 status sock_close(sock_handle sock)
 {
 	if (sock->fd != -1) {
-	loop:
-		if (close(sock->fd) == -1) {
-			if (errno == EINTR)
-				goto loop;
-
-			return error_errno("close");
-		}
+		if (close(sock->fd) == -1)
+			return error_eintr("close");
 
 		sock->fd = -1;
 	}

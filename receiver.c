@@ -3,9 +3,11 @@
 #include <fcntl.h>
 #include <float.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "clock.h"
 #include "error.h"
 #include "h2n2h.h"
@@ -13,11 +15,13 @@
 #include "poller.h"
 #include "receiver.h"
 #include "sequence.h"
+#include "signals.h"
 #include "sock.h"
 #include "spin.h"
 #include "xalloc.h"
 
 #define INITIAL_MC_HB_USEC (10 * 1000000)
+#define CONNECT_READ_TIMEOUT_SEC 10
 #define RECV_BUFSIZ (1024 * 1024)
 
 #if defined(DEBUG_PROTOCOL)
@@ -393,7 +397,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t pub_q_capacity, val_size;
-	status st;
+	status st, st2;
 #if defined(DEBUG_PROTOCOL)
 	char debug_name[256];
 #endif
@@ -418,7 +422,17 @@ static status init(receiver_handle *precv, const char *mmap_file,
 		FAILED(st = sock_addr_create(&(*precv)->tcp_addr,
 									 tcp_address, tcp_port)) ||
 		FAILED(st = sock_connect((*precv)->tcp_sock, (*precv)->tcp_addr)) ||
-		FAILED(st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1)))
+		FAILED(st = signal_add_handler(SIGALRM)))
+		return st;
+
+	alarm(CONNECT_READ_TIMEOUT_SEC);
+	st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1);
+
+	alarm(0);
+	if (FAILED(st2 = signal_remove_handler(SIGALRM)))
+		st = st2;
+
+	if (FAILED(st))
 		return st;
 
 	buf[st] = '\0';
