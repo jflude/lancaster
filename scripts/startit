@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+# Start cachester systems to the latest release
+import sys, getopt
+import subprocess
+import os
+
+
+def main(argv):
+    
+    env = ''
+    system = ''
+
+    try:
+        opts, args = getopt.getopt(argv, 'e:s:h', ['env=', 'system='])
+    except getopt.GetoptError as e:
+        print str(e)
+        printUsageAndExit()
+
+    for opt, arg in opts:
+        if opt == '-h':
+            printUsageAndExit()
+        elif opt == '-e':
+            env = parseArg(arg)
+        elif opt == '-s':
+            system = parseArg(arg).lower()
+
+    # WIP: not handling pubmgr and feedster at the moment
+    if system == 'pubmgr' or system == 'feedster':
+        print "startit: '" + system + "' is not currently supported. Exiting..."
+        sys.exit(1)
+
+    command = commandForSystem(system)
+    if not command:
+        print "startit: '" + system + "' is not a valid system. Exiting..."
+        sys.exit(1)
+    
+    print "startit: Starting '" + system + "' in '" + env + "'..."
+    sp = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    stdout, stderr = sp.communicate()
+    rc = sp.returncode
+    if rc != 0:
+        print "startit: Failed to start '" + system + "', command '" + command + "' returned nonzero exit code\nstdout: " + stdout + "\nstderr: " + stderr   
+
+
+def commandForSystem(system):
+    if system == 'submgr':
+        return os.path.expanduser('~/' + system + '/latest/scripts/startSubMgr')
+    elif system == 'pubmgr':
+        return os.path.expanduser('~/' + system + '/latest/scripts/startPubMgr')
+    elif system == 'feedster':
+        return os.path.expanduser('~/' + system + '/latest/scripts/databus/cron.feedster.start')
+    else:
+        return None
+
+def printUsageAndExit():
+    print './startit -e <env> -s <system>'
+    print 'Args:'
+    print '\tenv: environment the system should run in'
+    print '\tsystem: name of the system to be started'
+    print 'Flags:'
+    print '\th: print this help and exit'
+    sys.exit(1)
+
+def parseArg(arg):
+    if arg.startswith('='):
+        return arg[1:]
+    return arg
+
+main(sys.argv[1:])
