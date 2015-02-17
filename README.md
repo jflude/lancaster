@@ -21,8 +21,7 @@ whether what is read is what was written, in the correct order.
 Storages are arrays of records, each having an identifier, contained within a
 regular file on disk, such as "/tmp/my-file", or a POSIX shared memory segment,
 which is specified with a URI-like prefix of shm, eg. "shm:/my-segment".
-Storages can persist across runs (although the storages created by the test
-programs do not).
+Storages can persist across runs.
 
 A "change queue" is an optional section of a storage used as a circular buffer
 containing the identifiers of records recently modified.  The capacity of a
@@ -182,7 +181,7 @@ Exit statuses: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
 
   0       - no error
-  1-127   - C library error (if errno < 128; cf. errno.h)
-  128-192 - received a signal (cf. kill -l after subtracting 128)
-  200-205 - C library error (if errno >= 128; cf. errno.h after subtracting 70)
-  220-255 - Cachester library error (cf. status.h, after negating)
+  1-127   - C library error (error numbers as per errno.h)
+  128-192 - terminated by a signal (128 + the signal number, given by kill -l)
+  200-205 - C library error (error numbers as per errno.h, after subtracting 70)
+  220-255 - Cachester library error (as per status.h, after negating)
