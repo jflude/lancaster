@@ -350,6 +350,14 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 		st = st2;
 
 	if (FAILED(st)) {
+		if (st == (SIG_ERROR_BASE - SIGALRM))
+			st = error_msg("tcp_on_accept: protocol timed out", PROTOCOL_TIMEOUT);
+
+		sock_destroy(&accepted);
+		return st;
+	}
+
+	if (FAILED(st)) {
 		sock_destroy(&accepted);
 		return st;
 	}

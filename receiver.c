@@ -432,8 +432,12 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	if (FAILED(st2 = signal_remove_handler(SIGALRM)))
 		st = st2;
 
-	if (FAILED(st))
+	if (FAILED(st)) {
+		if (st == (SIG_ERROR_BASE - SIGALRM))
+			st = error_msg("receiver_create: protocol timed out", PROTOCOL_TIMEOUT);
+
 		return st;
+	}
 
 	buf[st] = '\0';
 	st = sscanf(buf, "%u %u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
