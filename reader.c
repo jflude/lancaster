@@ -30,7 +30,7 @@ static int event;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-L] [-O ORPHAN-TIMEOUT] "
-			"[-p ERROR PREFIX] [-s] STORAGE-FILE\n",
+			"[-p ERROR PREFIX] [-R] [-s] STORAGE-FILE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 	status st = OK;
 	size_t q_capacity;
 	long old_head;
-	boolean stg_stats = FALSE;
+	boolean stg_stats = FALSE, ignore_recreate = FALSE;
 	microsec last_print, created_time, delay,
 		orphan_timeout = DEFAULT_ORPHAN_TIMEOUT_USEC;
 	int opt;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "LO:p:sv")) != -1)
+	while ((opt = getopt(argc, argv, "LO:p:Rsv")) != -1)
 		switch (opt) {
 		case 'L':
 			error_with_timestamp(TRUE);
@@ -121,6 +121,9 @@ int main(int argc, char *argv[])
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
+			break;
+		case 'R':
+			ignore_recreate = TRUE;
 			break;
 		case 's':
 			stg_stats = TRUE;
@@ -138,7 +141,8 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGINT)) ||
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(storage_open(&store, argv[optind], O_RDONLY)) ||
-		FAILED(storage_get_created_time(store, &created_time)) ||
+		(!ignore_recreate &&
+		 FAILED(storage_get_created_time(store, &created_time))) ||
 		(stg_stats && FAILED(latency_create(&stg_latency))) ||
 		FAILED(clock_time(&last_print)))
 		error_report_fatal();
@@ -177,14 +181,18 @@ int main(int argc, char *argv[])
 			old_head = new_head;
 		}
 
-		if (FAILED(st = signal_any_raised()) ||
-			FAILED(st = storage_get_created_time(store, &when)))
+		if (FAILED(st = signal_any_raised()))
 			break;
 
-		if (when != created_time) {
-			putchar('\n');
-			error_msg("error: storage is recreated", STORAGE_RECREATED);
-			error_report_fatal();
+		if (!ignore_recreate) {
+			if (FAILED(st = storage_get_created_time(store, &when)))
+				break;
+
+			if (when != created_time) {
+				putchar('\n');
+				error_msg("error: storage is recreated", STORAGE_RECREATED);
+				error_report_fatal();
+			}
 		}
 
 		if (FAILED(clock_time(&now)) ||
@@ -216,7 +224,7 @@ finish:
 
 	if (FAILED(st) ||
 		FAILED(storage_destroy(&store)) ||
-		FAILED(latency_destroy(&stg_latency)) ||
+		(stg_stats && FAILED(latency_destroy(&stg_latency))) ||
 		FAILED(signal_remove_handler(SIGHUP)) ||
 		FAILED(signal_remove_handler(SIGINT)) ||
 		FAILED(signal_remove_handler(SIGTERM)))

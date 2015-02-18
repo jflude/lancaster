@@ -31,10 +31,10 @@ status thread_create(thread_handle *pthr, thread_func fn, void *param)
 	if (!*pthr)
 		return NO_MEMORY;
 
+	BZERO(*pthr);
+
 	(*pthr)->func = fn;
 	(*pthr)->param = param;
-	(*pthr)->property = NULL;
-	(*pthr)->running = (*pthr)->stopping = FALSE;
 
 	e = pthread_create(&(*pthr)->sys_thr, NULL, wrapper_fn, *pthr);
 	if (e) {
@@ -80,13 +80,15 @@ void thread_set_property(thread_handle thr, void *prop)
 
 status thread_stop(thread_handle thr, void **presult)
 {
-	int e;
-	thr->stopping = TRUE;
+	if (thr->sys_thr) {
+		int e;
+		thr->stopping = TRUE;
 
-	e = pthread_join(thr->sys_thr, presult);
-	if (e && e != ESRCH) {
-		errno = e;
-		return error_errno("pthread_join");
+		e = pthread_join(thr->sys_thr, presult);
+		if (e && e != ESRCH) {
+			errno = e;
+			return error_errno("pthread_join");
+		}
 	}
 
 	thr->running = FALSE;

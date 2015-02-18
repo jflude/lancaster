@@ -13,7 +13,8 @@ Justin Flude <jflude@peak6.com>
     writer [-v] [-L] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
            [-T TOUCH-PERIOD] STORAGE-FILE DELAY
 
-    reader [-v] [-L] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-s] STORAGE-FILE
+    reader [-v] [-L] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-R] [-s] \
+           STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
 whether what is read is what was written, in the correct order.
@@ -47,6 +48,8 @@ If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.  If the storage has not been "touched"
 by its writer for ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), READER
 will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this checking.
+The -R option will cause READER to ignore the recreation (reopening) of the
+storage (without this option, recreation causes READER to exit with an error).
 
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
@@ -59,12 +62,13 @@ suitable for outputing to a log file.
     publisher [-v] [-a ADVERT-ADDRESS:PORT] [-A ADVERT-PERIOD] \
               [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DATA-INTERFACE] \
               [-I ADVERT-INTERFACE] [-j|-s] [-l] [-L] [-O ORPHAN-TIMEOUT] \
-              [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-t TTL] STORAGE-FILE \
+              [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-R] \
+              [-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE \
               TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
     subscriber [-v] [-H MAX-MISSED-HEARTBEATS] [-j] [-L] [-p ERROR PREFIX] \
-               [-q CHANGE-QUEUE-CAPACITY] [-T TOUCH-PERIOD] STORAGE-FILE \
-               TCP-ADDRESS:PORT
+               [-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] \
+               [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
@@ -75,21 +79,23 @@ MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds
 (defaulting to one second) it should expect to receive heartbeats in the absence
 of data (PUBLISHER will send separate heartbeats over both the TCP and multicast
 channels.  If a heartbeat is not received in time, SUBSCRIBER will exit with an
-error.)  PUBLISHER will attempt to fill a UDP packet with data before sending it,
-but will send a partial packet if the data in it is older than MAX-PACKET-AGE
-microseconds (defaulting to 2 milliseconds).  PUBLISHER will multicast data over
-the DATA-INTERFACE network interface rather than the system's default, if the -i
-option is specified.  Multicast data will be sent with a TTL other than 1 if the
--t option is specified.  Multicast data will "loopback" (be delivered also on
-the sending host) if the -l option is specified, which enables testing on a
-single host.  If the -a option is specified, PUBLISHER will "advertize" its
-existence by multicasting its connection and storage details every ADVERT-PERIOD
-microseconds (defaulting to 10 seconds).  Those advertisements will be multicast
-over the ADVERT-INTERFACE network interface if the -I option is specified, or
-the system's default if not.  If the storage has not been recently "touched" by
-its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then
-PUBLISHER will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this
-checking.
+error.)  PUBLISHER will attempt to fill a UDP packet with data before sending
+it, but will send a partial packet if the data in it is older than
+MAX-PACKET-AGE microseconds (defaulting to 2 milliseconds).  PUBLISHER will
+multicast data over the DATA-INTERFACE network interface rather than the
+system's default, if the -i option is specified.  Multicast data will be sent
+with a TTL other than 1 if the -t option is specified.  Multicast data will
+"loopback" (be delivered also on the sending host) if the -l option is
+specified, which enables testing on a single host.  If the -a option is
+specified, PUBLISHER will "advertize" its existence by multicasting its
+connection and storage details every ADVERT-PERIOD microseconds (defaulting to
+10 seconds).  Those advertisements will be multicast over the ADVERT-INTERFACE
+network interface if the -I option is specified, or the system's default if not.
+If the storage has not been recently "touched" by its writer within
+ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then PUBLISHER will exit
+with an error.  An ORPHAN-TIMEOUT of zero will disable this checking.  The -R
+option will cause PUBLISHER to ignore the recreation (reopening) of the storage
+(without this option, recreation causes PUBLISHER to exit with an error).
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure
@@ -102,10 +108,11 @@ receive regular heartbeats from PUBLISHER and will exit with an error if more
 than MAX-MISSED-HEARTBEATS are not received, as configurable by the -H option
 (the default value is 5 heartbeats).
 
-Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
-output of statistics to be output in JSON format.  PUBLISHER also has a -s
-option which causes it to output storage latency statistics instead of its
-usual output (the -j option also includes the storage latency statistics).
+Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal output
+of statistics to be output in JSON format.  The UDP address and port to send
+statistics to, if any, is specified by the -S option.PUBLISHER also has an -s
+option which causes it to output storage latency statistics instead of its usual
+output (the -j option also includes the storage latency statistics).
 
 A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
 and SUBSCRIBER and READER on another.  For example, if the former were to be

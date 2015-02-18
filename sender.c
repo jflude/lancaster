@@ -49,6 +49,7 @@ struct sender {
 	sequence *record_seqs;
 	sequence next_seq;
 	sequence min_seq;
+	boolean ignore_recreate;
 	microsec store_created_time;
 	microsec mcast_insert_time;
 	microsec mcast_send_time;
@@ -682,8 +683,9 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				   const char *tcp_address, unsigned short tcp_port,
 				   const char *mcast_address, unsigned short mcast_port,
 				   const char *mcast_interface, short mcast_ttl,
-				   boolean mcast_loopback, microsec heartbeat_usec,
-				   microsec orphan_timeout_usec, microsec max_pkt_age_usec)
+				   boolean mcast_loopback, boolean ignore_recreate,
+				   microsec heartbeat_usec, microsec orphan_timeout_usec,
+				   microsec max_pkt_age_usec)
 {
 	status st;
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
@@ -713,11 +715,13 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	(*psndr)->val_size = storage_get_value_size((*psndr)->store);
 	(*psndr)->next_seq = 1;
 	(*psndr)->min_seq = 0;
+	(*psndr)->ignore_recreate = ignore_recreate;
 	(*psndr)->max_pkt_age_usec = max_pkt_age_usec;
 	(*psndr)->heartbeat_usec = heartbeat_usec;
 	(*psndr)->orphan_timeout_usec = orphan_timeout_usec;
 
-	if (FAILED(st = storage_get_created_time((*psndr)->store,
+	if (!ignore_recreate &&
+		FAILED(st = storage_get_created_time((*psndr)->store,
 											 &(*psndr)->store_created_time)))
 		return st;
 
@@ -817,8 +821,9 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 					 const char *tcp_address, unsigned short tcp_port,
 					 const char *mcast_address, unsigned short mcast_port,
 					 const char *mcast_interface, short mcast_ttl,
-					 boolean mcast_loopback, microsec heartbeat_usec,
-					 microsec orphan_timeout_usec, microsec max_pkt_age_usec)
+					 boolean mcast_loopback, boolean ignore_recreate,
+					 microsec heartbeat_usec, microsec orphan_timeout_usec,
+					 microsec max_pkt_age_usec)
 {
 	status st;
 	if (!psndr || !mmap_file || !tcp_address || !mcast_address ||
@@ -831,8 +836,9 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 
 	if (FAILED(st = init(psndr, mmap_file, tcp_address, tcp_port,
 						 mcast_address, mcast_port, mcast_interface,
-						 mcast_ttl, mcast_loopback, heartbeat_usec,
-						 orphan_timeout_usec, max_pkt_age_usec))) {
+						 mcast_ttl, mcast_loopback, ignore_recreate,
+						 heartbeat_usec, orphan_timeout_usec,
+						 max_pkt_age_usec))) {
 		error_save_last();
 		sender_destroy(psndr);
 		error_restore_last();
@@ -902,13 +908,15 @@ status sender_run(sender_handle sndr)
 			break;
 		}
 
-		if (FAILED(st = storage_get_created_time(sndr->store, &when)))
-			break;
+		if (!sndr->ignore_recreate) {
+			if (FAILED(st = storage_get_created_time(sndr->store, &when)))
+				break;
 
-		if (when != sndr->store_created_time) {
-			st = error_msg("sender_run: storage is recreated",
-						   STORAGE_RECREATED);
-			break;
+			if (when != sndr->store_created_time) {
+				st = error_msg("sender_run: storage is recreated",
+							   STORAGE_RECREATED);
+				break;
+			}
 		}
 
 		if ((now - sndr->last_active_time) >= IDLE_TIMEOUT_USEC &&

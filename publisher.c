@@ -34,7 +34,7 @@ static void show_syntax(void)
 			"[-A ADVERT-PERIOD] [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] "
 			"[-i DATA-INTERFACE] [-I ADVERT-INTERFACE] [-j|-s] [-l] [-L] "
 			"[-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] "
-			"[-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE "
+			"[-R] [-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE "
 			"TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT\n",
 			error_get_program_name());
 
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 	const char *mmap_file, *mcast_iface = NULL, *adv_iface = NULL;
 	char mcast_addr[64], tcp_addr[64], stats_addr[64], adv_addr[64];
 	unsigned short mcast_port, tcp_port, stats_port, adv_port = 0;
-	boolean pub_advert = FALSE, loopback = FALSE;
+	boolean pub_advert = FALSE, loopback = FALSE, ignore_recreate = FALSE;
 	microsec hb_period = DEFAULT_HEARTBEAT_USEC,
 		orphan_timeout = DEFAULT_ORPHAN_USEC,
 		adv_period = DEFAULT_ADVERT_USEC,
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "a:A:e:H:i:I:jlLO:p:P:sS:t:v")) != -1)
+	while ((opt = getopt(argc, argv, "a:A:e:H:i:I:jlLO:p:P:RsS:t:v")) != -1)
 		switch (opt) {
 		case 'a':
 			if (FAILED(sock_addr_split(optarg, adv_addr,
@@ -247,6 +247,9 @@ int main(int argc, char *argv[])
 			if (FAILED(a2i(optarg, "%ld", &max_pkt_age)))
 				error_report_fatal();
 			break;
+		case 'R':
+			ignore_recreate = TRUE;
+			break;
 		case 's':
 			if (as_json)
 				show_syntax();
@@ -283,8 +286,8 @@ int main(int argc, char *argv[])
 		FAILED(signal_add_handler(SIGTERM)) ||
 		FAILED(sender_create(&sndr, mmap_file, tcp_addr, tcp_port,
 							 mcast_addr, mcast_port, mcast_iface,
-							 mcast_ttl, loopback, hb_period,
-							 orphan_timeout, max_pkt_age)) ||
+							 mcast_ttl, loopback, ignore_recreate,
+							 hb_period, orphan_timeout, max_pkt_age)) ||
 		(pub_advert &&
 		 (FAILED(advert_create(&adv, adv_addr, adv_port, adv_iface,
 							   mcast_ttl, loopback, env, adv_period)) ||
