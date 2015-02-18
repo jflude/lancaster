@@ -429,7 +429,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1);
 
 	alarm(0);
-	if (FAILED(st2 = signal_remove_handler(SIGALRM)))
+	if (FAILED(st2 = signal_remove_handler(SIGALRM)) && !FAILED(st))
 		st = st2;
 
 	if (FAILED(st)) {
@@ -528,8 +528,11 @@ static status init(receiver_handle *precv, const char *mmap_file,
 #endif
 	}
 
-	sock_addr_destroy(&bind_addr);
-	sock_addr_destroy(&iface_addr);
+	if ((FAILED(st2 = sock_addr_destroy(&bind_addr)) ||
+		 FAILED(st2 = sock_addr_destroy(&iface_addr))) &&
+		!FAILED(st))
+		st = st2;
+
 	return st;
 }
 

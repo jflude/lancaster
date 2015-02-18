@@ -346,25 +346,31 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	st = sock_write(accepted, buf, strlen(buf));
 
 	alarm(0);
-	if (FAILED(st2 = signal_remove_handler(SIGALRM)))
+	if (FAILED(st2 = signal_remove_handler(SIGALRM)) && !FAILED(st))
 		st = st2;
 
 	if (FAILED(st)) {
 		if (st == (SIG_ERROR_BASE - SIGALRM))
 			st = error_msg("tcp_on_accept: protocol timed out", PROTOCOL_TIMEOUT);
 
+		error_save_last();
 		sock_destroy(&accepted);
+		error_restore_last();
 		return st;
 	}
 
 	if (FAILED(st)) {
+		error_save_last();
 		sock_destroy(&accepted);
+		error_restore_last();
 		return st;
 	}
 
 	clnt = XMALLOC(struct tcp_client);
 	if (!clnt) {
+		error_save_last();
 		sock_destroy(&accepted);
+		error_restore_last();
 		return NO_MEMORY;
 	}
 
@@ -373,7 +379,10 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	clnt->in_buf = XMALLOC(struct sequence_range);
 	if (!clnt->in_buf) {
 		xfree(clnt);
+
+		error_save_last();
 		sock_destroy(&accepted);
+		error_restore_last();
 		return NO_MEMORY;
 	}
 
@@ -389,7 +398,10 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	if (!clnt->out_buf) {
 		xfree(clnt->in_buf);
 		xfree(clnt);
+
+		error_save_last();
 		sock_destroy(&accepted);
+		error_restore_last();
 		return NO_MEMORY;
 	}
 

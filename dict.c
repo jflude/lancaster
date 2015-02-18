@@ -47,7 +47,9 @@ status dict_create(dict_handle *pdict, size_t dict_sz)
 								 s2id_hash_fn, s2id_eq_fn, s2id_dtor_fn)) ||
 		FAILED(st = table_create(&(*pdict)->id2s, dict_sz,
 								 NULL, NULL, NULL))) {
+		error_save_last();
 		dict_destroy(pdict);
+		error_restore_last();
 		return st;
 	}
 

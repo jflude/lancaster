@@ -33,7 +33,9 @@ status table_create(table_handle *ptab, size_t tab_sz, table_hash_func h_fn,
 
 	(*ptab)->array = xcalloc(tab_sz, sizeof(struct chain_t *));
 	if (!(*ptab)->array) {
+		error_save_last();
 		table_destroy(ptab);
+		error_restore_last();
 		return NO_MEMORY;
 	}
 
