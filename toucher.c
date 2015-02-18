@@ -43,8 +43,8 @@ static void *touch_func(thread_handle thr)
 
 status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
 {
-	status st;
-	if (!ptouch || touch_period_usec <= 0)
+	status st = OK;
+	if (!ptouch || touch_period_usec < 0)
 		return error_invalid_arg("toucher_create");
 
 	*ptouch = XMALLOC(struct toucher);
@@ -56,7 +56,8 @@ status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
 
 	(*ptouch)->period = touch_period_usec;
 
-	if (FAILED(st = thread_create(&(*ptouch)->thr, touch_func, *ptouch))) {
+	if (touch_period_usec > 0 &&
+		FAILED(st = thread_create(&(*ptouch)->thr, touch_func, *ptouch))) {
 		error_save_last();
 		toucher_destroy(ptouch);
 		error_restore_last();
