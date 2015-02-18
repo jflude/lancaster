@@ -822,7 +822,7 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 {
 	status st;
 	if (!psndr || !mmap_file || !tcp_address || !mcast_address ||
-		heartbeat_usec <= 0 || orphan_timeout_usec <= 0 || max_pkt_age_usec < 0)
+		heartbeat_usec <= 0 || orphan_timeout_usec < 0 || max_pkt_age_usec < 0)
 		return error_invalid_arg("sender_create");
 
 	*psndr = XMALLOC(struct sender);
@@ -892,12 +892,12 @@ status sender_run(sender_handle sndr)
 		if (FAILED(st = poller_events(sndr->poller, 0)) ||
 			(st > 0 && FAILED(st = poller_process_events(sndr->poller,
 														 event_func, sndr))) ||
-			FAILED(st = clock_time(&now)) ||
-			FAILED(st = storage_get_touched_time(sndr->store, &when)))
+			FAILED(st = storage_get_touched_time(sndr->store, &when)) ||
+			FAILED(st = clock_time(&now)))
 			break;
 
-		when = now - when;
-		if (when >= sndr->orphan_timeout_usec) {
+		if (sndr->orphan_timeout_usec > 0 &&
+			(now - when) >= sndr->orphan_timeout_usec) {
 			st = error_msg("sender_run: storage is orphaned", STORAGE_ORPHANED);
 			break;
 		}

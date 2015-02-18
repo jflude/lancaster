@@ -543,7 +543,7 @@ status receiver_create(receiver_handle *precv, const char *mmap_file,
 					   unsigned short tcp_port)
 {
 	status st;
-	if (!precv || !mmap_file || touch_period_usec <= 0 || !tcp_address)
+	if (!precv || !mmap_file || touch_period_usec < 0 || !tcp_address)
 		return error_invalid_arg("receiver_create");
 
 	*precv = XMALLOC(struct receiver);
@@ -608,7 +608,8 @@ status receiver_run(receiver_handle recv)
 			(st > 0 && FAILED(st = poller_process_events(recv->poller,
 														 event_func, recv))) ||
 			FAILED(st = clock_time(&now)) ||
-			((now - recv->touched_time) >= recv->touch_period_usec &&
+			(recv->touch_period_usec > 0 &&
+			 (now - recv->touched_time) >= recv->touch_period_usec &&
 			 FAILED(st = storage_touch(recv->store, recv->touched_time = now))))
 			break;
 

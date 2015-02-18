@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 			FAILED(storage_get_touched_time(store, &when)))
 			break;
 
-		if ((now - when) >= orphan_timeout) {
+		if (orphan_timeout > 0 && (now - when) >= orphan_timeout) {
 			putchar('\n');
 			error_msg("error: storage is orphaned", STORAGE_ORPHANED);
 			error_report_fatal();

@@ -46,7 +46,7 @@ numbers, indicating which conditions occured in this last "tick":-
 If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.  If the storage has not been "touched"
 by its writer for ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), READER
-will exit with an error.
+will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this checking.
 
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
@@ -88,7 +88,8 @@ microseconds (defaulting to 10 seconds).  Those advertisements will be multicast
 over the ADVERT-INTERFACE network interface if the -I option is specified, or
 the system's default if not.  If the storage has not been recently "touched" by
 its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then
-PUBLISHER will exit with an error.
+PUBLISHER will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this
+checking.
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure
@@ -96,9 +97,10 @@ to PUBLISHER's (except for the change queue capacity, which may be specified for
 SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
 multicast to SUBSCRIBER and written to SUBSCRIBER's storage.  SUBSCRIBER will
 "touch" the storage every TOUCH-PERIOD microseconds (defaulting to one second).
-It will expect to receive regular heartbeats from PUBLISHER and will exit with
-an error if more than MAX-MISSED-HEARTBEATS are not received, as configurable
-by the -H option (the default value is 5).
+A TOUCH-PERIOD of zero will disable "touching".  SUBSCRIBER will expect to
+receive regular heartbeats from PUBLISHER and will exit with an error if more
+than MAX-MISSED-HEARTBEATS are not received, as configurable by the -H option
+(the default value is 5 heartbeats).
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal 
 output of statistics to be output in JSON format.  PUBLISHER also has a -s
