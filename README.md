@@ -84,7 +84,7 @@ option is specified.  Multicast data will be sent with a TTL other than 1 if the
 the sending host) if the -l option is specified, which enables testing on a
 single host.  If the -a option is specified, PUBLISHER will "advertize" its
 existence by multicasting its connection and storage details every ADVERT-PERIOD
-microseconds (defaulting to 3 seconds).  Those advertisements will be multicast
+microseconds (defaulting to 10 seconds).  Those advertisements will be multicast
 over the ADVERT-INTERFACE network interface if the -I option is specified, or
 the system's default if not.  If the storage has not been recently "touched" by
 its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then

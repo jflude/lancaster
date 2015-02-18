@@ -16,7 +16,7 @@
 #include "thread.h"
 #include "version.h"
 
-#define DEFAULT_ADVERT_USEC (3 * 1000000)
+#define DEFAULT_ADVERT_USEC (10 * 1000000)
 #define DEFAULT_HEARTBEAT_USEC (1 * 1000000)
 #define DEFAULT_MAX_PKT_AGE_USEC (2 * 1000)
 #define DEFAULT_MCAST_TTL 1
