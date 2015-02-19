@@ -248,16 +248,14 @@ static status mcast_on_write(sender_handle sndr)
 	else {
 		size_t q_cap = storage_get_queue_capacity(sndr->store);
 		if ((size_t)qi > q_cap) {
+#if defined(DEBUG_PROTOCOL)
+			fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
+#endif
 			if (sndr->ignore_overrun)
 				sndr->last_q_idx = qi - q_cap;
-			else {
-#if defined(DEBUG_PROTOCOL)
-				fprintf(sndr->debug_file, "%s mcast queue overrun\n",
-						debug_time());
-#endif
+			else
 				return error_msg("mcast_on_write: change queue overrun",
 								 CHANGE_QUEUE_OVERRUN);
-			}
 		}
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
