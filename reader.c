@@ -30,7 +30,7 @@ static int event;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-L] [-O ORPHAN-TIMEOUT] "
-			"[-p ERROR PREFIX] [-R] [-s] STORAGE-FILE\n",
+			"[-p ERROR PREFIX] [-Q] [-R] [-s] STORAGE-FILE\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 	status st = OK;
 	size_t q_capacity;
 	long old_head;
-	boolean stg_stats = FALSE, ignore_recreate = FALSE;
+	boolean stg_stats = FALSE, ignore_recreate = FALSE, ignore_overrun = FALSE;
 	microsec last_print, created_time, delay,
 		orphan_timeout = DEFAULT_ORPHAN_TIMEOUT_USEC;
 	int opt;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	strcpy(prog_name, argv[0]);
 	error_set_program_name(prog_name);
 
-	while ((opt = getopt(argc, argv, "LO:p:Rsv")) != -1)
+	while ((opt = getopt(argc, argv, "LO:p:QRsv")) != -1)
 		switch (opt) {
 		case 'L':
 			error_with_timestamp(TRUE);
@@ -121,6 +121,9 @@ int main(int argc, char *argv[])
 			strcat(prog_name, ": ");
 			strcat(prog_name, optarg);
 			error_set_program_name(prog_name);
+			break;
+		case 'Q':
+			ignore_overrun = TRUE;
 			break;
 		case 'R':
 			ignore_recreate = TRUE;
@@ -170,8 +173,15 @@ int main(int argc, char *argv[])
 				break;
 		} else {
 			if ((size_t)(new_head - old_head) > q_capacity) {
-				old_head = new_head - q_capacity;
-				event |= QUEUE_OVERRUN;
+				if (ignore_overrun) {
+					old_head = new_head - q_capacity;
+					event |= QUEUE_OVERRUN;
+				} else {
+					putchar('\n');
+					error_msg("error: change queue overrun",
+							  CHANGE_QUEUE_OVERRUN);
+					error_report_fatal();
+				}
 			}
 
 			for (q = old_head; q < new_head; ++q)

@@ -13,7 +13,7 @@ Justin Flude <jflude@peak6.com>
     writer [-v] [-L] [-p ERROR PREFIX] [-q CHANGE-QUEUE-CAPACITY] [-r] \
            [-T TOUCH-PERIOD] STORAGE-FILE DELAY
 
-    reader [-v] [-L] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-R] [-s] \
+    reader [-v] [-L] [-O ORPHAN-TIMEOUT] [-p ERROR PREFIX] [-Q] [-R] [-s] \
            STORAGE-FILE
 
 These are test programs which write and read data to/from a "storage" and check
@@ -42,7 +42,7 @@ numbers, indicating which conditions occured in this last "tick":-
     0 - no data was read
     1 - data was read
     2 - data was read out-of-order to what was written
-    4 - change queue was overrun
+    4 - change queue was overrun (only if -Q option is specified)
 
 If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.  If the storage has not been "touched"
@@ -50,6 +50,8 @@ by its writer for ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), READER
 will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this checking.
 The -R option will cause READER to ignore the recreation (reopening) of the
 storage (without this option, recreation causes READER to exit with an error).
+The -Q option causes READER to ignore the change queue being overrun and simply
+note the fact in its output, instead of exiting with an error.
 
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
@@ -62,7 +64,7 @@ suitable for outputing to a log file.
     publisher [-v] [-a ADVERT-ADDRESS:PORT] [-A ADVERT-PERIOD] \
               [-e ENVIRONMENT] [-H HEARTBEAT-PERIOD] [-i DATA-INTERFACE] \
               [-I ADVERT-INTERFACE] [-j|-s] [-l] [-L] [-O ORPHAN-TIMEOUT] \
-              [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-R] \
+              [-p ERROR PREFIX] [-P MAXIMUM-PACKET-AGE] [-Q] [-R] \
               [-S STATISTICS-UDP-ADDRESS:PORT] [-t TTL] STORAGE-FILE \
               TCP-ADDRESS:PORT MULTICAST-ADDRESS:PORT
 
@@ -72,30 +74,33 @@ suitable for outputing to a log file.
 
 These are production-ready, generic programs to establish a multicast transport
 between a process wanting to publish data and one or more processes on multiple
-hosts wanting to receive it.  PUBLISHER looks for a storage to read from (such
-as one created by WRITER).  It will listen on TCP-ADDRESS:PORT for connections
-from subscribers.  When one is made, PUBLISHER will send the subscriber the
-MULTICAST-ADDRESS:PORT to receive data, and the HEARTBEAT-PERIOD microseconds
-(defaulting to one second) it should expect to receive heartbeats in the absence
-of data (PUBLISHER will send separate heartbeats over both the TCP and multicast
-channels.  If a heartbeat is not received in time, SUBSCRIBER will exit with an
-error.)  PUBLISHER will attempt to fill a UDP packet with data before sending
-it, but will send a partial packet if the data in it is older than
-MAX-PACKET-AGE microseconds (defaulting to 2 milliseconds).  PUBLISHER will
-multicast data over the DATA-INTERFACE network interface rather than the
-system's default, if the -i option is specified.  Multicast data will be sent
-with a TTL other than 1 if the -t option is specified.  Multicast data will
-"loopback" (be delivered also on the sending host) if the -l option is
-specified, which enables testing on a single host.  If the -a option is
-specified, PUBLISHER will "advertize" its existence by multicasting its
-connection and storage details every ADVERT-PERIOD microseconds (defaulting to
-10 seconds).  Those advertisements will be multicast over the ADVERT-INTERFACE
-network interface if the -I option is specified, or the system's default if not.
-If the storage has not been recently "touched" by its writer within
-ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then PUBLISHER will exit
-with an error.  An ORPHAN-TIMEOUT of zero will disable this checking.  The -R
-option will cause PUBLISHER to ignore the recreation (reopening) of the storage
-(without this option, recreation causes PUBLISHER to exit with an error).
+hosts wanting to receive it.
+
+PUBLISHER looks for a storage to read from (such as one created by WRITER).  It
+will listen on TCP-ADDRESS:PORT for connections from subscribers.  When one is
+made, PUBLISHER will send the subscriber the MULTICAST-ADDRESS:PORT to receive
+data, and the HEARTBEAT-PERIOD microseconds (defaulting to one second) it should
+expect to receive heartbeats in the absence of data (PUBLISHER will send
+separate heartbeats over both the TCP and multicast channels.  If a heartbeat is
+not received in time, SUBSCRIBER will exit with an error.)  PUBLISHER will
+attempt to fill a UDP packet with data before sending it, but will send a
+partial packet if the data in it is older than MAX-PACKET-AGE microseconds
+(defaulting to 2 milliseconds).  PUBLISHER will multicast data over the
+DATA-INTERFACE network interface rather than the system's default, if the -i
+option is specified.  Multicast data will be sent with a TTL other than 1 if the
+-t option is specified.  Multicast data will "loopback" (be delivered also on
+the sending host) if the -l option is specified, which enables testing on a
+single host.  If the -a option is specified, PUBLISHER will "advertize" its
+existence by multicasting its connection and storage details every ADVERT-PERIOD
+microseconds (defaulting to 10 seconds).  Those advertisements will be multicast
+over the ADVERT-INTERFACE network interface if the -I option is specified, or
+the system's default if not.  If the storage has not been recently "touched" by
+its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then
+PUBLISHER will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this
+checking.  The -R option will cause PUBLISHER to ignore the recreation
+(reopening) of the storage by its writer (without this option, recreation causes
+PUBLISHER to exit with an error).  The -Q option will cause PUBLISHER to ignore
+overruns of the change queue, instead of exiting with an error.
 
 SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
 the attributes that PUBLISHER sends it, create a storage similar in structure

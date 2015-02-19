@@ -50,6 +50,7 @@ struct sender {
 	sequence next_seq;
 	sequence min_seq;
 	boolean ignore_recreate;
+	boolean ignore_overrun;
 	microsec store_created_time;
 	microsec mcast_insert_time;
 	microsec mcast_send_time;
@@ -245,12 +246,18 @@ static status mcast_on_write(sender_handle sndr)
 	if (qi == 0)
 		st = mcast_on_empty_queue(sndr);
 	else {
-		if ((size_t)qi > storage_get_queue_capacity(sndr->store)) {
+		size_t q_cap = storage_get_queue_capacity(sndr->store);
+		if ((size_t)qi > q_cap) {
+			if (sndr->ignore_overrun)
+				sndr->last_q_idx = qi - q_cap;
+			else {
 #if defined(DEBUG_PROTOCOL)
-			fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
+				fprintf(sndr->debug_file, "%s mcast queue overrun\n",
+						debug_time());
 #endif
-			return error_msg("mcast_on_write: change queue overrun",
-							 CHANGE_QUEUE_OVERRUN);
+				return error_msg("mcast_on_write: change queue overrun",
+								 CHANGE_QUEUE_OVERRUN);
+			}
 		}
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
@@ -684,8 +691,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				   const char *mcast_address, unsigned short mcast_port,
 				   const char *mcast_interface, short mcast_ttl,
 				   boolean mcast_loopback, boolean ignore_recreate,
-				   microsec heartbeat_usec, microsec orphan_timeout_usec,
-				   microsec max_pkt_age_usec)
+				   boolean ignore_overrun, microsec heartbeat_usec,
+				   microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
@@ -716,6 +723,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	(*psndr)->next_seq = 1;
 	(*psndr)->min_seq = 0;
 	(*psndr)->ignore_recreate = ignore_recreate;
+	(*psndr)->ignore_overrun = ignore_overrun;
 	(*psndr)->max_pkt_age_usec = max_pkt_age_usec;
 	(*psndr)->heartbeat_usec = heartbeat_usec;
 	(*psndr)->orphan_timeout_usec = orphan_timeout_usec;
@@ -822,8 +830,8 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 					 const char *mcast_address, unsigned short mcast_port,
 					 const char *mcast_interface, short mcast_ttl,
 					 boolean mcast_loopback, boolean ignore_recreate,
-					 microsec heartbeat_usec, microsec orphan_timeout_usec,
-					 microsec max_pkt_age_usec)
+					 boolean ignore_overrun, microsec heartbeat_usec,
+					 microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
 	if (!psndr || !mmap_file || !tcp_address || !mcast_address ||
@@ -837,8 +845,8 @@ status sender_create(sender_handle *psndr, const char *mmap_file,
 	if (FAILED(st = init(psndr, mmap_file, tcp_address, tcp_port,
 						 mcast_address, mcast_port, mcast_interface,
 						 mcast_ttl, mcast_loopback, ignore_recreate,
-						 heartbeat_usec, orphan_timeout_usec,
-						 max_pkt_age_usec))) {
+						 ignore_overrun, heartbeat_usec,
+						 orphan_timeout_usec, max_pkt_age_usec))) {
 		error_save_last();
 		sender_destroy(psndr);
 		error_restore_last();
