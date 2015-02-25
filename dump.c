@@ -2,6 +2,8 @@
 #include "dump.h"
 #include "error.h"
 
+#define OCTET_PER_LINE 16
+
 status fdump(const void *p, const void *base, size_t sz, FILE *f)
 {
 	const char *q = p;
@@ -15,7 +17,7 @@ status fdump(const void *p, const void *base, size_t sz, FILE *f)
 		if (fprintf(f, "%012lX|", (const char *)q - (const char *)base + n) < 0)
 			return (feof(f) ? error_eof : error_errno)("fprintf");
 
-		for (i = 0; i < 16; ++i) {
+		for (i = 0; i < OCTET_PER_LINE; ++i) {
 			if ((n + i) < sz) {
 				unsigned val = (unsigned char)q[n + i];
 				if (fprintf(f, "%02X", val) < 0)
@@ -23,14 +25,14 @@ status fdump(const void *p, const void *base, size_t sz, FILE *f)
 			} else if (putc(' ', f) == EOF || putc(' ', f) == EOF)
 				return (feof(f) ? error_eof : error_errno)("putc");
 
-			if (i < 15 && putc(' ', f) == EOF)
+			if (i < (OCTET_PER_LINE - 1) && putc(' ', f) == EOF)
 				return (feof(f) ? error_eof : error_errno)("putc");
 		}
 
 		if (putc('|', f) == EOF)
 			return (feof(f) ? error_eof : error_errno)("putc");
 
-		for (i = 0; i < 16 && (n + i) < sz; ++i) {
+		for (i = 0; i < OCTET_PER_LINE && (n + i) < sz; ++i) {
 			char c = isprint((int)q[n + i]) ? q[n + i] : '.';
 			if (putc(c, f) == EOF)
 				return (feof(f) ? error_eof : error_errno)("putc");
@@ -39,7 +41,7 @@ status fdump(const void *p, const void *base, size_t sz, FILE *f)
 		if (putc('\n', f) == EOF)
 			return (feof(f) ? error_eof : error_errno)("putc");
 
-		n += 16;
+		n += OCTET_PER_LINE;
 	}
 
 	return OK;
