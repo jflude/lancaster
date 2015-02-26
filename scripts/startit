@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-# Start cachester systems to the latest release
+# Start submgr to the latest release
 import sys, getopt
 import subprocess
 import os
+import datetime
 
 
 def main(argv):
@@ -14,7 +15,7 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, 'e:s:h', ['env=', 'system='])
     except getopt.GetoptError as e:
-        print str(e)
+        log("Usage error: " + str(e) + " Use './startit -h' for more info")
         printUsageAndExit()
 
     for opt, arg in opts:
@@ -23,36 +24,28 @@ def main(argv):
         elif opt == '-e':
             env = parseArg(arg)
         elif opt == '-s':
-            system = parseArg(arg).lower()
-
-    # WIP: not handling pubmgr and feedster at the moment
-    if system == 'pubmgr' or system == 'feedster':
-        print "startit: '" + system + "' is not currently supported. Exiting..."
+            system = parseArg(arg)
+    
+    if not env:
+        log("'env' must be specified! Exiting...")
+        sys.exit(1)
+    if not system:
+        log("'system' must be specified! Exiting...")
         sys.exit(1)
 
-    command = commandForSystem(system)
-    if not command:
-        print "startit: '" + system + "' is not a valid system. Exiting..."
-        sys.exit(1)
-    
-    print "startit: Starting '" + system + "' in '" + env + "'..."
-    sp = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
+    log("Starting '" + system + "' in '" + env + "'...")
+    command = getCommand(system)
+    sp = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stdout, stderr = sp.communicate()
-    rc = sp.returncode
-    if rc != 0:
-        print "startit: Failed to start '" + system + "', command '" + command + "' returned nonzero exit code\nstdout: " + stdout + "\nstderr: " + stderr   
+    
+    if sp.returncode != 0:
+        log("Failed to start '" + system + "', command '" + command + "' returned nonzero exit code: " + str(sp.returncode) + "\n\tstdout: " + stdout + "\n\tstderr: " + stderr)
+        sys.exit(1)
+    if stdout:
+        log("startSubMgr: " + stdout)
 
-
-def commandForSystem(system):
-    if system == 'submgr':
-        return os.path.expanduser('~/' + system + '/latest/scripts/startSubMgr')
-    elif system == 'pubmgr':
-        return os.path.expanduser('~/' + system + '/latest/scripts/startPubMgr')
-    elif system == 'feedster':
-        return os.path.expanduser('~/' + system + '/latest/scripts/databus/cron.feedster.start')
-    else:
-        return None
+def getCommand(system):
+    return os.path.expanduser('~/' + system + '/latest/scripts/startSubMgr')  
 
 def printUsageAndExit():
     print './startit -e <env> -s <system>'
@@ -67,5 +60,10 @@ def parseArg(arg):
     if arg.startswith('='):
         return arg[1:]
     return arg
+
+def log(msg):
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')
+    print timestamp + ' startit: ' + msg
+    sys.stdout.flush()
 
 main(sys.argv[1:])
