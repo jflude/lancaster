@@ -81,7 +81,8 @@ SO_EXT = .so
 DEPFLAGS += \
 	-I/usr/include/linux \
 	-I/usr/include/x86_64-linux-gnu \
-	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include
+	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
+	-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include
 endif
 
 all: $(LIB_BINS) $(APP_BINS) releaselog
