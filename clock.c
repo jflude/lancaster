@@ -126,8 +126,7 @@ status clock_get_short_text(microsec usec, int precision,
 		return error_msg("clock_get_short_text: buffer too small",
 						 BUFFER_TOO_SMALL);
 
-	if (sprintf(fract, "%.*f", precision,
-				(usec % 1000000) / 1000000.0) < 0)
+	if (sprintf(fract, "%.*f", precision, (usec % 1000000) / 1000000.0) < 0)
 		return error_errno("sprintf");
 
 	strcat(text, fract + 1);
