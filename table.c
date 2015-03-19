@@ -10,7 +10,7 @@ struct chain {
 
 struct table {
 	struct chain **array;
-	size_t capacity;
+	size_t mask;
 	table_hash_func h_fn;
 	table_equality_func eq_fn;
 	table_destroy_func dtor_fn;
@@ -32,7 +32,7 @@ status table_create(table_handle *ptab, size_t tab_capacity,
 	if (!*ptab)
 		return NO_MEMORY;
 
-	(*ptab)->capacity = tab_capacity;
+	(*ptab)->mask = tab_capacity - 1;
 	(*ptab)->h_fn = h_fn;
 	(*ptab)->eq_fn = eq_fn;
 	(*ptab)->dtor_fn = dtor_fn;
@@ -54,7 +54,7 @@ status table_destroy(table_handle *ptab)
 	if (!ptab || !*ptab)
 		return OK;
 
-	for (i = 0; i < (*ptab)->capacity; ++i) {
+	for (i = 0; i <= (*ptab)->mask; ++i) {
 		struct chain *c = (*ptab)->array[i];
 		while (c) {
 			struct chain *next;
@@ -79,8 +79,7 @@ status table_lookup(table_handle tab, table_key key, table_value *pval)
 	if (!pval)
 		return error_invalid_arg("table_lookup");
 
-	hash = (tab->capacity - 1) &
-		(tab->h_fn ? tab->h_fn(key) : (long)key);
+	hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
 	for (c = tab->array[hash]; c; c = c->next) {
 		if (tab->eq_fn) {
@@ -99,8 +98,7 @@ status table_lookup(table_handle tab, table_key key, table_value *pval)
 status table_insert(table_handle tab, table_key key, table_value val)
 {
 	struct chain *c = NULL;
-	size_t hash = (tab->capacity - 1) &
-		(tab->h_fn ? tab->h_fn(key) : (long)key);
+	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
 	if (!tab->array[hash]) {
 		c = XMALLOC(struct chain);
@@ -140,8 +138,7 @@ status table_remove(table_handle tab, table_key key)
 {
 	struct chain *c;
 	struct chain *prev = NULL;
-	size_t hash = (tab->capacity - 1) &
-		(tab->h_fn ? tab->h_fn(key) : (long)key);
+	size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
 	for (c = tab->array[hash]; c; prev = c, c = c->next) {
 		if (tab->eq_fn) {
@@ -172,7 +169,7 @@ status table_iterate(table_handle tab, table_iterate_func iter_fn)
 	if (!iter_fn)
 		return error_invalid_arg("table_iterate");
 
-	for (i = 0; i < tab->capacity; ++i) {
+	for (i = 0; i <= tab->mask; ++i) {
 		struct chain *c;
 		for (c = tab->array[i]; c; c = c->next) {
 			st = iter_fn(c->key, c->val);
