@@ -31,10 +31,10 @@ static void s2id_dtor_fn(table_key key, table_value val)
 	XFREE(key);
 }
 
-status dict_create(dict_handle *pdict, size_t dict_sz)
+status dict_create(dict_handle *pdict, size_t dict_capacity)
 {
 	status st;
-	if (!pdict || dict_sz == 0)
+	if (!pdict)
 		return error_invalid_arg("dict_create");
 
 	*pdict = XMALLOC(struct dict);
@@ -43,9 +43,9 @@ status dict_create(dict_handle *pdict, size_t dict_sz)
 
 	BZERO(*pdict);
 
-	if (FAILED(st = table_create(&(*pdict)->s2id, dict_sz,
+	if (FAILED(st = table_create(&(*pdict)->s2id, dict_capacity,
 								 s2id_hash_fn, s2id_eq_fn, s2id_dtor_fn)) ||
-		FAILED(st = table_create(&(*pdict)->id2s, dict_sz,
+		FAILED(st = table_create(&(*pdict)->id2s, dict_capacity,
 								 NULL, NULL, NULL))) {
 		error_save_last();
 		dict_destroy(pdict);
