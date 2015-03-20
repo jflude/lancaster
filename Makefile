@@ -71,18 +71,11 @@ CFLAGS += -DCYGWIN_OS -pthread
 LDFLAGS += -pthread
 LDLIBS += -lrt
 SO_EXT = .dll
-DEPFLAGS += \
-	-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
 else ifneq (,$(findstring Linux,$(OS_NAME)))
 CFLAGS += -DLINUX_OS -fPIC -pthread
 LDFLAGS += -pthread
 LDLIBS += -lrt
 SO_EXT = .so
-DEPFLAGS += \
-	-I/usr/include/linux \
-	-I/usr/include/x86_64-linux-gnu \
-	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
-	-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include
 else
 $(error Unknown operating system: $(OS_NAME))
 endif
@@ -124,7 +117,7 @@ gaps: all
 
 depend: CFLAGS += -DDEBUG_PROTOCOL -DDEBUG_GAPS
 depend: DEPEND.mk
-	$(CC) -MM $(CFLAGS) -DMAKE_DEPEND $(LIB_SRCS) $(APP_SRCS) > DEPEND.mk
+	$(CC) -M $(CFLAGS) -DMAKE_DEPEND $(LIB_SRCS) $(APP_SRCS) > DEPEND.mk
 
 fetch:
 	@rm -f go/Goopfile.lock
