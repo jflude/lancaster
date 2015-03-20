@@ -61,28 +61,30 @@ APP_OBJS = $(APP_SRCS:.c=.o)
 APP_BINS = $(APP_OBJS:%.o=$(BIN_DIR)/%)
 APP_DBG =
 
-ifneq (,$(findstring Darwin,$(shell uname -s)))
+OS_NAME = $(shell uname -s)
+
+ifneq (,$(findstring Darwin,$(OS_NAME)))
 CFLAGS += -DDARWIN_OS -D_DARWIN_C_SOURCE
 APP_DBG = $(APP_SRCS:.c=.dSYM)
-else
-CFLAGS += -pthread
+else ifneq (,$(findstring CYGWIN,$(OS_NAME)))
+CFLAGS += -DCYGWIN_OS -pthread
 LDFLAGS += -pthread
 LDLIBS += -lrt
-endif
-
-ifneq (,$(findstring CYGWIN,$(shell uname -s)))
-CFLAGS += -DCYGWIN_OS
 SO_EXT = .dll
 DEPFLAGS += \
 	-I/usr/lib/gcc/x86_64-pc-cygwin/4.8.3/include
-else
-CFLAGS += -DLINUX_OS -fPIC
+else ifneq (,$(findstring Linux,$(OS_NAME)))
+CFLAGS += -DLINUX_OS -fPIC -pthread
+LDFLAGS += -pthread
+LDLIBS += -lrt
 SO_EXT = .so
 DEPFLAGS += \
 	-I/usr/include/linux \
 	-I/usr/include/x86_64-linux-gnu \
 	-I/usr/lib/gcc/x86_64-linux-gnu/4.6/include \
 	-I/usr/lib/gcc/x86_64-linux-gnu/4.8/include
+else
+$(error Unknown operating system: $(OS_NAME))
 endif
 
 all: $(LIB_BINS) $(APP_BINS) releaselog
