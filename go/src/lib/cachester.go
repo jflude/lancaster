@@ -1,9 +1,8 @@
-package quotester
+package cachester
 
 // #include "../../../status.h"
 // #include "../../../storage.h"
 // #include "../../../error.h"
-// #include "../../../datum.h"
 // #cgo linux LDFLAGS: ../../../bin/libcachester.a -lrt
 // #cgo darwin LDFLAGS: ../../../bin/libcachester.a
 import "C"

@@ -35,3 +35,4 @@ core
 core.*
 *.DEBUG
 .nofetch
+debian.tmp

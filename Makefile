@@ -39,6 +39,9 @@ COMPONENTS = go
 
 BIN_DIR = bin
 
+DEB_BASE = debian.tmp
+DEB_INST = $(DEB_INST)/cachester_1.0-1/usr/local
+
 include VERSION.mk
 
 CFLAGS = \
@@ -130,6 +133,7 @@ clean:
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean || break ; \
 	done
+	test -d $(DEB_BASE)
 
 distclean: clean
 	rm -rf \
@@ -143,6 +147,18 @@ DEPEND.mk:
 
 releaselog:
 	git log -n1 > RELEASE_LOG
+
+debian: all
+	mkdir -p \
+		$(DEB_INST)/src/cachester \
+		$(DEB_INST)/include/cachester \
+		$(DEB_INST)/lib/cachester \
+		$(DEB_INST)/bin 
+	cp *.c $(DEB_INST)/src/cachester
+	cp *.h $(DEB_INST)/include/cachester
+	cp bin/* $(DEB_INST)/bin
+	mv $(DEB_INST)/bin/*.a $(DEB_INST)/lib/cachester
+	cp -r DEBIAN $(DEB_INST)/..
 
 .PHONY: all release profile protocol gaps
 .PHONY: depend fetch clean distclean releaselog
