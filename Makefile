@@ -124,8 +124,7 @@ gaps: all
 
 depend: CFLAGS += -DDEBUG_PROTOCOL -DDEBUG_GAPS
 depend: DEPEND.mk
-	makedepend -f DEPEND.mk $(DEPFLAGS) -DMAKE_DEPEND -- $(CFLAGS) -- \
-		$(LIB_SRCS) $(APP_SRCS)
+	$(CC) -MM $(CFLAGS) -DMAKE_DEPEND $(LIB_SRCS) $(APP_SRCS) > DEPEND.mk
 
 fetch:
 	@rm -f go/Goopfile.lock
