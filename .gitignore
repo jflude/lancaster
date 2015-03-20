@@ -36,3 +36,4 @@ core.*
 *.DEBUG
 .nofetch
 debian.tmp
+cachester_1*
