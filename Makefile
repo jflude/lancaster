@@ -39,8 +39,8 @@ COMPONENTS = go
 
 BIN_DIR = bin
 
-DEB_BASE = debian.tmp
-DEB_INST = $(DEB_BASE)/cachester_1.0-1/usr/local
+DEB_BASE = cachester_1.0-1
+DEB_INST = $(DEB_BASE)/usr/local
 
 include VERSION.mk
 
@@ -159,6 +159,7 @@ debian: all
 	cp bin/* $(DEB_INST)/bin
 	mv $(DEB_INST)/bin/*.a $(DEB_INST)/lib/cachester
 	cp -r DEBIAN $(DEB_BASE)
+	dpkg-deb --build $(DEB_BASE)
 
 .PHONY: all release profile protocol gaps
 .PHONY: depend fetch clean distclean releaselog
