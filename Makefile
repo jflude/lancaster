@@ -153,12 +153,15 @@ debian: all
 		$(DEB_INST)/src/cachester \
 		$(DEB_INST)/include/cachester \
 		$(DEB_INST)/lib/cachester \
+		$(DEB_INST)/lib/pkgconfig \
 		$(DEB_INST)/bin 
-	cp *.c $(DEB_INST)/src/cachester
-	cp *.h $(DEB_INST)/include/cachester
+	cp *.c $(DEB_INST)/src/cachester/.
+	cp *.h $(DEB_INST)/include/cachester/.
 	cp bin/* $(DEB_INST)/bin
-	mv $(DEB_INST)/bin/*.a $(DEB_INST)/lib/cachester
+	mv $(DEB_INST)/bin/*.a $(DEB_INST)/lib/cachester/.
 	cp -r DEBIAN $(DEB_BASE)
+	cp *.pc $(DEB_INST)/lib/pkgconfig/.
+
 	dpkg-deb --build $(DEB_BASE)
 
 .PHONY: all release profile protocol gaps
