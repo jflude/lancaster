@@ -4,8 +4,8 @@ libdir=${exec_prefix}/lib/cachester
 includedir=${prefix}/include/cachester
 
 Name: Cachester
-Description: High speed local and distributed shared memeory cache
+Description: High speed local and distributed shared memory cache
 Version: 1.0-1
 Libs: -L${libdir} -lcachester -lrt
-Libs.private:  
-Cflags: -I${includedir} -pthread 
+Libs.private:
+Cflags: -I${includedir} -pthread
