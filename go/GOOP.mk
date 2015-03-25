@@ -10,7 +10,7 @@ export PATH := $(CACHESTER_VENDOR_DIR)/bin:$(PATH)
 
 .ensurePrivateGithubSSH:
 	git config --global url."git@github.peak6.net:".insteadOf https://github.peak6.net
-	
+
 .getGoop: .ensurePrivateGithubSSH
 	go get github.com/nitrous-io/goop
 	mkdir -p $(CACHESTER_VENDOR_DIR)
