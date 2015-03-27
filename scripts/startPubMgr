@@ -8,9 +8,10 @@ if test x"$exec_dir" = x
 then
 	exec_dir=`dirname \`which \\\`basename "$0"\\\`\``
 else
+	pwdold=`pwd`
 	cd "$exec_dir"
-	exec_dir="$PWD"
-	cd "$OLDPWD"
+	exec_dir=`pwd`
+	cd "$pwdold"
 fi
 
 exec_dir="$exec_dir"/../bin
