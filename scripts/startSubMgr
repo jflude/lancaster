@@ -39,14 +39,14 @@ if test x"$copy_stats" = x1
 then
     stat="$log_dir"/stats.log_"$date"
     if [ -z $UPSTART_JOB ]; then
-	$exec_dir/submgr $@ >> $stat 2>> $log &
+		"$exec_dir"/submgr "$@" >> "$stat" 2>> "$log" &
     else
-	$exec_dir/submgr $@ >> $stat 2>> $log
+		"$exec_dir"/submgr "$@" >> "$stat" 2>> "$log"
     fi
 else
     if [ -z $UPSTART_JOB ]; then
-	$exec_dir/submgr $@ >> $log 2>&1 &
+		"$exec_dir"/submgr "$@" >> "$log" 2>&1 &
     else
-	$exec_dir/submgr $@ >> $log 2>&1
+		"$exec_dir"/submgr "$@" >> "$log" 2>&1
     fi
 fi
