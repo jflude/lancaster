@@ -4,4 +4,4 @@ github.com/peak6/go-mmd/mmd #a5e6b7617f288b1c0bdbc8e64de646354bd39b48
 github.peak6.net/platform/gocore.git/appinfo #9a8cc509dbef1742727ff432c568d520e999e3a6
 github.peak6.net/platform/gocore.git/commander #9a8cc509dbef1742727ff432c568d520e999e3a6
 github.peak6.net/platform/gocore.git/mmd #9a8cc509dbef1742727ff432c568d520e999e3a6
-gopkg.in/fsnotify.v1 #ca50e738d35a862c379baf8fffbc3bfd080b3cff
+github.com/go-fsnotify/fsnotify #6549b98005f3e4026ad9f50ef7d5011f40ba1397

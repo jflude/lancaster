@@ -6,7 +6,7 @@ import (
 	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
 	"github.peak6.net/platform/gocore.git/mmd"
-	"gopkg.in/fsnotify.v1"
+	"github.com/go-fsnotify/fsnotify"
 	"log"
 	"os"
 	"path/filepath"
