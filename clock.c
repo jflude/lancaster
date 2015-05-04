@@ -35,7 +35,7 @@ status clock_time(microsec *pusec)
 	if (!pusec)
 		return error_invalid_arg("clock_time");
 
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 		return error_errno("clock_gettime");
 
 	*pusec = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
