@@ -396,7 +396,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	unsigned wire_ver, data_ver;
 	int mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
-	size_t pub_q_capacity, val_size;
+	size_t pub_q_capacity, val_size, rec_seq_sz;
 	status st, st2;
 #if defined(DEBUG_PROTOCOL)
 	char debug_name[256];
@@ -483,11 +483,12 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	(*precv)->in_next = (*precv)->in_buf;
 	(*precv)->in_remain = sizeof(sequence);
 
-	(*precv)->record_seqs = xmalloc((max_id - base_id) * sizeof(sequence));
+	rec_seq_sz = (max_id - base_id) * sizeof(sequence);
+	(*precv)->record_seqs = xmalloc(rec_seq_sz);
 	if (!(*precv)->record_seqs)
 		return NO_MEMORY;
 
-	memset((*precv)->record_seqs, -1, (max_id - base_id) * sizeof(sequence));
+	memset((*precv)->record_seqs, -1, rec_seq_sz);
 
 	if (!FAILED(st = storage_create(&(*precv)->store, mmap_file,
 									O_RDWR | O_CREAT, mode_flags, TRUE,

@@ -46,6 +46,7 @@ struct sender {
 	identifier max_id;
 	size_t val_size;
 	size_t client_count;
+	revision *record_revs;
 	sequence *record_seqs;
 	sequence next_seq;
 	sequence min_seq;
@@ -149,11 +150,28 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 	status st;
 	revision rev;
 	microsec when;
+	identifier idx = id - sndr->base_id;
 	boolean sent_pkt = FALSE;
 	record_handle rec = NULL;
+	size_t used_sz, avail_sz;
 
-	size_t used_sz = sndr->pkt_next - sndr->pkt_buf;
-	size_t avail_sz = sndr->mcast_mtu - used_sz;
+	if (FAILED(st = storage_get_record(sndr->store, id, &rec)) ||
+		FAILED(st = record_read_lock(rec, &rev)))
+		return st;
+
+	if (rev == sndr->record_revs[idx]) {
+#if defined(DEBUG_PROTOCOL)
+	fprintf(sndr->debug_file,
+			"%s       skipping seq %07ld, id #%07ld, rev %07ld, ",
+			debug_time(), sndr->next_seq, id, rev);
+
+	fdump(record_get_value_ref(rec), NULL, 16, sndr->debug_file);
+#endif
+		return OK;
+	}
+
+	used_sz = sndr->pkt_next - sndr->pkt_buf;
+	avail_sz = sndr->mcast_mtu - used_sz;
 
 	if (avail_sz < (sizeof(identifier) + sndr->val_size)) {
 		if (FAILED(st = mcast_send_pkt(sndr)))
@@ -168,22 +186,24 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 		sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 	}
 
-	if (FAILED(st = storage_get_record(sndr->store, id, &rec)))
-		return st;
-
 	*((identifier *)sndr->pkt_next) = htonll(id);
 	sndr->pkt_next += sizeof(identifier);
 
-	do {
-		if (FAILED(st = record_read_lock(rec, &rev)))
-			return st;
-
+	for (;;) {
 		memcpy(sndr->pkt_next, record_get_value_ref(rec), sndr->val_size);
 		when = record_get_timestamp(rec);
-	} while (rev != record_get_revision(rec));
+
+		if (rev == record_get_revision(rec))
+			break;
+
+		if (FAILED(st = record_read_lock(rec, &rev)))
+			return st;
+	}
 
 	sndr->pkt_next += sndr->val_size;
-	sndr->record_seqs[id - sndr->base_id] = sndr->next_seq;
+
+	sndr->record_revs[idx] = rev;
+	sndr->record_seqs[idx] = sndr->next_seq;
 
 	if (FAILED(st = clock_time(&sndr->mcast_insert_time)) ||
 		FAILED(st = latency_on_sample(sndr->stg_latency,
@@ -192,7 +212,7 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
 
 #if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file,
-			"%s       staging seq %07ld, id #%07ld, rev %07ld, ",
+			"%s       staging  seq %07ld, id #%07ld, rev %07ld, ",
 			debug_time(), sndr->next_seq, id, rev);
 
 	fdump(record_get_value_ref(rec), NULL, 16, sndr->debug_file);
@@ -693,6 +713,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 				   microsec orphan_timeout_usec, microsec max_pkt_age_usec)
 {
 	status st;
+	identifier rec_dim;
+	size_t rec_rev_sz;
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 	char debug_name[256];
 #endif
@@ -731,8 +753,16 @@ static status init(sender_handle *psndr, const char *mmap_file,
 											 &(*psndr)->store_created_time)))
 		return st;
 
-	(*psndr)->record_seqs = xcalloc((*psndr)->max_id - (*psndr)->base_id,
-									sizeof(sequence));
+	rec_dim = (*psndr)->max_id - (*psndr)->base_id;
+	rec_rev_sz = rec_dim * sizeof(revision);
+
+	(*psndr)->record_revs = xmalloc(rec_rev_sz);
+	if (!(*psndr)->record_revs)
+		return NO_MEMORY;
+
+	memset((*psndr)->record_revs, -1, rec_rev_sz);
+
+	(*psndr)->record_seqs = xcalloc(rec_dim, sizeof(sequence));
 	if (!(*psndr)->record_seqs)
 		return NO_MEMORY;
 
@@ -870,6 +900,7 @@ status sender_destroy(sender_handle *psndr)
 	xfree((*psndr)->next_stats);
 	xfree((*psndr)->curr_stats);
 	xfree((*psndr)->record_seqs);
+	xfree((*psndr)->record_revs);
 	xfree((*psndr)->pkt_buf);
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
