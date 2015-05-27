@@ -6,8 +6,8 @@ import (
 	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
 	"github.peak6.net/platform/gocore.git/mmd"
+	"github.peak6.net/platform/gocore.git/logstash"
 	"github.com/go-fsnotify/fsnotify"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -53,11 +53,15 @@ func (pi *Publisher) String() string {
 }
 
 func init() {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
+	logstash.SetApplication("cachester")
+	logstash.SetLogger("pubmgr")
+	logstash.SetType("pubmgr")
+	logstash.SetCategory("mgr")
+	logstash.SetAlias("pubmgr")
 
 	var err error
 	if env, err = mmd.LookupEnvironment(); err != nil {
-		log.Fatal(err)
+		logstash.FatalError(err)
 	}
 
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
@@ -95,36 +99,34 @@ func getExecDir() string {
 
 func main() {
 	if len(storePattern) == 0 {
-		log.Fatalln("error: no store pattern specified")
+		logstash.FatalError("error: no store pattern specified")
 	}
 
-	log.Println("store pattern:", storePattern)
+	logstash.LogInfo("store pattern:", storePattern)
 
 	var err error
 	err = initializePostFlagsParsed()
 	if err != nil {
-		log.Fatalln(err)
+		logstash.FatalError(err)
 	}
 
 	if _, err = os.Stat(execPath + "publisher"); err != nil {
-		log.Fatalln(err)
+		logstash.FatalError(err)
 	}
-
-	commander.SetDefaultLogger(log.New(os.Stderr, log.Prefix(), log.Flags()))
 
 	if registerAppInfo {
 		err = appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true })
 		if err != nil {
-			log.Println("warning: cannot register appinfo service:", err)
+			logstash.LogWarn("cannot register appinfo service:", err)
 		}
 	}
 
 	err = discoveryLoop()
 	if err != nil {
-		log.Fatal(err)
+		logstash.FatalError(err)
 	}
 
-	log.Println("Done")
+	logstash.LogInfo("Done")
 }
 
 func matchPattern(s string) bool {
@@ -178,12 +180,12 @@ func discoveryLoop() error {
 				case fsnotify.Create, fsnotify.Write:
 					startIfNeeded(event.Name)
 				default:
-					log.Println("event:", event)
+					logstash.LogInfo("event:", event)
 				}
 				break
 			}
 		case errMsg := <-watcher.Errors:
-			log.Println("error:", errMsg)
+			logstash.LogError("error:", errMsg)
 		}
 	}
 
@@ -194,22 +196,22 @@ func startIfNeeded(path string) {
 	name := filepath.Base(path)
 	_, ok := publishers[name]
 	if ok {
-		log.Println("already publishing:", name)
+		logstash.LogInfo("already publishing:", name)
 		return
 	}
 
 	publishers[name] = nil
 	addr, err := getMcastAddrFor(name)
 	if err != nil {
-		log.Println(err)
+		logstash.LogError(err)
 		return
 	}
 
-	log.Println("starting publisher for:", name, "on", addr)
+	logstash.LogInfo("starting publisher for:", name, "on", addr)
 
 	cmd, err := commander.New(execPath + "publisher")
 	if err != nil {
-		log.Fatal(err)
+		logstash.FatalError(err)
 	}
 
 	var state struct { port int }
@@ -223,7 +225,7 @@ func startIfNeeded(path string) {
 			return err
 		}
 
-		log.Println("reserving port", state.port, "for", name)
+		logstash.LogInfo("reserving port", state.port, "for", name)
 
 		opts := []string{
 			"-p", name,
@@ -260,7 +262,7 @@ func startIfNeeded(path string) {
 		return nil
 	}
 
-	log.Println("new publisher:", cmd)
+	logstash.LogInfo("new publisher:", cmd)
 	go cmd.Run()
 
 	time.Sleep(time.Duration(pauseSecs) * time.Second)
