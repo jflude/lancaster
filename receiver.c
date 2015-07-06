@@ -394,7 +394,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
 	char buf[512], mcast_address[32];
 	unsigned wire_ver, data_ver;
-	int mcast_port, proto_len;
+	int wire_ver_len, mcast_port, proto_len;
 	long base_id, max_id, hb_usec, max_age_usec;
 	size_t pub_q_capacity, val_size, rec_seq_sz;
 	status st, st2;
@@ -440,13 +440,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	}
 
 	buf[st] = '\0';
-	st = sscanf(buf, "%u %u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
-				&wire_ver, &data_ver, mcast_address, &mcast_port,
-				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
-				&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
-
-	if (st != 11)
-		return error_msg("receiver_create: invalid publisher attributes:\n%s",
+	st = sscanf(buf, "%u %n", &wire_ver, &wire_ver_len);
+	if (st != 1)
+		return error_msg("receiver_create: invalid wire version:\n%s",
 						 PROTOCOL_ERROR, buf);
 
 	if ((wire_ver >> 8) != CACHESTER_WIRE_MAJOR_VERSION)
@@ -457,6 +453,16 @@ static status init(receiver_handle *precv, const char *mmap_file,
 						 CACHESTER_WIRE_MAJOR_VERSION,
 						 CACHESTER_WIRE_MINOR_VERSION);
 
+	st = sscanf(buf + wire_ver_len, "%u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
+				&data_ver, mcast_address, &mcast_port,
+				&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
+				&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
+
+	if (st != 10)
+		return error_msg("receiver_create: invalid publisher attributes:\n%s",
+						 PROTOCOL_ERROR, buf);
+
+       proto_len += wire_ver_len;
 	if (buf[proto_len] != '\0')
 		buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
 
