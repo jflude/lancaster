@@ -1,5 +1,5 @@
 github.com/golang/glog #d1c4472bf2efd3826f2b5bdcc02d8416798d678c
 github.com/lib/pq #fbed41b4c063a307ab21bf37ae6705519fb34ca3
 github.com/peak6/go-mmd/mmd #a5e6b7617f288b1c0bdbc8e64de646354bd39b48
-github.peak6.net/platform/gocore.git #10bd9feb78bee51ddf51d7ae9310340f60173b05
+github.peak6.net/platform/gocore.git #b0479b57b527b0231ffcac4b927ade0a7d56210c
 github.com/go-fsnotify/fsnotify #6549b98005f3e4026ad9f50ef7d5011f40ba1397

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"github.peak6.net/platform/gocore.git/logger"
 	"net"
 	"os"
 	"strings"
@@ -45,7 +45,7 @@ func (ip *IP) Set(val string) error {
 func init() {
 	err := initInterfaceResolver()
 	if err != nil {
-		log.Fatal(err)
+		logger.FatalError(err)
 	}
 
 	flag.Var(&baseMCastGroup, "base", "Base multicast group (each feed increments the 3rd octet)")
@@ -91,7 +91,7 @@ func getMcastAddrFor(name string) (string, error) {
 	}
 
 	addrsAssigned[addr] = true
-	log.Println("Assigned:", addr, "to:", name)
+	logger.LogInfo("Assigned:", addr, "to:", name)
 	return addr, nil
 }
 
@@ -120,7 +120,7 @@ func releasePort(portNumber int) {
 	addrLock.Lock()
 	defer addrLock.Unlock()
 
-	log.Println("releasing port", portNumber)
+	logger.LogInfo("releasing port", portNumber)
 	delete(portPicker.inUse, portNumber)
 }
 
@@ -171,10 +171,10 @@ func setDataInterface() error {
 	for _, dataInterfaceToTry := range strings.Split(dataInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[dataInterfaceToTry]; ok {
 			dataInterface = dataInterfaceToTry
-			log.Println("setting data interface to", dataInterface)
+			logger.LogInfo("setting data interface to", dataInterface)
 			return nil
 		} else {
-			log.Println("warning: unknown data interface:", dataInterfaceToTry)
+			logger.LogWarn("unknown data interface:", dataInterfaceToTry)
 		}
 	}
 
@@ -189,10 +189,10 @@ func setAdvertInterface() error {
 	for _, advertInterfaceToTry := range strings.Split(advertInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[advertInterfaceToTry]; ok {
 			advertInterface = advertInterfaceToTry
-			log.Println("setting advert interface to", advertInterface)
+			logger.LogInfo("setting advert interface to", advertInterface)
 			return nil
 		} else {
-			log.Println("warning: unknown advert interface:", advertInterfaceToTry)
+			logger.LogWarn("unknown advert interface:", advertInterfaceToTry)
 		}
 	}
 
@@ -201,7 +201,7 @@ func setAdvertInterface() error {
 
 func setListenAddress() error {
 	if listenAddress != "" {
-		log.Println("listen address already defined as", listenAddress)
+		logger.LogInfo("listen address already defined as", listenAddress)
 		return nil
 	}
 
@@ -211,6 +211,6 @@ func setListenAddress() error {
 	}
 
 	listenAddress = ifaceToIp[dataInterface]
-	log.Println("setting listen address to", listenAddress)
+	logger.LogInfo("setting listen address to", listenAddress)
 	return nil
 }
