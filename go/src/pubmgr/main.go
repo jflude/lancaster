@@ -39,7 +39,6 @@ var restartOnExit bool
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 var logDir = "/plogs/pubmgr"
-var fileLogger logger.Logger
 
 func (fp *StoragePattern) String() string {
 	return fmt.Sprint([]*regexp.Regexp(*fp))
@@ -214,7 +213,7 @@ func startIfNeeded(path string) {
 
 	logger.LogInfo("starting publisher for:", name, "on", addr)
 
-	cmd, err := commander.New(execPath + "publisher", nil, nil, fileLogger)
+	cmd, err := commander.New(execPath + "publisher", nil, nil, new(logger.Logger))
 	if err != nil {
 		logger.FatalError(err)
 	}

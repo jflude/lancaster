@@ -42,7 +42,6 @@ var touchPeriodMS = 1000
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 var logDir = "/plogs/submgr"
-var fileLogger logger.Logger
 
 
 type Discovery struct {
@@ -262,7 +261,7 @@ func (si *Subscriber) run() {
 		opts = append(opts, "-H", fmt.Sprint(maxMissedHB))
 	}
 
-	si.cmdr, err = commander.New(execPath + "subscriber", nil, nil, fileLogger)
+	si.cmdr, err = commander.New(execPath + "subscriber", nil, nil, new(logger.Logger))
 	if err != nil {
 		logger.FatalError("cannot create commander for:", si, ":", err)
 	}
