@@ -7,7 +7,7 @@ import (
 	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
 	"github.peak6.net/platform/gocore.git/mmd"
-	"github.peak6.net/platform/gocore.git/logstash"
+	"github.peak6.net/platform/gocore.git/logger"
 	"net"
 	"os"
 	"os/exec"
@@ -41,6 +41,8 @@ var queueSize int64
 var touchPeriodMS = 1000
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
+var logDir = "/plogs/submgr"
+
 
 type Discovery struct {
 	Hostname string
@@ -63,15 +65,15 @@ func (si *Subscriber) String() string {
 }
 
 func init() {
-	logstash.SetApplication("cachester")
-	logstash.SetLogger("submgr")
-	logstash.SetType("submgr")
-	logstash.SetCategory("mgr")
-	logstash.SetAlias("submgr")
+	logger.SetApplication("cachester")
+	logger.SetLogger("submgr")
+	logger.SetType("submgr")
+	logger.SetCategory("mgr")
+	logger.SetAlias("submgr")
 
 	var err error
 	if env, err = mmd.LookupEnvironment(); err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
@@ -91,9 +93,11 @@ func init() {
 	flag.StringVar(&dataInterfaces, "i", dataInterfaces, "Network interfaces to receive multicast data on")
 	flag.BoolVar(&registerAppInfo, "appinfo", registerAppInfo, "Registers an MMD app.info.submgr service")
 	flag.StringVar(&releaseLogPath, "release", releaseLogPath, "Path to RELEASE_LOG file. Only used when -appinfo is true.")
+	flag.StringVar(&logDir, "logdir", logDir, "Path to log directory")
 
 	flag.Usage = usage
 	flag.Parse()
+	logger.InitStashLog(logDir)
 }
 
 func usage() {
@@ -115,26 +119,26 @@ func getExecDir() string {
 func main() {
 	var err error
 	if _, err := os.Stat(execPath + "subscriber"); err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
 	if maxMissedHB < 0 && maxMissedHB != -1 {
-		logstash.FatalError("error: invalid value for allowed missed heartbeats")
+		logger.FatalError("invalid value for allowed missed heartbeats")
 	}
 
 	if registerAppInfo {
 		err = appinfo.Setup("submgr", releaseLogPath, func() bool { return true })
 		if err != nil {
-			logstash.LogWarn("cannot register appinfo service")
+			logger.LogWarn("cannot register appinfo service")
 		}
 	}
 
 	err = discoveryLoop()
 	if err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
-	logstash.LogInfo("done")
+	logger.LogInfo("done")
 }
 
 func discoveryLoop() error {
@@ -142,11 +146,11 @@ func discoveryLoop() error {
 	var err error
 	for _, dataInterface := range strings.Split(dataInterfaces, ",") {
 		if !interfaceExists(dataInterface) {
-			logstash.LogInfo("interface", dataInterface, "not found")
+			logger.LogInfo("interface", dataInterface, "not found")
 		} else {
 			iface, err = net.InterfaceByName(dataInterface)
 			if err != nil {
-				logstash.FatalError(err)
+				logger.FatalError(err)
 			}
 		}
 	}
@@ -155,15 +159,15 @@ func discoveryLoop() error {
 	advertAddrHost := advertAddrHostPort[0]
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
-		logstash.FatalError("error: cannot parse advert address", advertAddr, ":", err)
+		logger.FatalError("cannot parse advert address", advertAddr, ":", err)
 	}
 
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
-	logstash.LogInfo("listening for adverts on:", addr)
+	logger.LogInfo("listening for adverts on:", addr)
 
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	if err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
 	data := make([]byte, 4096)
@@ -180,7 +184,7 @@ func discoveryLoop() error {
 	for run {
 		n, from, err := sock.ReadFrom(data)
 		if err != nil {
-			logstash.FatalError(err)
+			logger.FatalError(err)
 		}
 
 		jsbin := data[:n]
@@ -194,24 +198,24 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disco)
 
 		if err != nil {
-			logstash.LogInfo("error: invalid discovery format:", err, "from:", from, "[" + jsstr + "]")
+			logger.LogError("invalid discovery format:", err, "from:", from, "[" + jsstr + "]")
 		} else if wireProtocolVersion != "*" && disco.Version != wireProtocolVersion {
-			logstash.LogInfo("warning: wire version mismatch, expected", wireProtocolVersion,
+			logger.LogWarn("wire version mismatch, expected", wireProtocolVersion,
 				"but got version", disco.Version, "from", from, "[" + jsstr + "]")
 		} else if len(disco.Data) != 1 {
-			logstash.LogInfo("error: unsupported discovery message, wrong number of data elements [" + jsstr + "]")
+			logger.LogError("unsupported discovery message, wrong number of data elements [" + jsstr + "]")
 		} else {
 			desc := disco.Data[0].Description
 			if env != disco.Env {
-				logstash.LogInfo("no match on environment:", env, "[" + jsstr + "]")
+				logger.LogInfo("no match on environment:", env, "[" + jsstr + "]")
 			} else if !hp.MatchString(disco.Hostname) {
-				logstash.LogInfo("no match on hostname:", hostPattern, "[" + jsstr + "]")
+				logger.LogInfo("no match on hostname:", hostPattern, "[" + jsstr + "]")
 			} else if !fp.MatchString(desc) {
-				logstash.LogInfo("no match on description:", descPattern, "[" + jsstr + "]")
+				logger.LogInfo("no match on description:", descPattern, "[" + jsstr + "]")
 			} else if subscribers[desc] == nil {
 				if !restartOnExit {
 					if _, exists := hasRun[desc]; exists {
-						logstash.LogInfo("spent subscriber:", desc, "from:", from, "[" + jsstr + "]")
+						logger.LogInfo("spent subscriber:", desc, "from:", from, "[" + jsstr + "]")
 						continue
 					}
 				}
@@ -220,7 +224,7 @@ func discoveryLoop() error {
 				subscribers[desc] = si
 				hasRun[desc] = true
 
-				logstash.LogInfo("new subscriber:", desc, "from:", from, "[" + jsstr + "]")
+				logger.LogInfo("new subscriber:", desc, "from:", from, "[" + jsstr + "]")
 				go si.run()
 
 				time.Sleep(time.Duration(pauseSecs) * time.Second)
@@ -234,7 +238,7 @@ func discoveryLoop() error {
 func (si *Subscriber) run() {
 	addr, err := net.LookupHost(si.disco.Hostname)
 	if err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
 	storePath := "shm:/client." + si.disco.Data[0].Description
@@ -257,9 +261,9 @@ func (si *Subscriber) run() {
 		opts = append(opts, "-H", fmt.Sprint(maxMissedHB))
 	}
 
-	si.cmdr, err = commander.New(execPath + "subscriber")
+	si.cmdr, err = commander.New(execPath + "subscriber", nil, nil, new(logger.Logger))
 	if err != nil {
-		logstash.FatalError("error: cannot create commander for:", si, ":", err)
+		logger.FatalError("cannot create commander for:", si, ":", err)
 	}
 
 	si.cmdr.Name = "subscriber(" + si.name + ")"
@@ -270,7 +274,7 @@ func (si *Subscriber) run() {
 			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
-				logstash.FatalError("error: cannot delete storage file:", storePath)
+				logger.FatalError("cannot delete storage file:", storePath)
 			}
 
 			return err
@@ -278,7 +282,7 @@ func (si *Subscriber) run() {
 	}
 
 	err = si.cmdr.Run()
-	logstash.LogInfo("commander for:", si, "exited:", err)
+	logger.LogInfo("commander for:", si, "exited:", err)
 
 	delete(subscribers, si.name)
 	ignore = make(map[string]bool)
@@ -287,7 +291,7 @@ func (si *Subscriber) run() {
 func interfaceExists(interfaceName string) bool {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		logstash.FatalError(err)
+		logger.FatalError(err)
 	}
 
 	for _, anInterface := range interfaces {
