@@ -1,6 +1,6 @@
 include GOOP.mk
 
-COMPONENTS = pubmgr submgr rdr
+COMPONENTS = pubmgr submgr
 
 all: 
 	@for component in $(COMPONENTS); do \
