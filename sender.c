@@ -19,6 +19,7 @@
 #define IDLE_SLEEP_USEC 10
 #define IDLE_TIMEOUT_USEC 100
 #define ACCEPT_WRITE_TIMEOUT_SEC 10
+#define SEND_BUFSIZ (1024 * 1024)
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 #include <unistd.h>
@@ -828,7 +829,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	if (st < 0)
 		return error_errno("sprintf");
 
-	if (FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
+	if (FAILED(st = sock_set_tx_buf((*psndr)->mcast_sock, SEND_BUFSIZ)) ||
+		FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
 		FAILED(st = sock_set_mcast_ttl((*psndr)->mcast_sock, mcast_ttl)) ||
 		FAILED(st = sock_set_mcast_loopback((*psndr)->mcast_sock,
 											mcast_loopback)) ||

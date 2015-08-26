@@ -329,6 +329,15 @@ status sock_set_rx_buf(sock_handle sock, size_t buf_sz)
 	return OK;
 }
 
+status sock_set_tx_buf(sock_handle sock, size_t buf_sz)
+{
+	int val = buf_sz;
+	if (setsockopt(sock->fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val)) == -1)
+		return error_errno("setsockopt");
+
+	return OK;
+}
+
 status sock_bind(sock_handle sock, sock_addr_handle addr)
 {
 	if (!addr)

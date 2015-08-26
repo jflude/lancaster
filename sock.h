@@ -56,6 +56,7 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu);
 status sock_set_nonblock(sock_handle sock);
 status sock_set_reuseaddr(sock_handle sock, boolean reuse);
 status sock_set_rx_buf(sock_handle sock, size_t buf_sz);
+status sock_set_tx_buf(sock_handle sock, size_t buf_sz);
 status sock_set_mcast_ttl(sock_handle sock, short ttl);
 status sock_set_mcast_loopback(sock_handle sock, boolean allow_loop);
 status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr);
