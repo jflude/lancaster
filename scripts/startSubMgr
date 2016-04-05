@@ -13,7 +13,7 @@ else
 	exec_dir=`pwd`
 	cd "$pwdold"
 fi
-
+$exec_dir/stopSubMgr
 exec_dir="$exec_dir"/../bin
 
 LD_LIBRARY_PATH="${exec_dir}:$LD_LIBRARY_PATH"
