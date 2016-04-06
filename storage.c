@@ -563,7 +563,8 @@ status storage_write_queue(storage_handle store, identifier id)
 		return error_msg("storage_write_queue: no change queue",
 						 NO_CHANGE_QUEUE);
 
-	store->seg->change_q[store->seg->q_head++ & store->seg->q_mask] = id;
+	store->seg->change_q[store->seg->q_head & store->seg->q_mask] = id;
+	++store->seg->q_head;
 	return OK;
 }
 

@@ -11,7 +11,6 @@ components: $(COMPONENTS)
 
 release:
 	@for component in $(COMPONENTS); do \
-        $(MAKE) -C src/$$component fetch || break ; \
         $(MAKE) -C src/$$component release || break ; \
     done
 
