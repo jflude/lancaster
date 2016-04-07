@@ -4,6 +4,7 @@ log_dir="/plogs/submgr"
 mkdir -p "$log_dir" || exit 1
 
 exec_dir=`dirname "$0"`
+scr_dir=`dirname "$0"`
 if test x"$exec_dir" = x
 then
 	exec_dir=`dirname \`which \\\`basename "$0"\\\`\``
@@ -13,7 +14,6 @@ else
 	exec_dir=`pwd`
 	cd "$pwdold"
 fi
-$exec_dir/stopSubMgr
 exec_dir="$exec_dir"/../bin
 
 LD_LIBRARY_PATH="${exec_dir}:$LD_LIBRARY_PATH"
@@ -22,7 +22,8 @@ export LD_LIBRARY_PATH
 case x`uname` in
 	xLinux) echo 0x2F > /proc/$$/coredump_filter ;;
 esac
-
+$scr_dir/stopSubMgr
+sleep 10
 copy_stats=0
 for i in "$@"
 do
