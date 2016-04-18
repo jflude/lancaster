@@ -1,5 +1,8 @@
 #! /bin/sh
 
-killall -q -u "$LOGNAME" pubmgr &&
+u="$LOGNAME"
+test -z "$u" && u="$USER"
+
+killall -q -u "$u" pubmgr &&
 	sleep 2 &&
-		killall -q -u "$LOGNAME" -9 pubmgr
+		killall -q -u "$u" -9 pubmgr

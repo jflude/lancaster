@@ -113,6 +113,8 @@ static status mcast_send_pkt(sender_handle sndr)
 {
 	status st, st2;
 	microsec now;
+	sequence seq;
+
 	if (FAILED(st = clock_time(&now)))
 		return st;
 
@@ -124,8 +126,9 @@ static status mcast_send_pkt(sender_handle sndr)
 		return st2;
 
 	sndr->last_active_time = sndr->mcast_send_time = now;
+	seq = ntohll(*((sequence *)sndr->pkt_buf));
 
-	if (++sndr->next_seq < 0)
+	if (seq >= 0 && ++sndr->next_seq < 0)
 		return error_msg("mcast_send_pkt: sequence overflow",
 						 SEQUENCE_OVERFLOW);
 #if defined(DEBUG_PROTOCOL)

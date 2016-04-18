@@ -166,6 +166,7 @@ static status mcast_on_read(receiver_handle recv)
 {
 	status st, st2;
 	microsec now;
+	boolean is_hb;
 	unsigned long mcast_ip, tcp_ip;
 
 	char *buf = alloca(recv->mcast_mtu);
@@ -209,9 +210,10 @@ static status mcast_on_read(receiver_handle recv)
 	}
 #endif
 
-	if (*in_seq_ref < 0)
+	if (*in_seq_ref < 0) {
 		*in_seq_ref = -*in_seq_ref;
-	else {
+		is_hb = TRUE;
+	} else {
 		char *p, *last;
 		if (*in_seq_ref < recv->next_seq)
 			return OK;
@@ -225,6 +227,8 @@ static status mcast_on_read(receiver_handle recv)
 										  ntohll(*id), id + 1, now)))
 				return st;
 		}
+
+		is_hb = FALSE;
 	}
 
 	if (*in_seq_ref > recv->next_seq) {
@@ -234,7 +238,9 @@ static status mcast_on_read(receiver_handle recv)
 		recv->next_seq = *in_seq_ref;
 	}
 
-	++recv->next_seq;
+	if (!is_hb)
+		++recv->next_seq;
+
 	return OK;
 }
 
