@@ -128,7 +128,7 @@ static status mcast_send_pkt(sender_handle sndr)
 	sndr->last_active_time = sndr->mcast_send_time = now;
 	seq = ntohll(*((sequence *)sndr->pkt_buf));
 
-	if (seq >= 0 && ++sndr->next_seq < 0)
+	if (seq >= 0 && ++sndr->next_seq == SEQUENCE_MAX)
 		return error_msg("mcast_send_pkt: sequence overflow",
 						 SEQUENCE_OVERFLOW);
 #if defined(DEBUG_PROTOCOL)
