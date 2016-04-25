@@ -806,6 +806,10 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	}
 
 	(*psndr)->mcast_mtu -= IP_OVERHEAD + UDP_OVERHEAD;
+	if ((*psndr)->mcast_mtu < (sizeof(sequence) + sizeof(identifier)
+							   + (*psndr)->val_size))
+		return error_msg("sender_create: MTU too small for storage record",
+						 MTU_TOO_SMALL);
 
 	(*psndr)->pkt_buf = xmalloc((*psndr)->mcast_mtu);
 	if (!(*psndr)->pkt_buf)

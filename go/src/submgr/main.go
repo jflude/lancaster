@@ -43,7 +43,6 @@ var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 var logDir = "/plogs/submgr"
 
-
 type Discovery struct {
 	Hostname string
 	Env      string
