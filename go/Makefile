@@ -4,8 +4,8 @@ COMPONENTS = pubmgr submgr
 
 GO = GOPATH=$(abspath .) GOBIN=$(abspath ../bin) go
 LDFLAGS = \
-	-X main.wireProtocolVersion="$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
-	-X main.sourceVersion $(CACHESTER_SOURCE_VERSION)
+	-X "main.wireProtocolVersion=$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
+	-X "main.sourceVersion=$(shell echo $(CACHESTER_SOURCE_VERSION))"
 
 all: build
 
