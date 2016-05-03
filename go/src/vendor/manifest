@@ -1,0 +1,55 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/fsnotify/fsnotify",
+			"repository": "https://github.com/fsnotify/fsnotify",
+			"vcs": "git",
+			"revision": "30411dbcefb7a1da7e84f75530ad3abe4011b4f8",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/golang/glog",
+			"repository": "https://github.com/golang/glog",
+			"vcs": "git",
+			"revision": "23def4e6c14b4da8ac2ed8007337bc5eb5007998",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/lib/pq",
+			"repository": "https://github.com/lib/pq",
+			"vcs": "git",
+			"revision": "dd3290b2f71a8b30bee8e4e75a337a825263d26f",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/peak6/go-mmd/mmd",
+			"repository": "https://github.com/peak6/go-mmd",
+			"vcs": "git",
+			"revision": "b2c60bdd0fde6c1e1713d028746bb43fbafccaa2",
+			"branch": "master",
+			"path": "/mmd",
+			"notests": true
+		},
+		{
+			"importpath": "github.peak6.net/platform/gocore.git",
+			"repository": "https://github.peak6.net/platform/gocore.git",
+			"vcs": "git",
+			"revision": "70d3edfa7893ca609af3f24d126926ed92a0a6ea",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/sys/unix",
+			"repository": "https://go.googlesource.com/sys",
+			"vcs": "git",
+			"revision": "b776ec39b3e54652e09028aaaaac9757f4f8211a",
+			"branch": "master",
+			"path": "/unix",
+			"notests": true
+		}
+	]
+}

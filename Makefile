@@ -84,7 +84,7 @@ $(error Unknown operating system: $(OS_NAME))
 endif
 
 all: $(LIB_BINS) $(APP_BINS) releaselog
-all: 
+all:
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all || break ; \
 	done
@@ -122,13 +122,7 @@ depend: CFLAGS += -DDEBUG_PROTOCOL -DDEBUG_GAPS
 depend: DEPEND.mk
 	$(CC) -M $(CFLAGS) -DMAKE_DEPEND $(LIB_SRCS) $(APP_SRCS) > DEPEND.mk
 
-fetch:
-	@rm -f go/Goopfile.lock
-	@for dir in $(COMPONENTS); do \
-		$(MAKE) -C $$dir fetch || break ; \
-	done
-
-clean: 
+clean:
 	rm -rf $(LIB_OBJS) $(LIB_BINS) $(APP_OBJS) $(APP_BINS)
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean || break ; \

@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.peak6.net/platform/gocore.git/appinfo"
-	"github.peak6.net/platform/gocore.git/commander"
-	"github.peak6.net/platform/gocore.git/mmd"
-	"github.peak6.net/platform/gocore.git/logger"
-	"github.com/go-fsnotify/fsnotify"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.peak6.net/platform/gocore.git/appinfo"
+	"github.peak6.net/platform/gocore.git/commander"
+	"github.peak6.net/platform/gocore.git/logger"
+	"github.peak6.net/platform/gocore.git/mmd"
 )
 
 type StoragePattern []*regexp.Regexp
@@ -65,7 +66,6 @@ func init() {
 		logger.FatalError(err)
 	}
 
-
 	flag.StringVar(&udpStatsAddr, "stats", udpStatsAddr, "UDP address to publish stats to")
 	flag.Var(&storePattern, "store", "Pattern(s) to match for storages to be published")
 	flag.IntVar(&heartBeatMS, "heartbeat", heartBeatMS, "Heartbeat interval (in ms)")
@@ -86,8 +86,8 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "pubmgr " + sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS] DIRECTORY [DIRECTORY ...]")
+	fmt.Fprintln(os.Stderr, "pubmgr "+sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS] DIRECTORY [DIRECTORY ...]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
@@ -213,12 +213,12 @@ func startIfNeeded(path string) {
 
 	logger.LogInfo("starting publisher for:", name, "on", addr)
 
-	cmd, err := commander.New(execPath + "publisher", nil, nil, new(logger.Logger))
+	cmd, err := commander.New(execPath+"publisher", nil, nil, new(logger.Logger))
 	if err != nil {
 		logger.FatalError(err)
 	}
 
-	var state struct { port int }
+	var state struct{ port int }
 
 	cmd.Name = "publisher(" + name + ")"
 	cmd.AutoRestart = restartOnExit
@@ -241,7 +241,7 @@ func startIfNeeded(path string) {
 			"-H", fmt.Sprint(heartBeatMS * 1000),
 			"-O", fmt.Sprint(orphanTimeoutMS * 1000),
 			"-L",
-			"-j" }
+			"-j"}
 
 		if loopback {
 			opts = append(opts, "-l")
@@ -253,8 +253,8 @@ func startIfNeeded(path string) {
 
 		c.Args = append(opts,
 			path,
-			listenAddress + ":" + strconv.Itoa(state.port),
-			addr + ":" + strconv.Itoa(state.port),
+			listenAddress+":"+strconv.Itoa(state.port),
+			addr+":"+strconv.Itoa(state.port),
 		)
 
 		return nil
