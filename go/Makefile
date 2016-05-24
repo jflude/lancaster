@@ -10,8 +10,8 @@ LDFLAGS = \
 all: build
 
 build:
-			@for component in $(COMPONENTS); do \
-					$(GO) install -ldflags '$(LDFLAGS)' $$component || break ; \
+		@for component in $(COMPONENTS); do \
+			$(GO) install -ldflags '$(LDFLAGS)' $$component || break ; \
 	    done
 
 release: build
@@ -20,7 +20,7 @@ depend:
 
 clean:
 	@for component in $(COMPONENTS); do \
-				$(GO) clean -r -i $$component || break ; \
+		$(GO) clean -i $$component || break ; \
     done
 	rm -rf pkg bin
 

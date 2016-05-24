@@ -133,7 +133,6 @@ distclean: clean
 	rm -rf \
 		DEPEND.mk \
 		$(BIN_DIR)/core $(BIN_DIR)/core.* $(BIN_DIR)/*.stackdump \
-		go/Goopfile.lock go/.vendor \
 		`find . -name '*~' -o -name '*.bak'`
 
 DEPEND.mk:
