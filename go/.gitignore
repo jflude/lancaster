@@ -1,2 +1,2 @@
-.vendor/*
-Goopfile.lock
+bin
+pkg

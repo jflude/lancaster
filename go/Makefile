@@ -1,29 +1,27 @@
-include GOOP.mk
+include ../VERSION.mk
 
 COMPONENTS = pubmgr submgr
 
-all: 
-	@for component in $(COMPONENTS); do \
-        $(MAKE) -C src/$$component all || break ; \
-    done
+GO = GOPATH=$(abspath .) GOBIN=$(abspath ../bin) go
+LDFLAGS = \
+	-X "main.wireProtocolVersion=$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
+	-X "main.sourceVersion=$(shell echo $(CACHESTER_SOURCE_VERSION))"
 
-components: $(COMPONENTS)
+all: build
 
-release:
-	@for component in $(COMPONENTS); do \
-        $(MAKE) -C src/$$component release || break ; \
-    done
+build:
+			@for component in $(COMPONENTS); do \
+					$(GO) install -ldflags '$(LDFLAGS)' $$component || break ; \
+	    done
 
-fetch:
-	@for component in $(COMPONENTS); do \
-        $(MAKE) -C src/$$component fetch || break ; \
-    done
+release: build
 
 depend:
 
 clean:
 	@for component in $(COMPONENTS); do \
-        $(MAKE) -C src/$$component clean || break ; \
+				$(GO) clean -r -i $$component || break ; \
     done
+	rm -rf pkg bin
 
 .PHONY: all components release fetch depend clean $(COMPONENTS)
