@@ -1,5 +1,4 @@
-CACHESTER - fast, reliable multicasting of ephemeral data
-=========================================================
+# CACHESTER - fast, reliable multicasting of ephemeral data
 
 The software consists of a C library, libcachester, provided in both static and
 dynamic forms, together with nine utility programs for use in production and
