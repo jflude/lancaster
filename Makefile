@@ -14,6 +14,7 @@ LIB_SRCS = \
 	sock.c \
 	spin.c \
 	storage.c \
+	streamer.c \
 	table.c \
 	toucher.c \
 	thread.c \
