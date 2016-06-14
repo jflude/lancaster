@@ -69,7 +69,7 @@ func (cs *Store) Watch(cw ChangeWatcher) {
 }
 
 // GetRecord copies the data from the supplied record index to the supplied buffer
-func (cs *Store) GetRecord(idx int64, buff []byte) (revision int, err error) {
+func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
 	recid := C.identifier(idx)
 	var rec C.record_handle
 	if err := call(C.storage_get_record(cs.store, recid, &rec)); err != nil {
@@ -84,20 +84,19 @@ func (cs *Store) GetRecord(idx int64, buff []byte) (revision int, err error) {
 		recBuf := (*[1 << 30]byte)(C.record_get_value_ref(rec))
 		copy(buff, recBuf[:])
 		if C.record_get_revision(rec) == rev {
-			return int(rev), nil
+			return int64(rev), nil
 		}
-		log.Println("record stomp:", recid)
 	}
 }
 
 // GetRecordFromQSlot Retrieves contents of a record
-func (cs *Store) GetRecordFromQSlot(qIdx int64, buff []byte) (recslot int, rev int, err error) {
+func (cs *Store) GetRecordFromQSlot(qIdx int64, buff []byte) (recslot int64, rev int64, err error) {
 	var recid C.identifier
 	if err := call(C.storage_read_queue(cs.store, C.q_index(qIdx), &recid)); err != nil {
 		return -1, -1, err
 	}
 	rev, err = cs.GetRecord(int64(recid), buff)
-	return int(recid), rev, err
+	return int64(recid), rev, err
 	// record_get_value_ref(&record);
 }
 
