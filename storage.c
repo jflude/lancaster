@@ -582,6 +582,44 @@ status storage_read_queue(storage_handle store, q_index idx,
 	return OK;
 }
 
+status storage_read_value(storage_handle store, identifier id, void *value,
+						  size_t value_size, revision *rev, microsec *when)
+{
+	status st;
+	record_handle rec;
+	revision r;
+	void *v;
+	size_t v_sz;
+
+	if ((!value && !rev && !when) || (value && value_size == 0))
+		return error_invalid_arg("storage_read_value");
+
+	v_sz = storage_get_value_size(store);
+	if (value_size < v_sz)
+		return error_msg("storage_read_value: buffer too small",
+						 BUFFER_TOO_SMALL);
+
+	if (FAILED(st = storage_get_record(store, id, &rec)))
+		return st;
+
+	v = record_get_value_ref(rec);
+	do {
+		if (FAILED(st = record_read_lock(rec, &r)))
+			return st;
+
+		if (value)
+			memcpy(value, v, v_sz);
+
+		if (when)
+			*when = record_get_timestamp(rec);
+	} while (r != record_get_revision(rec));
+
+	if (rev)
+		*rev = r;
+
+	return OK;
+}
+
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier *pident)
 {

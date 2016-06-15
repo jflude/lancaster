@@ -73,6 +73,9 @@ status storage_write_queue(storage_handle store, identifier id);
 status storage_read_queue(storage_handle store, q_index idx,
 						  identifier *pident);
 
+status storage_read_value(storage_handle store, identifier id, void *value,
+						  size_t value_size, revision *rev, microsec *when);
+
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier *pident);
 status storage_get_record(storage_handle store, identifier id,

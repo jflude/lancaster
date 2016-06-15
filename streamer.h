@@ -16,11 +16,9 @@ typedef struct streamer *streamer_handle;
 status streamer_create(streamer_handle *pstream, storage_handle store);
 status streamer_destroy(streamer_handle *pstream);
 
-status streamer_read_value(streamer_handle stream, identifier id, void* buf,
-						   size_t buf_size, microsec *when);
-
-status streamer_read_next_value(streamer_handle stream, void *buf,
-								size_t buf_size, microsec *when);
+status streamer_read_next_value(streamer_handle stream, identifier *id,
+								void *value, size_t value_size,
+								revision *rev, microsec *when);
 
 #ifdef __cplusplus
 }
