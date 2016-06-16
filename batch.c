@@ -55,7 +55,8 @@ status batch_read_records(storage_handle store, size_t copy_size,
 }
 
 status batch_write_records(storage_handle store, size_t copy_size,
-						   identifier *ids, void *values, size_t count)
+						   const identifier *ids, const void *values,
+						   size_t count)
 {
 	size_t n, val_sz;
 	boolean has_ch_q;
