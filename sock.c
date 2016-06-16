@@ -274,7 +274,7 @@ status sock_set_nonblock(sock_handle sock)
 		return error_errno("fcntl");
 #else
 	flags = 1;
-	if (ioctl(sock->fd, FIOBIO, &flags) == -1)
+	if (ioctl(sock->fd, (int)FIOBIO, &flags) == -1)
 		return error_errno("ioctl");
 #endif
 	return OK;
