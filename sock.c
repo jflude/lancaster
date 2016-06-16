@@ -239,7 +239,7 @@ status sock_get_interface_address(sock_handle sock, const char *device,
 	BZERO(&ifr);
 	strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-	if (ioctl(sock->fd, SIOCGIFADDR, &ifr) == -1)
+	if (ioctl(sock->fd, (int)SIOCGIFADDR, &ifr) == -1)
 		return error_errno("ioctl");
 
 	addr->sa.sin_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
@@ -255,7 +255,7 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
 	BZERO(&ifr);
 	strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-	if (ioctl(sock->fd, SIOCGIFMTU, &ifr) == -1)
+	if (ioctl(sock->fd, (int)SIOCGIFMTU, &ifr) == -1)
 		return error_errno("ioctl");
 
 	*pmtu = ifr.ifr_mtu;
