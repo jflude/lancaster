@@ -39,8 +39,9 @@ LIB_DYNAMIC = libcachester$(SO_EXT)
 COMPONENTS = go
 
 BIN_DIR = bin
+LIB_DIR = lib
 
-DEB_BASE = cachester_1.1
+DEB_BASE = cachester_1.1.0
 DEB_INST = $(DEB_BASE)/usr/local
 
 include VERSION.mk
@@ -57,8 +58,8 @@ CFLAGS = \
 LDLIBS = -lm
 
 LIB_OBJS = $(LIB_SRCS:.c=.o)
-LIB_STATIC_BIN = $(BIN_DIR)/$(LIB_STATIC)
-LIB_DYNAMIC_BIN = $(BIN_DIR)/$(LIB_DYNAMIC)
+LIB_STATIC_BIN = $(LIB_DIR)/$(LIB_STATIC)
+LIB_DYNAMIC_BIN = $(LIB_DIR)/$(LIB_DYNAMIC)
 LIB_BINS = $(LIB_STATIC_BIN) $(LIB_DYNAMIC_BIN)
 
 APP_OBJS = $(APP_SRCS:.c=.o)

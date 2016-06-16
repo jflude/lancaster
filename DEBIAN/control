@@ -1,5 +1,5 @@
 Package: cachester
-Version: 1.1
+Version: 1.1.0
 Section: custom
 Priority: optional
 Architecture: amd64
