@@ -40,7 +40,7 @@ COMPONENTS = go
 
 BIN_DIR = bin
 
-DEB_BASE = cachester_1.0.8-2
+DEB_BASE = cachester_1.1
 DEB_INST = $(DEB_BASE)/usr/local
 
 include VERSION.mk
