@@ -100,7 +100,7 @@ status batch_write_records(storage_handle store, size_t copy_size,
 	return OK;
 }
 
-static status check_done(microsec then, microsec wait, boolean sleep)
+static status check_done(microsec then, microsec timeout, boolean sleep)
 {
 	status st;
 	microsec now;
@@ -108,14 +108,16 @@ static status check_done(microsec then, microsec wait, boolean sleep)
 	if (FAILED(st = signal_any_raised()))
 		return st;
 
-	if (wait == 0)
+	if (timeout == 0)
 		return TRUE;
+	else if (timeout < 0)
+		return FALSE;
 
 	if ((sleep && FAILED(st = clock_sleep(1))) ||
 		FAILED(st = clock_time(&now)))
 		return st;
 
-	if ((now - then) > wait)
+	if ((now - then) > timeout)
 		return TRUE;
 
 	return FALSE;
@@ -123,20 +125,19 @@ static status check_done(microsec then, microsec wait, boolean sleep)
 
 status batch_read_changed_records(storage_handle store, size_t copy_size,
 								  identifier *ids, void *values, revision *revs,
-								  microsec *times, size_t count, microsec wait,
-								  q_index *head)
+								  microsec *times, size_t count,
+								  microsec timeout, q_index *head)
 {
 	status st;
 	microsec then;
 	q_index new_head;
 	size_t n, val_sz, q_capacity = storage_get_queue_capacity(store);
 
-	if (count == 0 || wait < 0 || !head ||
-		(!ids && !values && !revs && !times) ||
+	if (count == 0 || !head || (!ids && !values && !revs && !times) ||
 		(values && copy_size == 0))
 		return error_invalid_arg("batch_read_changed_records");
 
-	if (FAILED(st = clock_time(&then)))
+	if (timeout >= 0 && FAILED(st = clock_time(&then)))
 		return st;
 
 	val_sz = storage_get_value_size(store);
@@ -155,7 +156,7 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 			if (new_head != *head)
 				break;
 
-			if (FAILED(st = check_done(then, wait, TRUE)))
+			if (FAILED(st = check_done(then, timeout, TRUE)))
 				return st;
 			else if (st)
 				return (status)n;
@@ -208,7 +209,7 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 		n += new_head - *head;
 		*head = new_head;
 
-		if (FAILED(st = check_done(then, wait, FALSE)))
+		if (FAILED(st = check_done(then, timeout, FALSE)))
 			return st;
 		else if (st)
 			break;
