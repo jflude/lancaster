@@ -17,7 +17,7 @@ typedef long sequence;
 #define HEARTBEAT_SEQ -1
 #define WILL_QUIT_SEQ -2
 
-struct sequence_range { sequence low; sequence high; };
+struct sequence_range { sequence low, high; };
 
 #define IS_VALID_RANGE(r) ((r).low < (r).high)
 #define IS_WITHIN_RANGE(r, n) ((n) >= (r).low && (n) < (r).high)

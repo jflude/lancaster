@@ -171,7 +171,7 @@ status advert_create(advert_handle *padvert, const char *mcast_address,
 					 microsec tx_period_usec)
 {
 	status st;
-	if (!mcast_address || tx_period_usec <= 0)
+	if (!padvert || !mcast_address || tx_period_usec <= 0)
 		return error_invalid_arg("advert_create");
 
 	*padvert = XMALLOC(struct advert);

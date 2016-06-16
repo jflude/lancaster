@@ -83,7 +83,7 @@ status storage_find_next_unused(storage_handle store, record_handle prior,
 status storage_find_prev_used(storage_handle store, record_handle prior,
 							  record_handle *prec, revision *old_rev);
 
-status storage_iterate(storage_handle store,  record_handle prior,
+status storage_iterate(storage_handle store, record_handle prior,
 					   storage_iterate_func iter_fn, void *param);
 
 status storage_sync(storage_handle store);

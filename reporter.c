@@ -14,7 +14,7 @@ status reporter_create(reporter_handle *prep, const char *udp_address,
 					   unsigned short udp_port)
 {
 	status st;
-	if (!udp_address)
+	if (!prep || !udp_address)
 		return error_invalid_arg("reporter_create");
 
 	*prep = XMALLOC(struct reporter);
