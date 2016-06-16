@@ -175,8 +175,7 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 			revision rev;
 			void *val;
 
-			if (FAILED(st = signal_any_raised()) ||
-				FAILED(st = storage_read_queue(store, q, &id)) ||
+			if (FAILED(st = storage_read_queue(store, q, &id)) ||
 				FAILED(st = storage_get_record(store, id, &rec)))
 				return st;
 
