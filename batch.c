@@ -92,8 +92,8 @@ status batch_write_records(storage_handle store, size_t copy_size,
 		if (has_ch_q && FAILED(st = storage_write_queue(store, *ids)))
 			return st;
 
-		++ids;
 		values = (char *)values + copy_size;
+		++ids;
 	}
 
 	return OK;
