@@ -149,14 +149,14 @@ debian: all
 		$(DEB_INST)/include/cachester \
 		$(DEB_INST)/lib/cachester \
 		$(DEB_INST)/lib/pkgconfig \
-		$(DEB_INST)/bin
-	cp -p *.c $(DEB_INST)/src/cachester/
-	cp -p *.h $(DEB_INST)/include/cachester/
-	cp -p bin/* $(DEB_INST)/bin
-	mv $(DEB_INST)/bin/*.a $(DEB_INST)/lib/cachester/
-	cp -pr DEBIAN $(DEB_BASE)
-	cp -p *.pc $(DEB_INST)/lib/pkgconfig/
-
+		$(DEB_INST)/bin && \
+	cp -p *.c $(DEB_INST)/src/cachester/ && \
+	cp -p *.h $(DEB_INST)/include/cachester/ && \
+	cp -p $(BIN_DIR)/* $(DEB_INST)/bin/ && \
+	cp -p $(LIB_DIR)/* $(DEB_INST)/lib/ && \
+	mv $(DEB_INST)/lib/*.a $(DEB_INST)/lib/cachester/ && \
+	cp -pr DEBIAN $(DEB_BASE) && \
+	cp -p *.pc $(DEB_INST)/lib/pkgconfig/ && \
 	dpkg-deb --build $(DEB_BASE)
 
 .PHONY: all release profile protocol gaps
