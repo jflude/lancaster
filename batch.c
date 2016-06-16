@@ -131,7 +131,7 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 	status st;
 	microsec then;
 	q_index new_head;
-	size_t n, val_sz, q_capacity = storage_get_queue_capacity(store);
+	size_t n, val_sz, q_capacity;
 
 	if (count == 0 || !head || (!ids && !values && !revs && !times) ||
 		(values && copy_size == 0))
@@ -146,6 +146,8 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 
 	if (*head < 0)
 		*head = storage_get_queue_head(store);
+
+	q_capacity = storage_get_queue_capacity(store);
 
 	for (n = 0; n < count; ) {
 		size_t avail, want;
