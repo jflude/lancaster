@@ -73,9 +73,6 @@ status storage_write_queue(storage_handle store, identifier id);
 status storage_read_queue(storage_handle store, q_index idx,
 						  identifier *pident);
 
-status storage_read_value(storage_handle store, identifier id, void *value,
-						  size_t value_size, revision *rev, microsec *when);
-
 status storage_get_id(storage_handle store, record_handle rec,
 					  identifier *pident);
 status storage_get_record(storage_handle store, identifier id,
@@ -86,7 +83,7 @@ status storage_find_next_unused(storage_handle store, record_handle prior,
 status storage_find_prev_used(storage_handle store, record_handle prior,
 							  record_handle *prec, revision *old_rev);
 
-status storage_iterate(storage_handle store,  record_handle prior,
+status storage_iterate(storage_handle store, record_handle prior,
 					   storage_iterate_func iter_fn, void *param);
 
 status storage_sync(storage_handle store);

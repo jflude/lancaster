@@ -1,6 +1,7 @@
 LIB_SRCS = \
 	a2i.c \
 	advert.c \
+	batch.c \
 	clock.c \
 	dump.c \
 	dict.c \
@@ -14,7 +15,6 @@ LIB_SRCS = \
 	sock.c \
 	spin.c \
 	storage.c \
-	streamer.c \
 	table.c \
 	toucher.c \
 	thread.c \
