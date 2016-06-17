@@ -129,7 +129,7 @@ clean:
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean || break ; \
 	done
-	test ! -d $(DEB_BASE) || rm -r $(DEB_BASE)
+	test ! -d $(DEB_BASE) || rm -rf $(DEB_BASE) $(DEB_BASE).deb
 
 distclean: clean
 	rm -rf \
