@@ -5,6 +5,7 @@ package cachester
 // #include "storage.h"
 // #include "error.h"
 // #include "datum.h"
+// #include "batch.h"
 // #include <string.h>
 // #include <stdlib.h>
 import "C"
@@ -25,16 +26,16 @@ type Store struct {
 }
 
 // ChangeWatcherFunc is a simple convenience wrapper
-type ChangeWatcherFunc func(from, to int64) error
+type ChangeWatcherFunc func(identifiers []int64, records [][]byte) error
 
 // OnChange calls self
-func (cwf ChangeWatcherFunc) OnChange(from, to int64) error {
-	return cwf(from, to)
+func (cwf ChangeWatcherFunc) OnChange(identifiers []int64, records [][]byte) error {
+	return cwf(identifiers, records)
 }
 
 // ChangeWatcher watches the ChangeQueue for updates
 type ChangeWatcher interface {
-	OnChange(from, to int64) error
+	OnChange(identifiers []int64, records [][]byte) error
 }
 
 func (cs Store) String() string {
@@ -47,46 +48,58 @@ func (cs *Store) Close() {
 }
 
 // Watch loops over the ChangeQueue calling the supplied callback
-func (cs *Store) Watch(cw ChangeWatcher) {
-	qCapacity := C.q_index(C.storage_get_queue_capacity(cs.store))
-	newHead := C.storage_get_queue_head(cs.store)
-	oldHead := newHead
+func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
+	const numRecs = 1024
+	ids := make([]int64, numRecs)
+	rawBuff := make([]byte, numRecs*recordSize)
+	buffs := make([][]byte, numRecs)
+	for i := 0; i < len(buffs); i++ {
+		start := i * recordSize
+		buffs[i] = rawBuff[start : start+recordSize]
+	}
+	var head C.q_index = -1
 	for {
-		newHead = C.storage_get_queue_head(cs.store)
-		if newHead == oldHead {
+		status := C.batch_read_changed_records(cs.store, C.size_t(recordSize),
+			(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), nil,
+			nil, numRecs,
+			0, &head)
+		if status < 0 {
+			err := call(status)
+			log.Fatal("Error reading change queue:", err)
+		} else if status == 0 {
 			time.Sleep(time.Millisecond)
-			continue
+		} else {
+			num := int(status)
+			cw.OnChange(ids[:num], buffs[:num])
 		}
-		if (newHead - oldHead) > qCapacity {
-			log.Println("Overrun, qSize:", qCapacity, " < ", (newHead - oldHead))
-			oldHead = newHead - qCapacity
-		}
-		if err := cw.OnChange(int64(oldHead), int64(newHead)); err != nil {
-			log.Println("Error in change watcher for:", oldHead, "->", newHead, "error:", err)
-		}
-		oldHead = newHead
+	}
+}
+
+func (cs *Store) GetRecords(recordSize int, ids []int64) ([][]byte, error) {
+	numRecs := len(ids)
+	rawBuff := make([]byte, numRecs*recordSize)
+	buffs := make([][]byte, numRecs)
+	for i := 0; i < len(buffs); i++ {
+		start := i * recordSize
+		buffs[i] = rawBuff[start : start+recordSize]
+	}
+	status := C.batch_read_records(cs.store, C.size_t(recordSize),
+		(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), nil,
+		nil, C.size_t(numRecs))
+	if status < 0 {
+		return nil, call(status)
+	} else {
+		return buffs, nil
 	}
 }
 
 // GetRecord copies the data from the supplied record index to the supplied buffer
 func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
-	recid := C.identifier(idx)
-	var rec C.record_handle
-	if err := call(C.storage_get_record(cs.store, recid, &rec)); err != nil {
-		return 0, err
-	}
-
 	var rev C.revision
-	for {
-		if err := call(C.record_read_lock(rec, &rev)); err != nil || rev == 0 {
-			return 0, err
-		}
-		recBuf := (*[1 << 30]byte)(C.record_get_value_ref(rec))
-		copy(buff, recBuf[:])
-		if C.record_get_revision(rec) == rev {
-			return int64(rev), nil
-		}
-	}
+	err = call(C.batch_read_records(cs.store, C.size_t(len(buff)),
+		(*C.identifier)(&idx), unsafe.Pointer(&buff[0]), &rev,
+		nil, 1))
+	return int64(rev), err
 }
 
 // GetRecordFromQSlot Retrieves contents of a record
