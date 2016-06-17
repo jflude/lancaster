@@ -5,11 +5,10 @@ import "C"
 import "unsafe"
 
 type bulkBuffer struct {
-	recSize C.size_t
+	recSize int64
 	rawPtr  unsafe.Pointer
-	numRecs C.size_t
+	numRecs int64
 	rawBuff []byte
-	records [][]byte
 }
 
 type ChangeReader struct {
@@ -24,15 +23,10 @@ type BatchReader struct {
 
 func newBulkBuffer(recordSize int, numRecords int) bulkBuffer {
 	var bb bulkBuffer
-	bb.numRecs = C.size_t(numRecords)
-	bb.recSize = C.size_t(recordSize)
+	bb.numRecs = int64(numRecords)
+	bb.recSize = int64(recordSize)
 	bb.rawBuff = make([]byte, numRecords*recordSize)
 	bb.rawPtr = unsafe.Pointer(&bb.rawBuff[0])
-	bb.records = make([][]byte, numRecords)
-	for i := 0; i < numRecords; i++ {
-		start := i * recordSize
-		bb.records[i] = bb.rawBuff[start : start+recordSize]
-	}
 	return bb
 }
 
@@ -46,22 +40,23 @@ func NewBatchReader(recordSize int, ids []int64) *BatchReader {
 }
 
 // NewChangeReader creates a change queue reader
-func NewChangeReader(recordSize, numRecords int) *ChangeReader {
+func NewChangeReader(recordSize int, numRecords int) *ChangeReader {
 	return &ChangeReader{newBulkBuffer(recordSize, numRecords), -1}
 }
 
 // Load copies data from the cachester storage to this buffer
 func (br *BatchReader) Load(cs *Store) error {
-	status := C.batch_read_records(cs.store, br.recSize,
+	status := C.batch_read_records(cs.store, C.size_t(br.recSize),
 		br.idsPtr, br.rawPtr, nil,
-		nil, br.numRecs)
+		nil, C.size_t(br.numRecs))
 	return call(status)
 }
 func (bb *bulkBuffer) GetRecord(idx int64) []byte {
-	return bb.records[idx]
+	start := idx * bb.recSize
+	return bb.rawBuff[start : start+bb.recSize]
 }
 func (bb *bulkBuffer) GetRecordPtr(idx int64) unsafe.Pointer {
-	return unsafe.Pointer(&bb.records[idx])
+	return unsafe.Pointer(&bb.GetRecord(idx)[0])
 }
 
 func (cs *Store) GetRecords(recordSize int, ids []int64) ([][]byte, error) {
