@@ -66,7 +66,7 @@ APP_OBJS = $(APP_SRCS:.c=.o)
 APP_BINS = $(APP_OBJS:%.o=$(BIN_DIR)/%)
 APP_DBG =
 
-OS_NAME = $(shell uname -s)
+OS_NAME = $(shell uname)
 
 ifneq (,$(findstring Darwin,$(OS_NAME)))
 CFLAGS += -DDARWIN_OS -D_DARWIN_C_SOURCE
