@@ -75,24 +75,6 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 	}
 }
 
-func (cs *Store) GetRecords(recordSize int, ids []int64) ([][]byte, error) {
-	numRecs := len(ids)
-	rawBuff := make([]byte, numRecs*recordSize)
-	buffs := make([][]byte, numRecs)
-	for i := 0; i < len(buffs); i++ {
-		start := i * recordSize
-		buffs[i] = rawBuff[start : start+recordSize]
-	}
-	status := C.batch_read_records(cs.store, C.size_t(recordSize),
-		(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), nil,
-		nil, C.size_t(numRecs))
-	if status < 0 {
-		return nil, call(status)
-	} else {
-		return buffs, nil
-	}
-}
-
 // GetRecord copies the data from the supplied record index to the supplied buffer
 func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
 	var rev C.revision
