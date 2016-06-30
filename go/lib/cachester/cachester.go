@@ -8,6 +8,7 @@ package cachester
 // #include "batch.h"
 // #include <string.h>
 // #include <stdlib.h>
+// #include <fcntl.h>
 import "C"
 import (
 	"errors"
@@ -23,6 +24,62 @@ type Store struct {
 	Name  string
 	File  string
 	store C.storage_handle
+}
+
+type WritableStore struct {
+	Store Store
+}
+
+func CreateFile(file string, description string) (*WritableStore, error) {
+	var ws WritableStore
+	name := C.CString(file)
+	defer C.free(unsafe.Pointer(name))
+	desc := C.CString(description)
+	defer C.free(unsafe.Pointer(desc))
+	if err := call(C.storage_create(&ws.Store.store, name,
+		syscall.O_CREAT|syscall.O_RDWR, 0644, C.FALSE,
+		0, 1e6, // base id and max id
+		256, 0, // size_t value_size, size_t property_size,
+		1024, desc)); err != nil {
+		return nil, err
+	}
+	return &ws, nil
+}
+
+func (ws *WritableStore) WriteRecord(id int64, data []byte) error {
+	sz := C.size_t(len(data))
+	cid := (*C.identifier)(&id)
+	d := unsafe.Pointer(&data[0])
+	log.Println("Calling with:", ws.Store.store, sz, cid, d)
+	return call(C.batch_write_records(ws.Store.store, sz, cid, d, 1))
+}
+
+// GetRecord copies the data from the supplied record index to the supplied buffer
+func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
+	var rev C.revision
+	err = call(C.batch_read_records(cs.store, C.size_t(len(buff)),
+		(*C.identifier)(&idx), unsafe.Pointer(&buff[0]), &rev,
+		nil, 1))
+	return int64(rev), err
+}
+
+// GetRecordSize returns the size of an individual cachester slot
+func (cs *Store) GetRecordSize() int64 {
+	return int64(C.storage_get_record_size(cs.store))
+}
+
+// OpenFile opens a cachester file
+func OpenFile(file string) (*Store, error) {
+	var cs Store
+	name := C.CString(file)
+	defer C.free(unsafe.Pointer(name))
+
+	if err := call(C.storage_open(&cs.store, name, syscall.O_RDONLY)); err != nil {
+		return nil, err
+	}
+	cs.Name = C.GoString(C.storage_get_description(cs.store))
+	cs.File = file
+	return &cs, nil
 }
 
 // ChangeWatcherFunc is a simple convenience wrapper
@@ -75,15 +132,6 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 	}
 }
 
-// GetRecord copies the data from the supplied record index to the supplied buffer
-func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
-	var rev C.revision
-	err = call(C.batch_read_records(cs.store, C.size_t(len(buff)),
-		(*C.identifier)(&idx), unsafe.Pointer(&buff[0]), &rev,
-		nil, 1))
-	return int64(rev), err
-}
-
 // GetRecordFromQSlot Retrieves contents of a record
 func (cs *Store) GetRecordFromQSlot(qIdx int64, buff []byte) (recslot int64, rev int64, err error) {
 	var recid C.identifier
@@ -93,20 +141,6 @@ func (cs *Store) GetRecordFromQSlot(qIdx int64, buff []byte) (recslot int64, rev
 	rev, err = cs.GetRecord(int64(recid), buff)
 	return int64(recid), rev, err
 	// record_get_value_ref(&record);
-}
-
-// OpenFile opens a cachester file
-func OpenFile(file string) (*Store, error) {
-	var cs Store
-	name := C.CString(file)
-	defer C.free(unsafe.Pointer(name))
-
-	if err := call(C.storage_open(&cs.store, name, syscall.O_RDONLY)); err != nil {
-		return nil, err
-	}
-	cs.Name = C.GoString(C.storage_get_description(cs.store))
-	cs.File = file
-	return &cs, nil
 }
 
 func call(status C.status) error {
