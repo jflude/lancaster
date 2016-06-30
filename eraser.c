@@ -18,7 +18,7 @@ struct arg {
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-c] [-L] [-V] STORAGE-FILE "
-			"RECORD-ID [RECORD-ID ...]\n",
+			"RECORD-ID [RECORD-ID...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);

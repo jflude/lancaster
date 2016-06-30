@@ -19,7 +19,7 @@ static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-L] [-V] SOURCE-STORAGE-FILE "
 			"DESTINATION-STORAGE-FILE SOURCE-RECORD-ID "
-			"[SOURCE-RECORD-ID ...]\n",
+			"[SOURCE-RECORD-ID...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);

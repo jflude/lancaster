@@ -32,7 +32,7 @@ static const void *prop_base;
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-a] [-L] [-p] [-q] [-r] [-V] "
-			"STORAGE-FILE [RECORD-ID]\n",
+			"STORAGE-FILE [RECORD-ID...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);

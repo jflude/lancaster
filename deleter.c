@@ -10,7 +10,7 @@
 static void show_syntax(void)
 {
 	fprintf(stderr, "Syntax: %s [-v] [-f] [-L] STORAGE-FILE "
-			"[STORAGE-FILE ...]\n",
+			"[STORAGE-FILE...]\n",
 			error_get_program_name());
 
 	exit(-SYNTAX_ERROR);
