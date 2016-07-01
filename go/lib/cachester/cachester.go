@@ -50,7 +50,6 @@ func (ws *WritableStore) WriteRecord(id int64, data []byte) error {
 	sz := C.size_t(len(data))
 	cid := (*C.identifier)(&id)
 	d := unsafe.Pointer(&data[0])
-	log.Println("Calling with:", ws.Store.store, sz, cid, d)
 	return call(C.batch_write_records(ws.Store.store, sz, cid, d, 1))
 }
 
