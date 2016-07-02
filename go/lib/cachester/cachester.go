@@ -26,10 +26,12 @@ type Store struct {
 	store C.storage_handle
 }
 
+// WritableStore is what it sounds like
 type WritableStore struct {
 	Store Store
 }
 
+// CreateFile constructs a writable store, overwriting the existing file
 func CreateFile(file string, description string) (*WritableStore, error) {
 	var ws WritableStore
 	name := C.CString(file)
@@ -46,9 +48,10 @@ func CreateFile(file string, description string) (*WritableStore, error) {
 	return &ws, nil
 }
 
-func (ws *WritableStore) WriteRecord(id int64, data []byte) error {
+// WriteRecord writes the given buffer at the given index
+func (ws *WritableStore) WriteRecord(idx int64, data []byte) error {
 	sz := C.size_t(len(data))
-	cid := (*C.identifier)(&id)
+	cid := (*C.identifier)(&idx)
 	d := unsafe.Pointer(&data[0])
 	return call(C.batch_write_records(ws.Store.store, sz, cid, d, 1))
 }
@@ -82,16 +85,16 @@ func OpenFile(file string) (*Store, error) {
 }
 
 // ChangeWatcherFunc is a simple convenience wrapper
-type ChangeWatcherFunc func(identifiers []int64, records [][]byte) error
+type ChangeWatcherFunc func(identifiers []int64, revs []int64, records [][]byte) error
 
 // OnChange calls self
-func (cwf ChangeWatcherFunc) OnChange(identifiers []int64, records [][]byte) error {
-	return cwf(identifiers, records)
+func (cwf ChangeWatcherFunc) OnChange(identifiers []int64, revs []int64, records [][]byte) error {
+	return cwf(identifiers, revs, records)
 }
 
 // ChangeWatcher watches the ChangeQueue for updates
 type ChangeWatcher interface {
-	OnChange(identifiers []int64, records [][]byte) error
+	OnChange(identifiers []int64, revs []int64, records [][]byte) error
 }
 
 func (cs Store) String() string {
@@ -109,6 +112,7 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 	ids := make([]int64, numRecs)
 	rawBuff := make([]byte, numRecs*recordSize)
 	buffs := make([][]byte, numRecs)
+	revs := make([]int64, numRecs)
 	for i := 0; i < len(buffs); i++ {
 		start := i * recordSize
 		buffs[i] = rawBuff[start : start+recordSize]
@@ -116,7 +120,7 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 	var head C.q_index = -1
 	for {
 		status := C.batch_read_changed_records(cs.store, C.size_t(recordSize),
-			(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), nil,
+			(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), (*C.revision)(&revs[0]),
 			nil, numRecs,
 			0, &head)
 		if status < 0 {
@@ -126,7 +130,7 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 			time.Sleep(time.Millisecond)
 		} else {
 			num := int(status)
-			cw.OnChange(ids[:num], buffs[:num])
+			cw.OnChange(ids[:num], revs, buffs[:num])
 		}
 	}
 }
