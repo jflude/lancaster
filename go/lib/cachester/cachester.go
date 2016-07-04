@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"log"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
@@ -108,30 +107,14 @@ func (cs *Store) Close() {
 
 // Watch loops over the ChangeQueue calling the supplied callback
 func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
-	const numRecs = 1024
-	ids := make([]int64, numRecs)
-	rawBuff := make([]byte, numRecs*recordSize)
-	buffs := make([][]byte, numRecs)
-	revs := make([]int64, numRecs)
-	for i := 0; i < len(buffs); i++ {
-		start := i * recordSize
-		buffs[i] = rawBuff[start : start+recordSize]
-	}
-	var head C.q_index = -1
+	const maxRecs = 1024
+	cr := cs.NewChangeReader(int64(recordSize), maxRecs)
 	for {
-		status := C.batch_read_changed_records(cs.store, C.size_t(recordSize),
-			(*C.identifier)(&ids[0]), unsafe.Pointer(&rawBuff[0]), (*C.revision)(&revs[0]),
-			nil, numRecs,
-			0, &head)
-		if status < 0 {
-			err := call(status)
-			log.Fatal("Error reading change queue:", err)
-		} else if status == 0 {
-			time.Sleep(time.Millisecond)
-		} else {
-			num := int(status)
-			cw.OnChange(ids[:num], revs, buffs[:num])
+		ids, revs, recs, err := cr.Next()
+		if err != nil {
+			log.Fatalln("Error watching change queue:", err)
 		}
+		cw.OnChange(ids, revs, recs)
 	}
 }
 
