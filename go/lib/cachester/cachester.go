@@ -110,7 +110,7 @@ func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
 	const maxRecs = 1024
 	cr := cs.NewChangeReader(int64(recordSize), maxRecs)
 	for {
-		ids, revs, recs, err := cr.Next()
+		ids, recs, revs, err := cr.Next()
 		if err != nil {
 			log.Fatalln("Error watching change queue:", err)
 		}

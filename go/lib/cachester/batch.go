@@ -105,7 +105,7 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 	}
 }
 
-func (cr *ChangeReader) Next() (ids []int64, revs []int64, recs [][]byte, err error) {
+func (cr *ChangeReader) Next() (ids []int64, recs [][]byte, revs []int64, err error) {
 	status := C.batch_read_changed_records(
 		cr.store.store, // store
 		cr.recSz,       // copy_size
