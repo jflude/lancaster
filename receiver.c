@@ -179,7 +179,7 @@ static status mcast_on_read(receiver_handle recv)
 		return st;
 
 	if ((size_t)st2 < (sizeof(sequence) + sizeof(microsec)))
-		return error_msg("mcast_on_read: packet truncated", PROTOCOL_ERROR);
+		return error_msg(PROTOCOL_ERROR, "mcast_on_read: packet truncated");
 
 	mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
 	tcp_ip = sock_addr_get_ip(recv->tcp_addr);
@@ -189,8 +189,9 @@ static status mcast_on_read(receiver_handle recv)
 		get_sock_addr_text(recv->mcast_pub_addr, pub, sizeof(pub), TRUE);
 		get_sock_addr_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
 		get_sock_addr_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
-		return error_msg("mcast_on_read: unexpected source: %s from %s, not %s",
-						 UNEXPECTED_SOURCE, pub, src, tcp);
+		return error_msg(UNEXPECTED_SOURCE,
+						 "mcast_on_read: unexpected source: %s from %s, not %s",
+						 pub, src, tcp);
 	}
 
 	recv->mcast_recv_time = now;
@@ -440,7 +441,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 	if (FAILED(st)) {
 		if (st == (SIG_ERROR_BASE - SIGALRM))
-			st = error_msg("receiver_create: protocol timed out", PROTOCOL_TIMEOUT);
+			st = error_msg(PROTOCOL_TIMEOUT, "receiver_create: protocol timed out");
 
 		return st;
 	}
@@ -448,13 +449,13 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	buf[st] = '\0';
 	st = sscanf(buf, "%u %n", &wire_ver, &wire_ver_len);
 	if (st != 1)
-		return error_msg("receiver_create: invalid wire version:\n%s",
-						 PROTOCOL_ERROR, buf);
+		return error_msg(PROTOCOL_ERROR,
+						 "receiver_create: invalid wire version:\n%s", buf);
 
 	if ((wire_ver >> 8) != CACHESTER_WIRE_MAJOR_VERSION)
-		return error_msg("receiver_create: incompatible wire version "
+		return error_msg(WRONG_WIRE_VERSION,
+						 "receiver_create: incompatible wire version "
 						 "(%d.%d but expecting %d.%d)",
-						 WRONG_WIRE_VERSION,
 						 wire_ver >> 8, wire_ver & 0xFF,
 						 CACHESTER_WIRE_MAJOR_VERSION,
 						 CACHESTER_WIRE_MINOR_VERSION);
@@ -465,8 +466,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
 				&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
 
 	if (st != 10)
-		return error_msg("receiver_create: invalid publisher attributes:\n%s",
-						 PROTOCOL_ERROR, buf);
+		return error_msg(PROTOCOL_ERROR,
+						 "receiver_create: invalid publisher attributes:\n%s",
+						 buf);
 
        proto_len += wire_ver_len;
 	if (buf[proto_len] != '\0')
@@ -634,8 +636,8 @@ status receiver_run(receiver_handle recv)
 #if defined(DEBUG_PROTOCOL)
 			fprintf(recv->debug_file, "%s mcast no heartbeat\n", debug_time());
 #endif
-			st = error_msg("receiver_run: no multicast heartbeat",
-						   NO_HEARTBEAT);
+			st = error_msg(NO_HEARTBEAT,
+						   "receiver_run: no multicast heartbeat");
 			break;
 		}
 
@@ -643,7 +645,7 @@ status receiver_run(receiver_handle recv)
 #if defined(DEBUG_PROTOCOL)
 			fprintf(recv->debug_file, "%s   tcp no heartbeat\n", debug_time());
 #endif
-			st = error_msg("receiver_run: no TCP heartbeat", NO_HEARTBEAT);
+			st = error_msg(NO_HEARTBEAT, "receiver_run: no TCP heartbeat");
 			break;
 		}
 	}

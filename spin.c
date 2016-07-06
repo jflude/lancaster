@@ -23,8 +23,8 @@ status spin_read_lock(volatile spin_lock *lock, spin_lock *old_rev)
 		else {
 			status st;
 			if (++sleeps > (MAX_WAIT_USEC / SLEEP_USEC))
-				return error_msg("spin_read_lock: deadlock detected",
-								 DEADLOCK_DETECTED);
+				return error_msg(DEADLOCK_DETECTED,
+								 "spin_read_lock: deadlock detected");
 
 			if (FAILED(st = clock_sleep(SLEEP_USEC)))
 				return st;
@@ -47,8 +47,8 @@ status spin_write_lock(volatile spin_lock *lock, spin_lock *old_rev)
 		else {
 			status st;
 			if (++sleeps > (MAX_WAIT_USEC / SLEEP_USEC))
-				return error_msg("spin_write_lock: deadlock detected",
-								 DEADLOCK_DETECTED);
+				return error_msg(DEADLOCK_DETECTED,
+								 "spin_write_lock: deadlock detected");
 
 			if (FAILED(st = clock_sleep(SLEEP_USEC)))
 				return st;

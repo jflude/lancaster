@@ -20,7 +20,7 @@ void error_save_last(void);
 void error_restore_last(void);
 void error_reset(void);
 
-int error_msg(const char *msg, int code, ...);
+int error_msg(int code, const char *msg, ...);
 int error_eof(const char *func);
 int error_errno(const char *func);
 int error_eintr(const char *func);

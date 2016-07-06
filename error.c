@@ -85,7 +85,7 @@ void error_reset(void)
 	last_msg[0] = '\0';
 }
 
-int error_msg(const char *msg, int code, ...)
+int error_msg(int code, const char *msg, ...)
 {
 	char buf[256];
 	va_list ap;
@@ -95,7 +95,7 @@ int error_msg(const char *msg, int code, ...)
 		error_report_fatal();
 	}
 
-	va_start(ap, code);
+	va_start(ap, msg);
 	vsprintf(buf, msg, ap);
 	va_end(ap);
 
@@ -131,9 +131,9 @@ int error_msg(const char *msg, int code, ...)
 	return code;
 }
 
-static int format(const char *func, const char *desc, int code)
+static int format(int code, const char *func, const char *desc)
 {
-	return error_msg("error: %s: %s", code, func, desc);
+	return error_msg(code, "error: %s: %s", func, desc);
 }
 
 int error_eof(const char *func)
@@ -143,7 +143,7 @@ int error_eof(const char *func)
 		error_report_fatal();
 	}
 
-	return format(func, "end of file", EOF + CACHESTER_ERROR_BASE);
+	return format(EOF + CACHESTER_ERROR_BASE, func, "end of file");
 }
 
 int error_errno(const char *func)
@@ -153,9 +153,9 @@ int error_errno(const char *func)
 		error_report_fatal();
 	}
 
-	return format(func, strerror(errno),
-				  ERRNO_ERROR_BASE_1 - (errno < 128
-										? errno : errno + ERRNO_ERROR_BASE_2));
+	return format(ERRNO_ERROR_BASE_1 -
+				  (errno < 128 ? errno : errno + ERRNO_ERROR_BASE_2),
+				  func, strerror(errno));
 }
 
 int error_eintr(const char *func)

@@ -51,8 +51,9 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
 		(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
 	else if (!inet_aton(address, &(*paddr)->sa.sin_addr)) {
 		sock_addr_destroy(paddr);
-		return error_msg("inet_aton: invalid address: \"%s:%d\"",
-						 INVALID_ADDRESS, address, (int) port);
+		return error_msg(INVALID_ADDRESS,
+						 "inet_aton: invalid address: \"%s:%d\"",
+						 address, (int)port);
 	}
 
 	return OK;
@@ -93,8 +94,8 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 		return error_errno("sock_addr_get_text");
 
 	if (strlen(a_buf) + strlen(p_buf) >= text_sz)
-		return error_msg("sock_addr_get_text: buffer too small",
-						 BUFFER_TOO_SMALL);
+		return error_msg(BUFFER_TOO_SMALL,
+						 "sock_addr_get_text: buffer too small");
 
 	strcpy(text, a_buf);
 	strcat(text, p_buf);
@@ -111,12 +112,13 @@ status sock_addr_split(const char *addr_and_port, char *paddr,
 
 	colon = strchr(addr_and_port, ':');
 	if (!colon)
-		return error_msg("sock_addr_split: invalid address: \"%s\"",
-						 INVALID_ADDRESS, addr_and_port);
+		return error_msg(INVALID_ADDRESS,
+						 "sock_addr_split: invalid address: \"%s\"",
+						 addr_and_port);
 
 	sz = colon - addr_and_port;
 	if (sz >= addr_sz)
-		return error_msg("sock_addr_split: buffer too small", BUFFER_TOO_SMALL);
+		return error_msg(BUFFER_TOO_SMALL, "sock_addr_split: buffer too small");
 
 	strncpy(paddr, addr_and_port, sz);
 	paddr[sz] = '\0';

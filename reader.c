@@ -151,8 +151,9 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 
 	if (strcmp(storage_get_description(store), "TEST") != 0) {
-		error_msg("error: unrecognized storage description: \"%s\"",
-				  WRONG_DATA_VERSION, storage_get_description(store));
+		error_msg(WRONG_DATA_VERSION,
+				  "error: unrecognized storage description: \"%s\"",
+				  storage_get_description(store));
 
 		error_report_fatal();
 	}
@@ -178,8 +179,8 @@ int main(int argc, char *argv[])
 					event |= QUEUE_OVERRUN;
 				} else {
 					putchar('\n');
-					error_msg("error: change queue overrun",
-							  CHANGE_QUEUE_OVERRUN);
+					error_msg(CHANGE_QUEUE_OVERRUN,
+							  "error: change queue overrun");
 					error_report_fatal();
 				}
 			}
@@ -200,7 +201,7 @@ int main(int argc, char *argv[])
 
 			if (when != created_time) {
 				putchar('\n');
-				error_msg("error: storage is recreated", STORAGE_RECREATED);
+				error_msg(STORAGE_RECREATED, "error: storage is recreated");
 				error_report_fatal();
 			}
 		}
@@ -211,7 +212,7 @@ int main(int argc, char *argv[])
 
 		if (orphan_timeout > 0 && (now - when) >= orphan_timeout) {
 			putchar('\n');
-			error_msg("error: storage is orphaned", STORAGE_ORPHANED);
+			error_msg(STORAGE_ORPHANED, "error: storage is orphaned");
 			error_report_fatal();
 		}
 

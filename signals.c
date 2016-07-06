@@ -52,7 +52,7 @@ status signal_is_raised(int sig)
 		return error_invalid_arg("signal_is_raised");
 
 	return is_raised[sig]
-		? error_msg("%s", SIG_ERROR_BASE - sig, sys_siglist[sig]) : OK;
+		? error_msg(SIG_ERROR_BASE - sig, "%s", sys_siglist[sig]) : OK;
 }
 
 status signal_any_raised(void)
@@ -60,7 +60,7 @@ status signal_any_raised(void)
 	int i;
 	for (i = 1; i < NSIG; ++i)
 		if (is_raised[i])
-			return error_msg("%s", SIG_ERROR_BASE - i, sys_siglist[i]);
+			return error_msg(SIG_ERROR_BASE - i, "%s", sys_siglist[i]);
 
 	return OK;
 }
@@ -84,7 +84,7 @@ status signal_on_eintr(const char *func)
 
 	for (i = 1; i < NSIG; ++i)
 		if (is_raised[i])
-			return error_msg("%s: %s", SIG_ERROR_BASE - i,
+			return error_msg(SIG_ERROR_BASE - i, "%s: %s",
 							 func, sys_siglist[i]);
 
 	return error_errno(func);

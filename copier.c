@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (!st) {
-			error_msg("error: storage is full", STORAGE_FULL);
+			error_msg(STORAGE_FULL, "error: storage is full");
 			putchar('\n');
 			error_report_fatal();
 		}

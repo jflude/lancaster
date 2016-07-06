@@ -122,8 +122,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			return error_errno("fstat");
 
 		if ((size_t)file_stat.st_size != seg_sz)
-			return error_msg("storage_create: storage is unequal",
-							 STORAGE_UNEQUAL);
+			return error_msg(STORAGE_UNEQUAL,
+							 "storage_create: storage is unequal");
 	}
 
 	(*pstore)->seg = mmap(NULL, seg_sz, PROT_READ | PROT_WRITE,
@@ -159,8 +159,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			return st;
 	} else if (((*pstore)->seg->file_version >> 8) !=
 			       CACHESTER_FILE_MAJOR_VERSION)
-		return error_msg("storage_create: incompatible file version",
-						 WRONG_FILE_VERSION);
+		return error_msg(WRONG_FILE_VERSION,
+						 "storage_create: incompatible file version");
 	else if ((*pstore)->seg->seg_size != seg_sz ||
 			 (*pstore)->seg->hdr_size != hdr_sz ||
 			 (*pstore)->seg->rec_size != rec_sz ||
@@ -172,8 +172,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 			 (*pstore)->seg->q_mask != (q_capacity - 1) ||
 			 (!desc && (*pstore)->seg->description[0] != '\0') ||
 			 (desc && strcmp(desc, (*pstore)->seg->description) != 0))
-		return error_msg("storage_create: storage is unequal",
-						 STORAGE_UNEQUAL);
+		return error_msg(STORAGE_UNEQUAL, "storage_create: storage is unequal");
 
 	(*pstore)->first = (void *)(((char *)(*pstore)->seg) + hdr_sz);
 	(*pstore)->limit =
@@ -230,8 +229,8 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 		return error_errno("fstat");
 
 	if ((size_t)file_stat.st_size < sizeof(struct segment))
-		return error_msg("storage_open: storage is truncated",
-						 STORAGE_CORRUPTED);
+		return error_msg(STORAGE_CORRUPTED,
+						 "storage_open: storage is truncated");
 
 	(*pstore)->seg = mmap(NULL, sizeof(struct segment), PROT_READ,
 						  MAP_SHARED, (*pstore)->seg_fd, 0);
@@ -244,11 +243,11 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 	(*pstore)->mmap_size = sizeof(struct segment);
 
 	if ((*pstore)->seg->magic != MAGIC_NUMBER)
-		return error_msg("storage_open: storage is corrupt", STORAGE_CORRUPTED);
+		return error_msg(STORAGE_CORRUPTED, "storage_open: storage is corrupt");
 
 	if (((*pstore)->seg->file_version >> 8) != CACHESTER_FILE_MAJOR_VERSION)
-		return error_msg("storage_open: incompatible file version",
-						 WRONG_FILE_VERSION);
+		return error_msg(WRONG_FILE_VERSION,
+						 "storage_open: incompatible file version");
 
 	seg_sz = (*pstore)->seg->seg_size;
 
@@ -289,13 +288,14 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 
 	/* NB. q_capacity must be zero or a non-zero power of 2 */
 	if (q_capacity == 1 || (q_capacity & (q_capacity - 1)) != 0)
-		return error_msg("storage_create: invalid queue capacity",
-						 INVALID_CAPACITY);
+		return error_msg(INVALID_CAPACITY,
+						 "storage_create: invalid queue capacity");
 
 	if ((open_flags & O_ACCMODE) != O_RDWR ||
 		open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
-		return error_msg("storage_create: invalid open flags: 0%07o",
-						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
+		return error_msg(INVALID_OPEN_FLAGS,
+						 "storage_create: invalid open flags: 0%07o",
+						 (unsigned)open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
@@ -322,8 +322,9 @@ status storage_open(storage_handle *pstore, const char *mmap_file,
 	if (((open_flags & O_ACCMODE) != O_RDONLY &&
 		 (open_flags & O_ACCMODE) != O_RDWR) ||
 		(open_flags & ~(O_RDONLY | O_RDWR | O_NOFOLLOW)))
-		return error_msg("storage_open: invalid open flags: 0%07o",
-						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
+		return error_msg(INVALID_OPEN_FLAGS,
+						 "storage_open: invalid open flags: 0%07o",
+						 (unsigned)open_flags);
 
 	*pstore = XMALLOC(struct storage);
 	if (!*pstore)
@@ -376,8 +377,8 @@ status storage_set_persistence(storage_handle store, boolean persist)
 {
 	boolean old_val;
 	if (store->is_read_only)
-		return error_msg("storage_set_persistence: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_set_persistence: storage is read-only");
 
 	old_val = store->is_persistent;
 	store->is_persistent = persist;
@@ -397,8 +398,8 @@ unsigned short storage_get_data_version(storage_handle store)
 status storage_set_data_version(storage_handle store, unsigned short data_ver)
 {
 	if (store->is_read_only)
-		return error_msg("storage_set_app_version: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_set_app_version: storage is read-only");
 
 	store->seg->data_version = data_ver;
 	return OK;
@@ -472,13 +473,13 @@ const char *storage_get_description(storage_handle store)
 status storage_set_description(storage_handle store, const char *desc)
 {
 	if (store->is_read_only)
-		return error_msg("storage_set_description: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_set_description: storage is read-only");
 
 	if (desc) {
 		if (strlen(desc) >= sizeof(store->seg->description))
-			return error_msg("storage_set_description: description too long",
-							 BUFFER_TOO_SMALL);
+			return error_msg(BUFFER_TOO_SMALL,
+							 "storage_set_description: description too long");
 
 		strcpy(store->seg->description, desc);
 	} else
@@ -522,8 +523,8 @@ status storage_touch(storage_handle store, microsec when)
 	revision rev;
 
 	if (store->is_read_only)
-		return error_msg("storage_touch: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_touch: storage is read-only");
 
 	if (FAILED(st = spin_write_lock(&store->seg->last_touched_rev, &rev)))
 		return st;
@@ -556,12 +557,12 @@ q_index storage_get_queue_head(storage_handle store)
 status storage_write_queue(storage_handle store, identifier id)
 {
 	if (store->is_read_only)
-		return error_msg("storage_write_queue: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_write_queue: storage is read-only");
 
 	if (store->seg->q_mask == (size_t)-1)
-		return error_msg("storage_write_queue: no change queue",
-						 NO_CHANGE_QUEUE);
+		return error_msg(NO_CHANGE_QUEUE,
+						 "storage_write_queue: no change queue");
 
 	store->seg->change_q[store->seg->q_head & store->seg->q_mask] = id;
 	++store->seg->q_head;
@@ -575,8 +576,8 @@ status storage_read_queue(storage_handle store, q_index idx,
 		return error_invalid_arg("storage_read_queue");
 
 	if (store->seg->q_mask == (size_t)-1)
-		return error_msg("storage_read_queue: no change queue",
-						 NO_CHANGE_QUEUE);
+		return error_msg(NO_CHANGE_QUEUE,
+						 "storage_read_queue: no change queue");
 
 	*pident = store->seg->change_q[idx & store->seg->q_mask];
 	return OK;
@@ -589,8 +590,8 @@ status storage_get_id(storage_handle store, record_handle rec,
 		return error_invalid_arg("storage_get_id");
 
 	if (rec < store->first || rec >= store->limit)
-		return error_msg("storage_get_id: invalid record address",
-						 INVALID_RECORD);
+		return error_msg(INVALID_RECORD,
+						 "storage_get_id: invalid record address");
 
 	*pident = ((char *)rec - (char *)store->first) / store->seg->rec_size;
 	return OK;
@@ -603,8 +604,8 @@ status storage_get_record(storage_handle store, identifier id,
 		return error_invalid_arg("storage_get_record");
 
 	if (id < store->seg->base_id || id >= store->seg->max_id)
-		return error_msg("storage_get_record: invalid identifier",
-						 INVALID_RECORD);
+		return error_msg(INVALID_RECORD,
+						 "storage_get_record: invalid identifier");
 
 	*prec = STORAGE_RECORD(store, store->first, id - store->seg->base_id);
 	return OK;
@@ -617,8 +618,8 @@ status storage_find_next_unused(storage_handle store, record_handle prior,
 		return error_invalid_arg("storage_find_next_unused");
 
 	if (old_rev && store->is_read_only)
-		return error_msg("storage_find_next_unused: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_find_next_unused: storage is read-only");
 
 	if (prior) {
 		if (prior < store->first || prior >= store->limit)
@@ -659,8 +660,8 @@ status storage_find_prev_used(storage_handle store, record_handle prior,
 		return error_invalid_arg("storage_find_prev_used");
 
 	if (old_rev && store->is_read_only)
-		return error_msg("storage_find_prev_used: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_find_prev_used: storage is read-only");
 
 	if (prior) {
 		if (prior < store->first || prior >= store->limit)
@@ -713,8 +714,8 @@ status storage_iterate(storage_handle store, record_handle prior,
 status storage_sync(storage_handle store)
 {
 	if (store->is_read_only)
-		return error_msg("storage_sync: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_sync: storage is read-only");
 
 	if (store->seg->seg_size > 0 &&
 		msync(store->seg, store->seg->seg_size, MS_SYNC) == -1)
@@ -726,8 +727,8 @@ status storage_sync(storage_handle store)
 status storage_reset(storage_handle store)
 {
 	if (store->is_read_only)
-		return error_msg("storage_reset: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_reset: storage is read-only");
 
 	memset(store->first, 0, (char *)store->limit - (char *)store->first);
 
@@ -771,8 +772,9 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 		return error_invalid_arg("storage_grow");
 
 	if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
-		return error_msg("storage_grow: invalid open flags: 0%07o",
-						 INVALID_OPEN_FLAGS, (unsigned) open_flags);
+		return error_msg(INVALID_OPEN_FLAGS,
+						 "storage_grow: invalid open flags: 0%07o",
+						 (unsigned)open_flags);
 
 	if (fstat(store->seg_fd, &file_stat) == -1)
 		return error_errno("fstat");
@@ -840,12 +842,12 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 status storage_clear_record(storage_handle store, record_handle rec)
 {
 	if (store->is_read_only)
-		return error_msg("storage_clear_record: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_clear_record: storage is read-only");
 
 	if (rec < store->first || rec >= store->limit)
-		return error_msg("storage_clear_record: invalid record address",
-						 INVALID_RECORD);
+		return error_msg(INVALID_RECORD,
+						 "storage_clear_record: invalid record address");
 
 	memset(rec->val, 0, store->seg->val_size);
 
@@ -862,18 +864,18 @@ status storage_copy_record(storage_handle from_store, record_handle from_rec,
 						   microsec to_ts, boolean with_prop)
 {
 	if (to_store->is_read_only)
-		return error_msg("storage_copy_record: storage is read-only",
-						 STORAGE_READ_ONLY);
+		return error_msg(STORAGE_READ_ONLY,
+						 "storage_copy_record: storage is read-only");
 
 	if (from_rec < from_store->first || from_rec >= from_store->limit ||
 		to_rec < to_store->first || to_rec >= to_store->limit)
-		return error_msg("storage_copy_record: invalid record address",
-						 INVALID_RECORD);
+		return error_msg(INVALID_RECORD,
+						 "storage_copy_record: invalid record address");
 
 	if (from_store->seg->val_size != to_store->seg->val_size ||
 		(with_prop && from_store->seg->prop_size != to_store->seg->prop_size))
-		return error_msg("storage_copy_record: storage is unequal",
-						 STORAGE_UNEQUAL);
+		return error_msg(STORAGE_UNEQUAL,
+						 "storage_copy_record: storage is unequal");
 
 	memcpy(to_rec->val, from_rec->val, from_store->seg->val_size);
 

@@ -25,8 +25,8 @@ status table_create(table_handle *ptab, size_t tab_capacity,
 
 	/* NB. tab_capacity must be a power of 2 */
 	if (tab_capacity == 0 || (tab_capacity & (tab_capacity - 1)) != 0)
-		return error_msg("table_create: invalid table capacity",
-						 INVALID_CAPACITY);
+		return error_msg(INVALID_CAPACITY,
+						 "table_create: invalid table capacity");
 
 	*ptab = XMALLOC(struct table);
 	if (!*ptab)

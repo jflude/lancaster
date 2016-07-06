@@ -166,8 +166,9 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 
 		avail = (size_t)(new_head - *head);
 		if (avail > q_capacity)
-			return error_msg("batch_read_changed_records: change queue overrun",
-							 CHANGE_QUEUE_OVERRUN);
+			return error_msg(CHANGE_QUEUE_OVERRUN,
+							 "batch_read_changed_records: "
+							 "change queue overrun");
 
 		want = count - n;
 		if (avail > want)

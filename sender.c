@@ -129,8 +129,9 @@ static status mcast_send_pkt(sender_handle sndr)
 	seq = ntohll(*((sequence *)sndr->pkt_buf));
 
 	if (seq >= 0 && ++sndr->next_seq == SEQUENCE_MAX)
-		return error_msg("mcast_send_pkt: sequence overflow",
-						 SEQUENCE_OVERFLOW);
+		return error_msg(SEQUENCE_OVERFLOW,
+						 "mcast_send_pkt: sequence overflow");
+
 #if defined(DEBUG_PROTOCOL)
 	fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
 			debug_time(), ntohll(*((sequence *)sndr->pkt_buf)));
@@ -278,8 +279,8 @@ static status mcast_on_write(sender_handle sndr)
 			if (sndr->ignore_overrun)
 				sndr->last_q_idx = qi - q_cap;
 			else
-				return error_msg("mcast_on_write: change queue overrun",
-								 CHANGE_QUEUE_OVERRUN);
+				return error_msg(CHANGE_QUEUE_OVERRUN,
+								 "mcast_on_write: change queue overrun");
 		}
 
 		for (qi = sndr->last_q_idx; qi != new_q_idx; ++qi) {
@@ -381,7 +382,8 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	if (FAILED(st)) {
 		if (st == (SIG_ERROR_BASE - SIGALRM))
-			st = error_msg("tcp_on_accept: protocol timed out", PROTOCOL_TIMEOUT);
+			st = error_msg(PROTOCOL_TIMEOUT,
+						   "tcp_on_accept: protocol timed out");
 
 		error_save_last();
 		sock_destroy(&accepted);
@@ -661,8 +663,8 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 		r->high = ntohll(r->high);
 
 		if (!IS_VALID_RANGE(*r))
-			return error_msg("tcp_on_read: invalid sequence range",
-							 PROTOCOL_ERROR);
+			return error_msg(PROTOCOL_ERROR,
+							 "tcp_on_read: invalid sequence range");
 
 		if (r->low < clnt->union_range.low)
 			clnt->union_range.low = r->low;
@@ -810,8 +812,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 							   sizeof(microsec) +
 							   sizeof(identifier) +
 							   (*psndr)->val_size))
-		return error_msg("sender_create: MTU too small for storage record",
-						 MTU_TOO_SMALL);
+		return error_msg(MTU_TOO_SMALL,
+						 "sender_create: MTU too small for storage record");
 
 	(*psndr)->pkt_buf = xmalloc((*psndr)->mcast_mtu);
 	if (!(*psndr)->pkt_buf)
@@ -952,7 +954,7 @@ status sender_run(sender_handle sndr)
 
 		if (sndr->orphan_timeout_usec > 0 &&
 			(now - when) >= sndr->orphan_timeout_usec) {
-			st = error_msg("sender_run: storage is orphaned", STORAGE_ORPHANED);
+			st = error_msg(STORAGE_ORPHANED, "sender_run: storage is orphaned");
 			break;
 		}
 
@@ -961,8 +963,8 @@ status sender_run(sender_handle sndr)
 				break;
 
 			if (when != sndr->store_created_time) {
-				st = error_msg("sender_run: storage is recreated",
-							   STORAGE_RECREATED);
+				st = error_msg(STORAGE_RECREATED,
+							   "sender_run: storage is recreated");
 				break;
 			}
 		}
