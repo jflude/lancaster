@@ -25,36 +25,6 @@ type Store struct {
 	store C.storage_handle
 }
 
-// WritableStore is what it sounds like
-type WritableStore struct {
-	Store Store
-}
-
-// CreateFile constructs a writable store, overwriting the existing file
-func CreateFile(file string, description string) (*WritableStore, error) {
-	var ws WritableStore
-	name := C.CString(file)
-	defer C.free(unsafe.Pointer(name))
-	desc := C.CString(description)
-	defer C.free(unsafe.Pointer(desc))
-	if err := call(C.storage_create(&ws.Store.store, name,
-		syscall.O_CREAT|syscall.O_RDWR, 0644, C.FALSE,
-		0, 1e6, // base id and max id
-		256, 0, // size_t value_size, size_t property_size,
-		1024, desc)); err != nil {
-		return nil, err
-	}
-	return &ws, nil
-}
-
-// WriteRecord writes the given buffer at the given index
-func (ws *WritableStore) WriteRecord(idx int64, data []byte) error {
-	sz := C.size_t(len(data))
-	cid := (*C.identifier)(&idx)
-	d := unsafe.Pointer(&data[0])
-	return call(C.batch_write_records(ws.Store.store, sz, cid, d, 1))
-}
-
 // GetRecord copies the data from the supplied record index to the supplied buffer
 func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
 	var rev C.revision
