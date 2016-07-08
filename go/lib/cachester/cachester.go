@@ -39,6 +39,16 @@ func (cs *Store) GetRecordSize() int64 {
 	return int64(C.storage_get_record_size(cs.store))
 }
 
+// GetBaseID returns the id of the 0 slot of this cachester file
+func (cs *Store) GetBaseID() int64 {
+	return int64(C.storage_get_base_id(cs.store))
+}
+
+// GetMaxID Returns max identifier in his store
+func (cs *Store) GetMaxID() int64 {
+	return int64(C.storage_get_max_id(cs.store))
+}
+
 // OpenFile opens a cachester file
 func OpenFile(file string) (*Store, error) {
 	var cs Store
