@@ -2,10 +2,7 @@ package cachester
 
 // #include "batch.h"
 import "C"
-import (
-	"log"
-	"unsafe"
-)
+import "unsafe"
 
 type BatchReader struct {
 	revs    []int64
@@ -116,7 +113,6 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 }
 
 func (cr *ChangeReader) Next() (ids []int64, recs [][]byte, revs []int64, err error) {
-	log.Println("Asking for:", cr.numRecs)
 	status := C.batch_read_changed_records(
 		cr.store.store, // store
 		cr.recSz,       // copy_size
