@@ -2,7 +2,10 @@ package cachester
 
 // #include "batch.h"
 import "C"
-import "unsafe"
+import (
+	"log"
+	"unsafe"
+)
 
 type BatchReader struct {
 	revs    []int64
@@ -90,6 +93,13 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 	ids := make([]int64, numRecs)
 	revs := make([]int64, numRecs)
 	rawBuff, recs := createRecBuff(recordSize, numRecs)
+	var rawPtr unsafe.Pointer
+	if recordSize == 0 {
+		rawPtr = nil
+	} else {
+		rawPtr = unsafe.Pointer(&revs[0])
+	}
+
 	return &ChangeReader{
 		ids:     ids,
 		revs:    revs,
@@ -98,7 +108,7 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 		last:    -1,
 		idPtr:   (*C.identifier)(&ids[0]),
 		revPtr:  (*C.revision)(&revs[0]),
-		rawPtr:  unsafe.Pointer(&rawBuff[0]),
+		rawPtr:  rawPtr,
 		recSz:   C.size_t(recordSize),
 		numRecs: C.size_t(numRecs),
 		store:   cs,
@@ -106,6 +116,7 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 }
 
 func (cr *ChangeReader) Next() (ids []int64, recs [][]byte, revs []int64, err error) {
+	log.Println("Asking for:", cr.numRecs)
 	status := C.batch_read_changed_records(
 		cr.store.store, // store
 		cr.recSz,       // copy_size
@@ -122,12 +133,17 @@ func (cr *ChangeReader) Next() (ids []int64, recs [][]byte, revs []int64, err er
 		num := int64(status)
 		ids = cr.ids[:num]
 		revs = cr.revs[:num]
-		recs = cr.recs[:num]
+		if cr.rawPtr != nil {
+			recs = cr.recs[:num]
+		}
 	}
 	return
 }
 
 func createRecBuff(recSz int64, numRecs int64) (rawBuff []byte, recs [][]byte) {
+	if recSz == 0 {
+		return nil, nil
+	}
 	rawBuff = make([]byte, numRecs*recSz)
 	recs = make([][]byte, numRecs)
 	for i := int64(0); i < numRecs; i++ {
