@@ -94,7 +94,7 @@ func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader 
 	if recordSize == 0 {
 		rawPtr = nil
 	} else {
-		rawPtr = unsafe.Pointer(&revs[0])
+		rawPtr = unsafe.Pointer(&rawBuff[0])
 	}
 
 	return &ChangeReader{
