@@ -398,7 +398,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 				   unsigned max_missed_hb, const char *tcp_address,
 				   unsigned short tcp_port)
 {
-	sock_addr_handle bind_addr = NULL, iface_addr = NULL;
+	sock_addr_handle iface_addr = NULL;
 	char buf[512], mcast_address[32];
 	unsigned wire_ver, data_ver;
 	int wire_ver_len, mcast_port, proto_len;
@@ -513,11 +513,11 @@ static status init(receiver_handle *precv, const char *mmap_file,
 								 SOCK_DGRAM, IPPROTO_UDP)) &&
 		!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
 		!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
-		!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
 		!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
 									  mcast_port)) &&
 		!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
-		!FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) &&
+		!FAILED(st = sock_bind((*precv)->mcast_sock,
+							   (*precv)->mcast_pub_addr)) &&
 		!FAILED(st = sock_mcast_add((*precv)->mcast_sock,
 									(*precv)->mcast_pub_addr, iface_addr)) &&
 		!FAILED(st = sock_set_nonblock((*precv)->mcast_sock)) &&
@@ -543,9 +543,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 #endif
 	}
 
-	if ((FAILED(st2 = sock_addr_destroy(&bind_addr)) ||
-		 FAILED(st2 = sock_addr_destroy(&iface_addr))) &&
-		!FAILED(st))
+	if (FAILED(st2 = sock_addr_destroy(&iface_addr)) && !FAILED(st))
 		st = st2;
 
 	return st;
