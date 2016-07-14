@@ -49,6 +49,10 @@ func (cs *Store) GetMaxID() int64 {
 	return int64(C.storage_get_max_id(cs.store))
 }
 
+func (cs *Store) GetChangeQSize() int64 {
+	return int64(C.storage_get_queue_capacity(cs.store))
+}
+
 // OpenFile opens a cachester file
 func OpenFile(file string) (*Store, error) {
 	var cs Store
