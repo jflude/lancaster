@@ -106,7 +106,7 @@ func main() {
 		logger.FatalError("no store pattern specified")
 	}
 
-	logger.LogInfo("store pattern:", storePattern)
+	logger.LogInfo("store pattern: ", storePattern)
 
 	var err error
 	err = initializePostFlagsParsed()
@@ -121,7 +121,7 @@ func main() {
 	if registerAppInfo {
 		err = appinfo.Setup("pubmgr", releaseLogPath, func() bool { return true })
 		if err != nil {
-			logger.LogWarn("cannot register appinfo service:", err)
+			logger.LogWarn("cannot register appinfo service: ", err)
 		}
 	}
 
@@ -200,7 +200,7 @@ func startIfNeeded(path string) {
 	name := filepath.Base(path)
 	_, ok := publishers[name]
 	if ok {
-		logger.LogInfo("already publishing:", name)
+		logger.LogInfo("already publishing: ", name)
 		return
 	}
 
@@ -211,7 +211,7 @@ func startIfNeeded(path string) {
 		return
 	}
 
-	logger.LogInfo("starting publisher for:", name, "on", addr)
+	logger.LogInfo("starting publisher for: ", name, " on: ", addr)
 
 	cmd, err := commander.New(execPath+"publisher", nil, nil, new(logger.Logger))
 	if err != nil {

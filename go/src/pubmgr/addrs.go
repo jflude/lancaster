@@ -120,7 +120,7 @@ func releasePort(portNumber int) {
 	addrLock.Lock()
 	defer addrLock.Unlock()
 
-	logger.LogInfo("releasing port", portNumber)
+	logger.LogInfo("releasing port: ", portNumber)
 	delete(portPicker.inUse, portNumber)
 }
 
@@ -153,7 +153,7 @@ func initInterfaceResolver() error {
 		}
 
 		addrs, err := iface.Addrs()
-		if err != nil || len(addrs) == 0 || (iface.Flags & net.FlagMulticast) == 0 {
+		if err != nil || len(addrs) == 0 || (iface.Flags&net.FlagMulticast) == 0 {
 			continue
 		}
 
@@ -171,10 +171,10 @@ func setDataInterface() error {
 	for _, dataInterfaceToTry := range strings.Split(dataInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[dataInterfaceToTry]; ok {
 			dataInterface = dataInterfaceToTry
-			logger.LogInfo("setting data interface to", dataInterface)
+			logger.LogInfo("setting data interface to: ", dataInterface)
 			return nil
 		} else {
-			logger.LogWarn("unknown data interface:", dataInterfaceToTry)
+			logger.LogWarn("unknown data interface: ", dataInterfaceToTry)
 		}
 	}
 
@@ -189,10 +189,10 @@ func setAdvertInterface() error {
 	for _, advertInterfaceToTry := range strings.Split(advertInterfacesToTry, ",") {
 		if _, ok := ifaceToIp[advertInterfaceToTry]; ok {
 			advertInterface = advertInterfaceToTry
-			logger.LogInfo("setting advert interface to", advertInterface)
+			logger.LogInfo("setting advert interface to: ", advertInterface)
 			return nil
 		} else {
-			logger.LogWarn("unknown advert interface:", advertInterfaceToTry)
+			logger.LogWarn("unknown advert interface: ", advertInterfaceToTry)
 		}
 	}
 
@@ -201,7 +201,7 @@ func setAdvertInterface() error {
 
 func setListenAddress() error {
 	if listenAddress != "" {
-		logger.LogInfo("listen address already defined as", listenAddress)
+		logger.LogInfo("listen address already defined as: ", listenAddress)
 		return nil
 	}
 
@@ -211,6 +211,6 @@ func setListenAddress() error {
 	}
 
 	listenAddress = ifaceToIp[dataInterface]
-	logger.LogInfo("setting listen address to", listenAddress)
+	logger.LogInfo("setting listen address to: ", listenAddress)
 	return nil
 }

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.peak6.net/platform/gocore.git/appinfo"
 	"github.peak6.net/platform/gocore.git/commander"
-	"github.peak6.net/platform/gocore.git/mmd"
 	"github.peak6.net/platform/gocore.git/logger"
+	"github.peak6.net/platform/gocore.git/mmd"
 	"net"
 	"os"
 	"os/exec"
@@ -48,15 +48,15 @@ type Discovery struct {
 	Env      string
 	Version  string
 	Data     []struct {
-		Port int
+		Port        int
 		Description string
 	}
 }
 
 type Subscriber struct {
-	name string
+	name  string
 	disco Discovery
-	cmdr *commander.Command
+	cmdr  *commander.Command
 }
 
 func (si *Subscriber) String() string {
@@ -100,8 +100,8 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "submgr " + sourceVersion)
-	fmt.Fprintln(os.Stderr, "\nSyntax: " + os.Args[0] + " [OPTIONS]")
+	fmt.Fprintln(os.Stderr, "submgr "+sourceVersion)
+	fmt.Fprintln(os.Stderr, "\nSyntax: "+os.Args[0]+" [OPTIONS]")
 	flag.PrintDefaults()
 	os.Exit(1)
 }
@@ -158,11 +158,11 @@ func discoveryLoop() error {
 	advertAddrHost := advertAddrHostPort[0]
 	advertAddrPort, err := strconv.Atoi(advertAddrHostPort[1])
 	if err != nil {
-		logger.FatalError("cannot parse advert address", advertAddr, ":", err)
+		logger.FatalError("cannot parse advert address: ", advertAddr, ": ", err)
 	}
 
 	addr := &net.UDPAddr{IP: net.ParseIP(advertAddrHost), Port: advertAddrPort}
-	logger.LogInfo("listening for adverts on:", addr)
+	logger.LogInfo("listening for adverts on: ", addr)
 
 	sock, err := net.ListenMulticastUDP("udp", iface, addr)
 	if err != nil {
@@ -197,24 +197,24 @@ func discoveryLoop() error {
 		err = json.Unmarshal(jsbin, &disco)
 
 		if err != nil {
-			logger.LogError("invalid discovery format:", err, "from:", from, "[" + jsstr + "]")
+			logger.LogError("invalid discovery format: ", err, " from: ", from, " ["+jsstr+"]")
 		} else if wireProtocolVersion != "*" && disco.Version != wireProtocolVersion {
-			logger.LogWarn("wire version mismatch, expected", wireProtocolVersion,
-				"but got version", disco.Version, "from", from, "[" + jsstr + "]")
+			logger.LogWarn("wire version mismatch, expected ", wireProtocolVersion,
+				" but got version", disco.Version, " from ", from, " ["+jsstr+"]")
 		} else if len(disco.Data) != 1 {
 			logger.LogError("unsupported discovery message, wrong number of data elements [" + jsstr + "]")
 		} else {
 			desc := disco.Data[0].Description
 			if env != disco.Env {
-				logger.LogInfo("no match on environment:", env, "[" + jsstr + "]")
+				logger.LogInfo("no match on environment: ", env, " ["+jsstr+"]")
 			} else if !hp.MatchString(disco.Hostname) {
-				logger.LogInfo("no match on hostname:", hostPattern, "[" + jsstr + "]")
+				logger.LogInfo("no match on hostname: ", hostPattern, " ["+jsstr+"]")
 			} else if !fp.MatchString(desc) {
-				logger.LogInfo("no match on description:", descPattern, "[" + jsstr + "]")
+				logger.LogInfo("no match on description: ", descPattern, " ["+jsstr+"]")
 			} else if subscribers[desc] == nil {
 				if !restartOnExit {
 					if _, exists := hasRun[desc]; exists {
-						logger.LogInfo("spent subscriber:", desc, "from:", from, "[" + jsstr + "]")
+						logger.LogInfo("spent subscriber: ", desc, " from: ", from, " ["+jsstr+"]")
 						continue
 					}
 				}
@@ -223,7 +223,7 @@ func discoveryLoop() error {
 				subscribers[desc] = si
 				hasRun[desc] = true
 
-				logger.LogInfo("new subscriber:", desc, "from:", from, "[" + jsstr + "]")
+				logger.LogInfo("new subscriber: ", desc, " from: ", from, " ["+jsstr+"]")
 				go si.run()
 
 				time.Sleep(time.Duration(pauseSecs) * time.Second)
@@ -246,7 +246,7 @@ func (si *Subscriber) run() {
 		"-p", si.disco.Data[0].Description,
 		"-T", fmt.Sprint(touchPeriodMS * 1000),
 		"-L",
-		"-j" }
+		"-j"}
 
 	if queueSize != -1 {
 		opts = append(opts, "-q", strconv.FormatInt(queueSize, 10))
@@ -260,20 +260,20 @@ func (si *Subscriber) run() {
 		opts = append(opts, "-H", fmt.Sprint(maxMissedHB))
 	}
 
-	si.cmdr, err = commander.New(execPath + "subscriber", nil, nil, new(logger.Logger))
+	si.cmdr, err = commander.New(execPath+"subscriber", nil, nil, new(logger.Logger))
 	if err != nil {
-		logger.FatalError("cannot create commander for:", si, ":", err)
+		logger.FatalError("cannot create commander for: ", si, ": ", err)
 	}
 
 	si.cmdr.Name = "subscriber(" + si.name + ")"
-	si.cmdr.Args = append(opts, storePath, addr[0] + ":" + strconv.Itoa(si.disco.Data[0].Port))
+	si.cmdr.Args = append(opts, storePath, addr[0]+":"+strconv.Itoa(si.disco.Data[0].Port))
 
 	if deleteOld {
 		si.cmdr.BeforeStart = func(*commander.Command) error {
-			removeFileCommand := exec.Command(execPath + "deleter", "-f", storePath)
+			removeFileCommand := exec.Command(execPath+"deleter", "-f", storePath)
 			err := removeFileCommand.Run()
 			if err != nil {
-				logger.FatalError("cannot delete storage file:", storePath)
+				logger.FatalError("cannot delete storage file: ", storePath)
 			}
 
 			return err
@@ -281,7 +281,7 @@ func (si *Subscriber) run() {
 	}
 
 	err = si.cmdr.Run()
-	logger.LogInfo("commander for:", si, "exited:", err)
+	logger.LogInfo("commander for: ", si, " exited: ", err)
 
 	delete(subscribers, si.name)
 	ignore = make(map[string]bool)
