@@ -6,9 +6,38 @@ package cachester
 import "C"
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 )
+
+type WriterConfig struct {
+	Name        string
+	Description string
+	RecordSize  int64
+	MaxRecords  int64
+	ChangeQSize int64
+}
+
+// Create constructs a WritableStore from the supplied config
+func (wc WriterConfig) Create() (ws *WritableStore, err error) {
+	if wc.Description == "" {
+		wc.Description = wc.Name
+	}
+
+	if wc.Name == "" {
+		err = errors.New("Must set Name")
+	} else if wc.RecordSize == 0 {
+		err = errors.New("Must set RecordSize")
+	} else if wc.ChangeQSize == 0 {
+		err = errors.New("Must set ChangeQSize")
+	} else if wc.MaxRecords < 1 {
+		err = errors.New("Must set MaxRecords")
+	} else {
+		ws, err = CreateFile(wc.Name, wc.Description, wc.RecordSize, wc.MaxRecords, wc.ChangeQSize)
+	}
+	return
+}
 
 // WritableStore is what it sounds like
 type WritableStore struct {
@@ -59,6 +88,11 @@ func (ws *WritableStore) NewBulkWriter(numRecs int64) *BulkWriter {
 		recSz: C.size_t(recSz),
 		ids:   make([]int64, numRecs),
 	}
+}
+
+// IsEmpty returns true if the writer has no pending data
+func (bw *BulkWriter) IsEmpty() bool {
+	return bw.cur == 0
 }
 func (bw *BulkWriter) HasRemaining() bool {
 	return bw.cur < int64(len(bw.ids))
