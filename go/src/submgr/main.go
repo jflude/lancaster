@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.peak6.net/platform/gocore.git/appinfo"
-	"github.peak6.net/platform/gocore.git/commander"
-	"github.peak6.net/platform/gocore.git/logger"
-	"github.peak6.net/platform/gocore.git/mmd"
 	"net"
 	"os"
 	"os/exec"
@@ -15,13 +11,19 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.peak6.net/platform/gocore.git/appinfo"
+	"github.peak6.net/platform/gocore.git/commander"
+	"github.peak6.net/platform/gocore.git/logger"
+	"github.peak6.net/platform/gocore.git/mmd"
 )
 
 var verbose bool
 var stop = make(chan struct{})
 var ignore = make(map[string]bool)
-var subscribers = make(map[string]*Subscriber)
+var subscribers = Subscribers{s: make(map[string]*Subscriber)}
 var hasRun = make(map[string]bool)
 var advertAddr = "227.1.1.227:11227"
 var hostPattern string
@@ -42,6 +44,28 @@ var touchPeriodMS = 1000
 var registerAppInfo = true
 var releaseLogPath = getExecDir() + "../"
 var logDir = "/plogs/submgr"
+
+type Subscribers struct {
+	sync.RWMutex
+	s map[string]*Subscriber
+}
+
+func (s *Subscribers) Get(key string) *Subscriber {
+	s.RLock()
+	ret := s.s[key]
+	s.RUnlock()
+	return ret
+}
+func (s *Subscribers) Set(key string, sub *Subscriber) {
+	s.Lock()
+	s.s[key] = sub
+	s.Unlock()
+}
+func (s *Subscribers) Delete(key string) {
+	s.Lock()
+	delete(s.s, key)
+	s.Unlock()
+}
 
 type Discovery struct {
 	Hostname string
@@ -211,7 +235,7 @@ func discoveryLoop() error {
 				logger.LogInfo("no match on hostname: ", hostPattern, " ["+jsstr+"]")
 			} else if !fp.MatchString(desc) {
 				logger.LogInfo("no match on description: ", descPattern, " ["+jsstr+"]")
-			} else if subscribers[desc] == nil {
+			} else if subscribers.Get(desc) == nil {
 				if !restartOnExit {
 					if _, exists := hasRun[desc]; exists {
 						logger.LogInfo("spent subscriber: ", desc, " from: ", from, " ["+jsstr+"]")
@@ -220,7 +244,7 @@ func discoveryLoop() error {
 				}
 
 				si := &Subscriber{name: desc, disco: disco}
-				subscribers[desc] = si
+				subscribers.Set(desc, si)
 				hasRun[desc] = true
 
 				logger.LogInfo("new subscriber: ", desc, " from: ", from, " ["+jsstr+"]")
@@ -283,7 +307,7 @@ func (si *Subscriber) run() {
 	err = si.cmdr.Run()
 	logger.LogInfo("commander for: ", si, " exited: ", err)
 
-	delete(subscribers, si.name)
+	subscribers.Delete(si.name)
 	ignore = make(map[string]bool)
 }
 
