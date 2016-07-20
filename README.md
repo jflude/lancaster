@@ -197,3 +197,15 @@ that causes them to quit.  The meaning of the various values is as follows:-
   128-192 - terminated by a signal (128 + the signal number, given by kill -l)
   200-205 - C library error (error numbers as per errno.h, after subtracting 70)
   220-255 - Cachester library error (as per status.h, after negating)
+
+             ===============================================
+             
+To produce the debian package for the cachester library run:
+```
+$ make debian
+```
+And to install:
+```
+$ dpkg cachester_1.1.0.deb
+```
+(or whatever the current version is)
