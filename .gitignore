@@ -37,3 +37,4 @@ core.*
 .nofetch
 debian.tmp
 cachester_1*
+.vscode/
