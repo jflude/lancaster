@@ -67,6 +67,9 @@ func CreateFile(file string, description string, recSz int64, maxRecs int64, cha
 		C.size_t(changeQSz), desc)); err != nil {
 		return nil, err
 	}
+	if err := toucherAddStorage(&ws); err != nil {
+		return nil, err
+	}
 	return &ws, nil
 }
 

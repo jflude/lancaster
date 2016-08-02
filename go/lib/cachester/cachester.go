@@ -34,6 +34,21 @@ func (cs *Store) GetTouchTime() (time.Time, error) {
 	return time.Unix(0, int64(when)*int64(time.Microsecond)), nil
 }
 
+// WatchTouchTime checks if the store has been touched within 'threshold', every 'checkInterval.' If it has been
+// touched, it will call badTouchTime.
+func (cs *Store) WatchTouchTime(checkInterval time.Duration, badTouchTime func(c *Store)) {
+	for {
+		touchTime, err := cs.GetTouchTime()
+		if err != nil {
+			badTouchTime(cs)
+		}
+		if touchTime.Add(time.Microsecond * touchPeriodUSec).Before(time.Now()) {
+			badTouchTime(cs)
+		}
+		time.Sleep(checkInterval)
+	}
+}
+
 // GetRecord copies the data from the supplied record index to the supplied buffer
 func (cs *Store) GetRecord(idx int64, buff []byte) (revision int64, err error) {
 	var rev C.revision

@@ -8,11 +8,11 @@ import (
 
 // Index tracks key->record location
 type MultiStoreIndex struct {
-	index     map[string]RecordLocation
-	lock      sync.Mutex
-	stores    []indexedStore
-	keyer     Keyer
-	keySize   int
+	index   map[string]RecordLocation
+	lock    sync.Mutex
+	stores  []indexedStore
+	keyer   Keyer
+	keySize int
 }
 
 type indexedStore struct {
