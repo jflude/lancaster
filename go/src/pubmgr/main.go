@@ -186,14 +186,11 @@ func discoveryLoop() error {
 				default:
 					logger.LogInfo("event:", event)
 				}
-				break
 			}
 		case errMsg := <-watcher.Errors:
 			logger.LogError(errMsg)
 		}
 	}
-
-	return nil
 }
 
 func startIfNeeded(path string) {

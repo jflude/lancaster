@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -23,6 +24,14 @@ type Store struct {
 	Name  string
 	File  string
 	store C.storage_handle
+}
+
+func (cs *Store) GetTouchTime() (time.Time, error) {
+	var when C.microsec
+	if err := call(C.storage_get_touched_time(cs.store, &when)); err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(0, int64(when)*int64(time.Microsecond)), nil
 }
 
 // GetRecord copies the data from the supplied record index to the supplied buffer

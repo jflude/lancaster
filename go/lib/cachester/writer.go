@@ -7,6 +7,7 @@ import "C"
 
 import (
 	"errors"
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -51,6 +52,14 @@ func CreateFile(file string, description string, recSz int64, maxRecs int64, cha
 	defer C.free(unsafe.Pointer(name))
 	desc := C.CString(description)
 	defer C.free(unsafe.Pointer(desc))
+	if fi, err := os.Stat(file); err == nil {
+		if fi.IsDir() {
+			return nil, errors.New("file exists and is a directory")
+		}
+		if err := os.Remove(file); err != nil {
+			return nil, err
+		}
+	}
 	if err := call(C.storage_create(&ws.Store.store, name,
 		syscall.O_CREAT|syscall.O_RDWR, 0644, C.FALSE,
 		0, C.identifier(maxRecs), // base id and max id
