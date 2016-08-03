@@ -114,9 +114,9 @@ func (cs *Store) Close() {
 }
 
 // Watch loops over the ChangeQueue calling the supplied callback
-func (cs *Store) Watch(recordSize int, cw ChangeWatcher) {
+func (cs *Store) Watch(cw ChangeWatcher) {
 	const maxRecs = 1024
-	cr := cs.NewChangeReader(int64(recordSize), maxRecs)
+	cr := cs.NewChangeReader(maxRecs)
 	for {
 		ids, recs, revs, err := cr.Next()
 		if err != nil {

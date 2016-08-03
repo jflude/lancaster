@@ -86,7 +86,8 @@ type ChangeReader struct {
 	store   *Store
 }
 
-func (cs *Store) NewChangeReader(recordSize int64, numRecs int64) *ChangeReader {
+func (cs *Store) NewChangeReader(numRecs int64) *ChangeReader {
+	recordSize := cs.GetRecordSize()
 	ids := make([]int64, numRecs)
 	revs := make([]int64, numRecs)
 	rawBuff, recs := createRecBuff(recordSize, numRecs)
