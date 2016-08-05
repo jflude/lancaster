@@ -37,15 +37,15 @@ func (cs *Store) GetTouchTime() (time.Time, error) {
 // WatchTouchTime checks if the store has been touched within 'threshold', every 'checkInterval.' If it has been
 // touched, it will call badTouchTime.
 func (cs *Store) WatchTouchTime(checkInterval time.Duration, badTouchTime func(c *Store, lastTouch time.Time)) {
-	for {
+	const maxAge = time.Second + time.Millisecond*100
+	for range time.Tick(checkInterval) {
 		touchTime, err := cs.GetTouchTime()
 		if err != nil {
 			badTouchTime(cs, touchTime)
 		}
-		if touchTime.Add(time.Microsecond * touchPeriodUSec).Before(time.Now()) {
+		if time.Now().Sub(touchTime) > maxAge {
 			badTouchTime(cs, touchTime)
 		}
-		time.Sleep(checkInterval)
 	}
 }
 

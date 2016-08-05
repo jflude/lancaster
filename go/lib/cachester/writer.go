@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -67,10 +68,21 @@ func CreateFile(file string, description string, recSz int64, maxRecs int64, cha
 		C.size_t(changeQSz), desc)); err != nil {
 		return nil, err
 	}
-	if err := toucherAddStorage(&ws); err != nil {
+	if err := ws.Touch(); err != nil {
 		return nil, err
 	}
+	ws.Store.Name = C.GoString(C.storage_get_description(ws.Store.store))
+	ws.Store.File = file
+	go func() {
+		for range time.Tick(time.Second) {
+			ws.Touch()
+		}
+	}()
 	return &ws, nil
+}
+
+func (ws *WritableStore) Touch() error {
+	return call(C.storage_touch(ws.Store.store, C.microsec(time.Now().UnixNano()/1000)))
 }
 
 // WriteRecord writes the given buffer at the given index
