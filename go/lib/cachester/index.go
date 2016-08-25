@@ -74,7 +74,7 @@ func (i *Index) Update() error {
 			ks := string(k)
 			i.lock.Lock()
 			if orig, ok := i.index[ks]; ok {
-				log.Fatal("Duplicate key: ", ks, "found in:", orig, "and:", cur)
+				return errors.New(fmt.Sprintf("index: duplicate key %v. original: %v new %v", ks, orig, cur))
 			} else {
 				i.index[ks] = cur
 				cur++

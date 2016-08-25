@@ -2,8 +2,8 @@ package cachester
 
 import (
 	"fmt"
-	"log"
 	"sync"
+	"errors"
 )
 
 // Index tracks key->record location
@@ -67,10 +67,11 @@ func (i *MultiStoreIndex) updateStore(s indexedStore) error {
 			k := i.keyer.GetKey(buff)
 			ks := string(k)
 			i.lock.Lock()
+			rl := RecordLocation{store: s.Store, id: currID}
 			if orig, ok := i.index[ks]; ok {
-				log.Fatal("Duplicate key: ", ks, "found in:", orig, "and:", currID)
+				return errors.New(fmt.Sprintf("index: duplicate key %v. original: %v new: %v", ks, orig, rl))
 			} else {
-				i.index[ks] = RecordLocation{store: s.Store, id: currID}
+				i.index[ks] = rl
 				currID++
 			}
 			i.lock.Unlock()
