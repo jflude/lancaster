@@ -3,7 +3,6 @@ package cachester
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 )
 
