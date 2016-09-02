@@ -1,3 +1,8 @@
+/*
+   Copyright (C)2014-2016 Peak6 Investments, LP.  All rights reserved.
+   Use of this source code is governed by the LICENSE file.
+*/
+
 /* convenient, high-level interface for reading & writing storages */
 
 #ifndef BATCH_H
