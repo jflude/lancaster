@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 struct datum {
-	long xyz;
+    long xyz;
 };
 
 #ifdef __cplusplus

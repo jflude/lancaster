@@ -17,8 +17,8 @@ extern "C" {
 struct latency;
 typedef struct latency *latency_handle;
 
-status latency_create(latency_handle *plat);
-status latency_destroy(latency_handle *plat);
+status latency_create(latency_handle * plat);
+status latency_destroy(latency_handle * plat);
 
 status latency_on_sample(latency_handle lat, double new_val);
 status latency_roll(latency_handle lat);

@@ -7,5 +7,5 @@
 
 const char *version_get_source(void)
 {
-	return LANCASTER_SOURCE_VERSION;
+    return LANCASTER_SOURCE_VERSION;
 }
