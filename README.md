@@ -1,6 +1,6 @@
-# CACHESTER - fast, reliable multicasting of ephemeral data
+# LANCASTER - fast, reliable multicasting of ephemeral data
 
-The software consists of a C library, libcachester, provided in both static and
+The software consists of a C library, liblancaster, provided in both static and
 dynamic forms, together with nine utility programs for use in production and
 development environments.
 
@@ -196,4 +196,4 @@ that causes them to quit.  The meaning of the various values is as follows:-
   1-127   - C library error (error numbers as per errno.h)
   128-192 - terminated by a signal (128 + the signal number, given by kill -l)
   200-205 - C library error (error numbers as per errno.h, after subtracting 70)
-  220-255 - Cachester library error (as per status.h, after negating)
+  220-255 - Lancaster library error (as per status.h, after negating)

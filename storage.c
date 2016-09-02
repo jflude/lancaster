@@ -141,7 +141,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 
 	if (open_flags & O_CREAT) {
 		(*pstore)->seg->file_version =
-			(CACHESTER_FILE_MAJOR_VERSION << 8) | CACHESTER_FILE_MINOR_VERSION;
+			(LANCASTER_FILE_MAJOR_VERSION << 8) | LANCASTER_FILE_MINOR_VERSION;
 
 		(*pstore)->seg->seg_size = seg_sz;
 		(*pstore)->seg->hdr_size = hdr_sz;
@@ -158,7 +158,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 		if (FAILED(st = storage_set_description(*pstore, desc)))
 			return st;
 	} else if (((*pstore)->seg->file_version >> 8) !=
-			       CACHESTER_FILE_MAJOR_VERSION)
+			       LANCASTER_FILE_MAJOR_VERSION)
 		return error_msg(WRONG_FILE_VERSION,
 						 "storage_create: incompatible file version");
 	else if ((*pstore)->seg->seg_size != seg_sz ||
@@ -245,7 +245,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 	if ((*pstore)->seg->magic != MAGIC_NUMBER)
 		return error_msg(STORAGE_CORRUPTED, "storage_open: storage is corrupt");
 
-	if (((*pstore)->seg->file_version >> 8) != CACHESTER_FILE_MAJOR_VERSION)
+	if (((*pstore)->seg->file_version >> 8) != LANCASTER_FILE_MAJOR_VERSION)
 		return error_msg(WRONG_FILE_VERSION,
 						 "storage_open: incompatible file version");
 

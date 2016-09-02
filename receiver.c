@@ -16,7 +16,7 @@
 #include "receiver.h"
 #include "sequence.h"
 #include "signals.h"
-#include "sock.h"
+#include "socket.h"
 #include "spin.h"
 #include "xalloc.h"
 
@@ -452,13 +452,13 @@ static status init(receiver_handle *precv, const char *mmap_file,
 		return error_msg(PROTOCOL_ERROR,
 						 "receiver_create: invalid wire version:\n%s", buf);
 
-	if ((wire_ver >> 8) != CACHESTER_WIRE_MAJOR_VERSION)
+	if ((wire_ver >> 8) != LANCASTER_WIRE_MAJOR_VERSION)
 		return error_msg(WRONG_WIRE_VERSION,
 						 "receiver_create: incompatible wire version "
 						 "(%d.%d but expecting %d.%d)",
 						 wire_ver >> 8, wire_ver & 0xFF,
-						 CACHESTER_WIRE_MAJOR_VERSION,
-						 CACHESTER_WIRE_MINOR_VERSION);
+						 LANCASTER_WIRE_MAJOR_VERSION,
+						 LANCASTER_WIRE_MINOR_VERSION);
 
 	st = sscanf(buf + wire_ver_len, "%u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
 				&data_ver, mcast_address, &mcast_port,

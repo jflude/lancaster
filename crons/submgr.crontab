@@ -1,5 +1,0 @@
-MAILTO=boropeza@peak6.com,jflude@peak6.com,jrobertson@peak6.com,mvanderpluym@peak6.com
-
-06 01 * * mon-fri sleep `shuf -i 0-120 -n 1` ; exec submgr/latest/scripts/cron.submgr.start
-
-45 23 * * mon-fri submgr/latest/scripts/cron.submgr.stop ; exec submgr/latest/scripts/cron.submgr.roll

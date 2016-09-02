@@ -1,6 +1,6 @@
 include ../VERSION.mk
 
-COMPONENTS = pubmgr submgr
+COMPONENTS = pubmux submux commander lancaster
 
 GOPATH := $(abspath .)
 GOBIN := $(abspath ../bin)
@@ -13,8 +13,8 @@ endif
 GO = GOPATH="$(GOPATH)" GOBIN="$(GOBIN)" go
 
 LDFLAGS = \
-	-X "main.wireProtocolVersion=$(CACHESTER_WIRE_MAJOR_VERSION).$(CACHESTER_WIRE_MINOR_VERSION)" \
-	-X "main.sourceVersion=$(shell echo $(CACHESTER_SOURCE_VERSION))"
+	-X "main.wireProtocolVersion=$(LANCASTER_WIRE_MAJOR_VERSION).$(LANCASTER_WIRE_MINOR_VERSION)" \
+	-X "main.sourceVersion=$(shell echo $(LANCASTER_SOURCE_VERSION))"
 
 all: build
 

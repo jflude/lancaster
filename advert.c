@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include "advert.h"
 #include "error.h"
-#include "sock.h"
+#include "socket.h"
 #include "spin.h"
 #include "thread.h"
 #include "xalloc.h"
@@ -58,7 +58,7 @@ static status make_json_map(advert_handle advert)
 	sprintf(buf, "{\"hostname\":\"%s\", \"env\":\"%s\", "
 			"\"version\":\"%d.%d\", \"data\":[",
 			hostname, escape_quotes(advert->env),
-			CACHESTER_WIRE_MAJOR_VERSION, CACHESTER_WIRE_MINOR_VERSION);
+			LANCASTER_WIRE_MAJOR_VERSION, LANCASTER_WIRE_MINOR_VERSION);
 
 	for (n = advert->notices; n; n = n->next) {
 		strcat(buf, n->json_desc);

@@ -824,8 +824,8 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	st = sprintf((*psndr)->hello_str,
 				 "%d\r\n%d\r\n%s\r\n%d\r\n%lu\r\n%ld\r\n"
 				 "%ld\r\n%lu\r\n%lu\r\n%ld\r\n%ld\r\n",
-				 (CACHESTER_WIRE_MAJOR_VERSION << 8)
-				     | CACHESTER_WIRE_MINOR_VERSION,
+				 (LANCASTER_WIRE_MAJOR_VERSION << 8)
+				     | LANCASTER_WIRE_MINOR_VERSION,
 				 (int)storage_get_data_version((*psndr)->store),
 				 mcast_address,
 				 mcast_port,

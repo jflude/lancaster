@@ -12,7 +12,7 @@ LIB_SRCS = \
 	reporter.c \
 	sender.c \
 	signals.c \
-	sock.c \
+	socket.c \
 	spin.c \
 	storage.c \
 	table.c \
@@ -33,15 +33,15 @@ APP_SRCS = \
 	eraser.c \
 	copier.c
 
-LIB_STATIC = libcachester.a
-LIB_DYNAMIC = libcachester$(SO_EXT)
+LIB_STATIC = liblancaster.a
+LIB_DYNAMIC = liblancaster$(SO_EXT)
 
 COMPONENTS = go
 
 BIN_DIR = bin
 LIB_DIR = lib
 
-DEB_BASE = cachester_1.1.0
+DEB_BASE = lancaster_1.1.0
 DEB_INST = $(DEB_BASE)/usr/local
 
 include VERSION.mk
@@ -49,11 +49,11 @@ include VERSION.mk
 CFLAGS = \
 	-ansi -pedantic -Wall -Wextra -Werror -g \
 	-D_POSIX_C_SOURCE=200112L -D_BSD_SOURCE \
-	-DCACHESTER_SOURCE_VERSION='$(CACHESTER_SOURCE_VERSION)' \
-	-DCACHESTER_FILE_MAJOR_VERSION='$(CACHESTER_FILE_MAJOR_VERSION)' \
-	-DCACHESTER_FILE_MINOR_VERSION='$(CACHESTER_FILE_MINOR_VERSION)' \
-	-DCACHESTER_WIRE_MAJOR_VERSION='$(CACHESTER_WIRE_MAJOR_VERSION)' \
-	-DCACHESTER_WIRE_MINOR_VERSION='$(CACHESTER_WIRE_MINOR_VERSION)'
+	-DLANCASTER_SOURCE_VERSION='$(LANCASTER_SOURCE_VERSION)' \
+	-DLANCASTER_FILE_MAJOR_VERSION='$(LANCASTER_FILE_MAJOR_VERSION)' \
+	-DLANCASTER_FILE_MINOR_VERSION='$(LANCASTER_FILE_MINOR_VERSION)' \
+	-DLANCASTER_WIRE_MAJOR_VERSION='$(LANCASTER_WIRE_MAJOR_VERSION)' \
+	-DLANCASTER_WIRE_MINOR_VERSION='$(LANCASTER_WIRE_MINOR_VERSION)'
 
 LDLIBS = -lm
 
@@ -85,7 +85,7 @@ else
 $(error Unknown operating system: $(OS_NAME))
 endif
 
-all: $(LIB_BINS) $(APP_BINS) releaselog
+all: $(LIB_BINS) $(APP_BINS)
 all:
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir all || break ; \
@@ -140,27 +140,8 @@ distclean: clean
 DEPEND.mk:
 	touch DEPEND.mk
 
-releaselog:
-	git log -n1 > RELEASE_LOG
-
-debian: all
-	mkdir -p \
-		$(DEB_INST)/src/cachester \
-		$(DEB_INST)/include/cachester \
-		$(DEB_INST)/lib/cachester \
-		$(DEB_INST)/lib/pkgconfig \
-		$(DEB_INST)/bin && \
-	cp -p *.c $(DEB_INST)/src/cachester/ && \
-	cp -p *.h $(DEB_INST)/include/cachester/ && \
-	cp -p $(BIN_DIR)/* $(DEB_INST)/bin/ && \
-	cp -p $(LIB_DIR)/* $(DEB_INST)/lib/ && \
-	mv $(DEB_INST)/lib/*.a $(DEB_INST)/lib/cachester/ && \
-	cp -pr DEBIAN $(DEB_BASE) && \
-	cp -p *.pc $(DEB_INST)/lib/pkgconfig/ && \
-	dpkg-deb --build $(DEB_BASE)
-
 .PHONY: all release profile protocol gaps
-.PHONY: depend fetch clean distclean releaselog debian
+.PHONY: depend fetch clean distclean
 .PHONY: $(COMPONENTS)
 
 .SECONDARY: $(APP_OBJS)

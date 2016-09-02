@@ -2,7 +2,7 @@
 #include <netinet/in.h>
 #include "error.h"
 #include "reporter.h"
-#include "sock.h"
+#include "socket.h"
 #include "xalloc.h"
 
 struct reporter {

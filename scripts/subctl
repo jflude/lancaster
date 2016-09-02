@@ -1,0 +1,38 @@
+#!/bin/sh
+case x"$1" in
+	xstart)
+		exec_dir=`dirname "$0"`
+		scr_dir=`dirname "$0"`
+
+		if test x"$exec_dir" = x
+		then
+			exec_dir=`dirname \`which \\\`basename "$0"\\\`\``
+		else
+			pwdold=`pwd`
+			cd "$exec_dir"
+			exec_dir=`pwd`
+			cd "$pwdold"
+		fi
+
+		exec_dir="$exec_dir"/../bin
+
+		LD_LIBRARY_PATH="$exec_dir:$LD_LIBRARY_PATH"
+		export LD_LIBRARY_PATH
+
+		case x`uname` in
+			xLinux) echo 0x2F > /proc/$$/coredump_filter ;;
+		esac
+
+		$scr_dir/subctl stop
+		test x"$2" = "x-p" && sleep `shuf -i 0-60 -n 1`
+		exec "$exec_dir"/submux "$@" ;;
+	xstop)
+		u="$LOGNAME"
+		test -z "$u" && u="$USER"
+		killall -q -u "$u" submux &&
+		sleep 2 &&
+		killall -q -u "$u" -9 submux ;;
+	*)
+		echo "Syntax error: $1 start [-p]|stop" >&2
+		exit 1
+esac

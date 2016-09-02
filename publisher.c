@@ -12,7 +12,7 @@
 #include "reporter.h"
 #include "sender.h"
 #include "signals.h"
-#include "sock.h"
+#include "socket.h"
 #include "thread.h"
 #include "version.h"
 

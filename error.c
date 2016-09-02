@@ -143,7 +143,7 @@ int error_eof(const char *func)
 		error_report_fatal();
 	}
 
-	return format(EOF + CACHESTER_ERROR_BASE, func, "end of file");
+	return format(EOF + LANCASTER_ERROR_BASE, func, "end of file");
 }
 
 int error_errno(const char *func)

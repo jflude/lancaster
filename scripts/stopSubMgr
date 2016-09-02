@@ -1,8 +1,0 @@
-#! /bin/sh
-
-u="$LOGNAME"
-test -z "$u" && u="$USER"
-
-killall -q -u "$u" submgr &&
-	sleep 2 &&
-		killall -q -u "$u" -9 submgr

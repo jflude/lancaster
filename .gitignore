@@ -28,13 +28,9 @@ TAGS
 # Build files
 .gradle
 DEPEND.mk
-RELEASE_LOG
 
-# etc
+# Etc
 core
 core.*
 *.DEBUG
-.nofetch
-debian.tmp
-cachester_1*
 .vscode/

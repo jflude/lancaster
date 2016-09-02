@@ -3,7 +3,7 @@
 #ifndef POLLER_H
 #define POLLER_H
 
-#include "sock.h"
+#include "socket.h"
 #include "status.h"
 
 #ifdef __cplusplus
