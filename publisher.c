@@ -164,7 +164,7 @@ static void *stats_func(thread_handle thr)
 
 		last_print = now;
 
-        if (!reporter && fflush(stdout) == -1) {
+		if (!reporter && fflush(stdout) == -1) {
 			st = error_errno("fflush");
 			break;
 		}
