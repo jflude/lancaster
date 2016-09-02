@@ -44,9 +44,6 @@ COMPONENTS = go
 BIN_DIR = bin
 LIB_DIR = lib
 
-DEB_BASE = lancaster_1.1.0
-DEB_INST = $(DEB_BASE)/usr/local
-
 include VERSION.mk
 
 CFLAGS = \
@@ -132,7 +129,6 @@ clean:
 	@for dir in $(COMPONENTS); do \
 		$(MAKE) -C $$dir clean || break ; \
 	done
-	test ! -d $(DEB_BASE) || rm -rf $(DEB_BASE) $(DEB_BASE).deb
 
 distclean: clean
 	rm -rf \
