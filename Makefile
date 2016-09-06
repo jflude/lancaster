@@ -1,7 +1,7 @@
-# Copyright (C)2014-2016 Peak6 Investments, LP.  All rights reserved.
+# Copyright (c)2014-2016 Peak6 Investments, LP.  All rights reserved.
 # Use of this source code is governed by the LICENSE file.
 
-LIB_SRCS = \
+LIBRARY = \
 	a2i.c \
 	advert.c \
 	batch.c \
@@ -25,7 +25,7 @@ LIB_SRCS = \
 	version.c \
 	xalloc.c
 
-APP_SRCS = \
+APPLICATIONS = \
 	writer.c \
 	reader.c \
 	publisher.c \
@@ -39,10 +39,11 @@ APP_SRCS = \
 LIB_STATIC = liblancaster.a
 LIB_DYNAMIC = liblancaster$(SO_EXT)
 
-COMPONENTS = go
-
+SRC_DIR = src
 BIN_DIR = bin
 LIB_DIR = lib
+
+COMPONENTS = $(SRC_DIR)/go
 
 include VERSION.mk
 
@@ -57,13 +58,15 @@ CFLAGS = \
 
 LDLIBS = -lm
 
+LIB_SRCS = $(addprefix $(SRC_DIR)/,$(LIBRARY))
 LIB_OBJS = $(LIB_SRCS:.c=.o)
 LIB_STATIC_BIN = $(LIB_DIR)/$(LIB_STATIC)
 LIB_DYNAMIC_BIN = $(LIB_DIR)/$(LIB_DYNAMIC)
 LIB_BINS = $(LIB_STATIC_BIN) $(LIB_DYNAMIC_BIN)
 
+APP_SRCS = $(addprefix $(SRC_DIR)/,$(APPLICATIONS))
 APP_OBJS = $(APP_SRCS:.c=.o)
-APP_BINS = $(APP_OBJS:%.o=$(BIN_DIR)/%)
+APP_BINS = $(APPLICATIONS:%.c=$(BIN_DIR)/%)
 APP_DBG =
 
 OS_NAME = $(shell uname)
@@ -97,10 +100,10 @@ $(LIB_STATIC_BIN): $(LIB_OBJS)
 $(LIB_DYNAMIC_BIN): $(LIB_OBJS)
 	$(CC) -shared $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(BIN_DIR)/%: %.o $(LIB_STATIC_BIN)
-	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $@
+$(BIN_DIR)/%: $(SRC_DIR)/%.o $(LIB_STATIC_BIN)
+	$(CC) $(LDFLAGS) $^ $(LOADLIBES) $(LDLIBS) -o $(BIN_DIR)/$(@F)
 
-$(BIN_DIR)/%.o: %.c
+$(SRC_DIR)/%.o: %.c
 	$(CC) $^ -c $@
 
 release: CFLAGS += -DNDEBUG -O3
