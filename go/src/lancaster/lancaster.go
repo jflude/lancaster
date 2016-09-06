@@ -6,16 +6,18 @@
 package lancaster
 
 /*
-#include "../../../batch.h"
-#include "../../../error.h"
-#include "../../../datum.h"
-#include "../../../status.h"
-#include "../../../storage.h"
+#cgo CFLAGS: -I../../..
+#cgo LDFLAGS: ../../../lib/liblancaster.a
+#cgo linux LDFLAGS: -lrt
+
+#include "batch.h"
+#include "error.h"
+#include "datum.h"
+#include "status.h"
+#include "storage.h"
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#cgo linux LDFLAGS: ../../../lib/liblancaster.a -lrt
-#cgo darwin LDFLAGS: ../../../lib/liblancaster.a
 */
 import "C"
 

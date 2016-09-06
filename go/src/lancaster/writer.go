@@ -6,8 +6,8 @@
 package lancaster
 
 /*
-#include "../../../batch.h"
-#include "../../../storage.h"
+#include "batch.h"
+#include "storage.h"
 #include <stdlib.h>
 */
 import "C"
