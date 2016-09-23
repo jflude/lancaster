@@ -3,6 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 bin_PROGRAMS = copier deleter eraser grower inspector publisher reader subscriber writer
 lib_LIBRARIES = liblancaster.a
+dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
 
 liblancaster_a_SOURCES = src/a2i.c src/clock.c src/dict.c src/error.c src/latency.c src/sender.c src/spin.c src/table.c src/twist.c src/xalloc.c src/advert.c src/dump.c src/grower.c src/poller.c src/receiver.c src/signals.c src/storage.c src/thread.c src/version.c src/batch.c src/reporter.c src/socket.c src/toucher.c
 
