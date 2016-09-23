@@ -14,6 +14,12 @@ extern "C" {
 
 const char *version_get_source(void);
 
+int version_get_file_major(void);
+int version_get_file_minor(void);
+
+int version_get_wire_major(void);
+int version_get_wire_minor(void);
+
 #ifdef __cplusplus
 }
 #endif

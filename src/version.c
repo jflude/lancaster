@@ -7,5 +7,25 @@
 
 const char *version_get_source(void)
 {
-    return LANCASTER_SOURCE_VERSION;
+     return "1.0";
+}
+
+int version_get_file_major(void)
+{
+     return 1;
+}
+
+int version_get_file_minor(void)
+{
+     return 0;
+}
+
+int version_get_wire_major(void)
+{
+     return 2;
+}
+
+int version_get_wire_minor(void)
+{
+     return 0;
 }

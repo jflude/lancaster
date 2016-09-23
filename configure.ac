@@ -11,10 +11,12 @@ AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
+AC_PROG_RANLIB
 
 # Checks for libraries.
 AC_CHECK_LIB([m], [sqrt])
 AC_CHECK_LIB([rt], [shm_open])
+AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.
 AC_FUNC_ALLOCA
@@ -32,5 +34,5 @@ AC_FUNC_MMAP
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday memset munmap socket sqrt strchr strerror strrchr])
 
-AC_CONFIG_FILES([Makefile src/go/Makefile])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

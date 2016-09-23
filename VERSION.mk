@@ -1,8 +1,0 @@
-LANCASTER_SOURCE_VERSION = \
-  "$(shell git log --pretty=format:'%ad %h%d' --abbrev-commit --date=short -1)"
-
-LANCASTER_FILE_MAJOR_VERSION = 1
-LANCASTER_FILE_MINOR_VERSION = 0
-
-LANCASTER_WIRE_MAJOR_VERSION = 2
-LANCASTER_WIRE_MINOR_VERSION = 0
