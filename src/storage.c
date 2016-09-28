@@ -572,6 +572,7 @@ status storage_write_queue(storage_handle store, identifier id)
 			 "storage_write_queue: no change queue");
 
     store->seg->change_q[store->seg->q_head & store->seg->q_mask] = id;
+    SYNC_SYNCHRONIZE();
     ++store->seg->q_head;
     return OK;
 }
