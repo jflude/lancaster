@@ -127,8 +127,14 @@ static void *stats_func(thread_handle thr)
 	const char *delim_pos = strchr(storage_desc, '.');
 	if (!delim_pos)
 	    strncpy(alias, "unknown", sizeof(alias));
-	else
-	    strncpy(alias, storage_desc, delim_pos - storage_desc);
+	else {
+	    int sz = delim_pos - storage_desc;
+	    if (sz >= sizeof(alias))
+		 sz = sizeof(alias) - 1;
+
+	    strncpy(alias, storage_desc, sz);
+	    alias[sz] = '\0';
+	}
     }
 
     if (FAILED(st = clock_time(&last_print))) {
