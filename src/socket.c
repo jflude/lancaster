@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -296,6 +297,33 @@ status sock_set_reuseaddr(sock_handle sock, boolean reuse)
     return OK;
 }
 
+status sock_set_rx_buf(sock_handle sock, size_t buf_sz)
+{
+    int val = buf_sz;
+    if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1)
+	return error_errno("setsockopt");
+
+    return OK;
+}
+
+status sock_set_tx_buf(sock_handle sock, size_t buf_sz)
+{
+    int val = buf_sz;
+    if (setsockopt(sock->fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val)) == -1)
+	return error_errno("setsockopt");
+
+    return OK;
+}
+
+status sock_set_tcp_nodelay(sock_handle sock, boolean disable_delay)
+{
+    int val = !!disable_delay;
+    if (setsockopt(sock->fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1)
+	 return error_errno("setsockopt");
+
+    return OK;
+}
+
 status sock_set_mcast_ttl(sock_handle sock, short ttl)
 {
     unsigned char val = ttl;
@@ -322,24 +350,6 @@ status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr)
 
     if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_IF,
 		   &addr->sa.sin_addr, sizeof(addr->sa.sin_addr)) == -1)
-	return error_errno("setsockopt");
-
-    return OK;
-}
-
-status sock_set_rx_buf(sock_handle sock, size_t buf_sz)
-{
-    int val = buf_sz;
-    if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
-
-    return OK;
-}
-
-status sock_set_tx_buf(sock_handle sock, size_t buf_sz)
-{
-    int val = buf_sz;
-    if (setsockopt(sock->fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val)) == -1)
 	return error_errno("setsockopt");
 
     return OK;

@@ -374,6 +374,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
     strcat(buf, "\r\n");
 
     if (FAILED(st = sock_accept(sock, &accepted)) ||
+	FAILED(st = sock_set_tcp_nodelay(accepted, TRUE)) ||
 	FAILED(st = signal_add_handler(SIGALRM)))
 	return st;
 
