@@ -290,7 +290,7 @@ status sock_set_nonblock(sock_handle sock)
 
 status sock_set_reuseaddr(sock_handle sock, boolean reuse)
 {
-    int val = ! !reuse;
+    int val = !!reuse;
     if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1)
 	return error_errno("setsockopt");
 
