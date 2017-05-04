@@ -20,7 +20,9 @@ AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h])
+AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h])
+AC_CHECK_HEADERS([sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_MODE_T
@@ -32,7 +34,8 @@ AC_CHECK_DECLS([sys_siglist])
 AC_FUNC_MALLOC
 AC_FUNC_MMAP
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday memset munmap socket sqrt strchr strerror strrchr])
+AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday memset])
+AC_CHECK_FUNCS([munmap nanosleep socket sqrt strchr strerror strrchr])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

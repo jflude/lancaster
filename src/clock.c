@@ -13,7 +13,7 @@
 #include "clock.h"
 #include "error.h"
 
-#if _POSIX_TIMERS && (_POSIX_TIMERS - 200112L) >= 0
+#if HAVE_NANOSLEEP
 
 status clock_sleep(microsec usec)
 {
@@ -32,19 +32,6 @@ status clock_sleep(microsec usec)
 
     req.tv_nsec *= 1000;
     return nanosleep(&req, &rem) == -1 ? error_eintr("nanosleep") : OK;
-}
-
-status clock_time(microsec * pusec)
-{
-    struct timespec ts;
-    if (!pusec)
-	return error_invalid_arg("clock_time");
-
-    if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
-	return error_errno("clock_gettime");
-
-    *pusec = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-    return OK;
 }
 
 #else
@@ -72,7 +59,26 @@ status clock_sleep(microsec usec)
     return usleep2(qr.quot + qr.rem);
 }
 
-status clock_time(microsec * pusec)
+#endif
+
+#if HAVE_CLOCK_GETTIME
+
+status clock_time(microsec *pusec)
+{
+    struct timespec ts;
+    if (!pusec)
+	return error_invalid_arg("clock_time");
+
+    if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+	return error_errno("clock_gettime");
+
+    *pusec = ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    return OK;
+}
+
+#else
+
+status clock_time(microsec *pusec)
 {
     struct timeval tv;
     if (!pusec)
