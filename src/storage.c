@@ -16,6 +16,7 @@
 #include "spin.h"
 #include "storage.h"
 #include "sync.h"
+#include "version.h"
 #include "xalloc.h"
 
 #ifndef O_ACCMODE

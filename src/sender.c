@@ -19,6 +19,7 @@
 #include "sequence.h"
 #include "signals.h"
 #include "spin.h"
+#include "version.h"
 #include "xalloc.h"
 
 #define IDLE_SLEEP_USEC 10

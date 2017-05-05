@@ -23,6 +23,7 @@
 #include "signals.h"
 #include "socket.h"
 #include "spin.h"
+#include "version.h"
 #include "xalloc.h"
 
 #define INITIAL_MC_HB_USEC (10 * 1000000)
