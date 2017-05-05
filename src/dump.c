@@ -9,7 +9,7 @@
 
 #define OCTET_PER_LINE 16
 
-status fdump(const void *p, const void *base, size_t sz, FILE * f)
+status fdump(const void *p, const void *base, size_t sz, FILE *f)
 {
     const char *q = p;
     size_t n = 0;

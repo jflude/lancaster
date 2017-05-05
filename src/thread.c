@@ -26,7 +26,7 @@ static void *wrapper_fn(void *param)
     return result;
 }
 
-status thread_create(thread_handle * pthr, thread_func fn, void *param)
+status thread_create(thread_handle *pthr, thread_func fn, void *param)
 {
     int e;
     if (!pthr || !fn)
@@ -55,7 +55,7 @@ status thread_create(thread_handle * pthr, thread_func fn, void *param)
     return OK;
 }
 
-status thread_destroy(thread_handle * pthr)
+status thread_destroy(thread_handle *pthr)
 {
     status st = OK;
     if (!pthr || !*pthr)

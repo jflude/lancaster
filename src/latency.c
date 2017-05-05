@@ -24,7 +24,7 @@ struct latency {
     volatile spin_lock lock;
 };
 
-status latency_create(latency_handle * plat)
+status latency_create(latency_handle *plat)
 {
     if (!plat)
 	return error_invalid_arg("latency_create");
@@ -48,7 +48,7 @@ status latency_create(latency_handle * plat)
     return OK;
 }
 
-status latency_destroy(latency_handle * plat)
+status latency_destroy(latency_handle *plat)
 {
     if (!plat || !*plat)
 	return OK;

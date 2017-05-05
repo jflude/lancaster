@@ -46,7 +46,7 @@ static void *touch_func(thread_handle thr)
     return (void *) (long) st;
 }
 
-status toucher_create(toucher_handle * ptouch, microsec touch_period_usec)
+status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
 {
     status st = OK;
     if (!ptouch || touch_period_usec < 0)
@@ -71,7 +71,7 @@ status toucher_create(toucher_handle * ptouch, microsec touch_period_usec)
     return st;
 }
 
-status toucher_destroy(toucher_handle * ptouch)
+status toucher_destroy(toucher_handle *ptouch)
 {
     status st = OK;
     struct target *t;

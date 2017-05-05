@@ -400,7 +400,7 @@ static status event_func(poller_handle poller, sock_handle sock,
     return st;
 }
 
-static status init(receiver_handle * precv, const char *mmap_file,
+static status init(receiver_handle *precv, const char *mmap_file,
 		   mode_t mode_flags, size_t property_size,
 		   size_t q_capacity, microsec touch_period_usec,
 		   unsigned max_missed_hb, const char *tcp_address,
@@ -564,7 +564,7 @@ static status init(receiver_handle * precv, const char *mmap_file,
     return st;
 }
 
-status receiver_create(receiver_handle * precv, const char *mmap_file,
+status receiver_create(receiver_handle *precv, const char *mmap_file,
 		       mode_t mode_flags, size_t property_size,
 		       size_t q_capacity, microsec touch_period_usec,
 		       unsigned max_missed_hb, const char *tcp_address,
@@ -589,7 +589,7 @@ status receiver_create(receiver_handle * precv, const char *mmap_file,
     return st;
 }
 
-status receiver_destroy(receiver_handle * precv)
+status receiver_destroy(receiver_handle *precv)
 {
     status st = OK;
     if (!precv || !*precv ||

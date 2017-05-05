@@ -15,7 +15,7 @@ struct reporter {
     sock_addr_handle udp_addr;
 };
 
-status reporter_create(reporter_handle * prep, const char *udp_address,
+status reporter_create(reporter_handle *prep, const char *udp_address,
 		       unsigned short udp_port)
 {
     status st;
@@ -40,7 +40,7 @@ status reporter_create(reporter_handle * prep, const char *udp_address,
     return st;
 }
 
-status reporter_destroy(reporter_handle * prep)
+status reporter_destroy(reporter_handle *prep)
 {
     status st = OK;
     if (!prep || !*prep ||

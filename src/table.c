@@ -21,7 +21,7 @@ struct table {
     table_destroy_func dtor_fn;
 };
 
-status table_create(table_handle * ptab, size_t tab_capacity,
+status table_create(table_handle *ptab, size_t tab_capacity,
 		    table_hash_func h_fn, table_equality_func eq_fn,
 		    table_destroy_func dtor_fn)
 {
@@ -53,7 +53,7 @@ status table_create(table_handle * ptab, size_t tab_capacity,
     return OK;
 }
 
-status table_destroy(table_handle * ptab)
+status table_destroy(table_handle *ptab)
 {
     size_t i;
     if (!ptab || !*ptab)
@@ -77,7 +77,7 @@ status table_destroy(table_handle * ptab)
     return OK;
 }
 
-status table_lookup(table_handle tab, table_key key, table_value * pval)
+status table_lookup(table_handle tab, table_key key, table_value *pval)
 {
     struct chain *c;
     size_t hash;

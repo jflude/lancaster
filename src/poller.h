@@ -20,8 +20,8 @@ typedef struct poller *poller_handle;
 
 typedef status(*poller_func) (poller_handle, sock_handle, short *, void *);
 
-status poller_create(poller_handle * ppoller, int nsock);
-status poller_destroy(poller_handle * ppoller);
+status poller_create(poller_handle *ppoller, int nsock);
+status poller_destroy(poller_handle *ppoller);
 
 int poller_get_count(poller_handle poller);
 

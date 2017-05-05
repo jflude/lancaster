@@ -38,7 +38,7 @@ struct sock_addr {
     struct sockaddr_in sa;
 };
 
-status sock_addr_create(sock_addr_handle * paddr, const char *address,
+status sock_addr_create(sock_addr_handle *paddr, const char *address,
 			unsigned short port)
 {
     if (!paddr)
@@ -65,7 +65,7 @@ status sock_addr_create(sock_addr_handle * paddr, const char *address,
     return OK;
 }
 
-status sock_addr_destroy(sock_addr_handle * paddr)
+status sock_addr_destroy(sock_addr_handle *paddr)
 {
     if (paddr && *paddr)
 	XFREE(*paddr);
@@ -151,7 +151,7 @@ void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
     dest->sa = src->sa;
 }
 
-status sock_create(sock_handle * psock, int type, int protocol)
+status sock_create(sock_handle *psock, int type, int protocol)
 {
     if (!psock)
 	return error_invalid_arg("sock_create");
@@ -173,7 +173,7 @@ status sock_create(sock_handle * psock, int type, int protocol)
     return OK;
 }
 
-status sock_destroy(sock_handle * psock)
+status sock_destroy(sock_handle *psock)
 {
     status st = OK;
     if (!psock || !*psock)
@@ -255,7 +255,7 @@ status sock_get_interface_address(sock_handle sock, const char *device,
     return OK;
 }
 
-status sock_get_mtu(sock_handle sock, const char *device, size_t * pmtu)
+status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
 {
     struct ifreq ifr;
     if (!device || !pmtu)
@@ -377,7 +377,7 @@ status sock_listen(sock_handle sock, int backlog)
     return OK;
 }
 
-status sock_accept(sock_handle sock, sock_handle * new_sock)
+status sock_accept(sock_handle sock, sock_handle *new_sock)
 {
     struct sock accpt;
     if (!new_sock)

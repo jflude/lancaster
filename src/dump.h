@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 status dump(const void *p, const void *base, size_t sz);
-status fdump(const void *p, const void *base, size_t sz, FILE * f);
+status fdump(const void *p, const void *base, size_t sz, FILE *f);
 
 #ifdef __cplusplus
 }

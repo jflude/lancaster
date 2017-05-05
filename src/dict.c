@@ -36,7 +36,7 @@ static void s2id_dtor_fn(table_key key, table_value val)
     XFREE(key);
 }
 
-status dict_create(dict_handle * pdict, size_t dict_capacity)
+status dict_create(dict_handle *pdict, size_t dict_capacity)
 {
     status st;
     if (!pdict)
@@ -61,7 +61,7 @@ status dict_create(dict_handle * pdict, size_t dict_capacity)
     return OK;
 }
 
-status dict_destroy(dict_handle * pdict)
+status dict_destroy(dict_handle *pdict)
 {
     status st = OK;
     if (!pdict || !*pdict ||
@@ -92,7 +92,7 @@ status dict_assoc(dict_handle dict, const char *symbol, identifier id)
     return table_insert(dict->id2s, (table_key) (long) id, (table_value) p);
 }
 
-status dict_get_id(dict_handle dict, const char *symbol, identifier * pident)
+status dict_get_id(dict_handle dict, const char *symbol, identifier *pident)
 {
     table_value val;
     status st;

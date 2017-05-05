@@ -129,7 +129,7 @@ static void *mcast_func(thread_handle thr)
     return (void *) (long) st;
 }
 
-static status init(advert_handle * padvert, const char *mcast_address,
+static status init(advert_handle *padvert, const char *mcast_address,
 		   unsigned short mcast_port, const char *mcast_interface,
 		   short mcast_ttl, boolean mcast_loopback, const char *env,
 		   microsec tx_period_usec)
@@ -174,7 +174,7 @@ static status init(advert_handle * padvert, const char *mcast_address,
     return st;
 }
 
-status advert_create(advert_handle * padvert, const char *mcast_address,
+status advert_create(advert_handle *padvert, const char *mcast_address,
 		     unsigned short mcast_port, const char *mcast_interface,
 		     short mcast_ttl, boolean mcast_loopback, const char *env,
 		     microsec tx_period_usec)
@@ -197,7 +197,7 @@ status advert_create(advert_handle * padvert, const char *mcast_address,
     return st;
 }
 
-status advert_destroy(advert_handle * padvert)
+status advert_destroy(advert_handle *padvert)
 {
     status st = OK;
     struct notice *n;

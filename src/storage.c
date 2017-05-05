@@ -75,7 +75,7 @@ struct storage {
 #define STORAGE_RECORD(stg, base, idx) \
 	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
 
-static status init_create(storage_handle * pstore, const char *mmap_file,
+static status init_create(storage_handle *pstore, const char *mmap_file,
 			  int open_flags, mode_t mode_flags, boolean persist,
 			  identifier base_id, identifier max_id,
 			  size_t value_size, size_t property_size,
@@ -207,7 +207,7 @@ static status init_create(storage_handle * pstore, const char *mmap_file,
     return storage_sync(*pstore);
 }
 
-static status init_open(storage_handle * pstore, const char *mmap_file,
+static status init_open(storage_handle *pstore, const char *mmap_file,
 			int open_flags)
 {
     size_t seg_sz;
@@ -284,7 +284,7 @@ static status init_open(storage_handle * pstore, const char *mmap_file,
     return OK;
 }
 
-status storage_create(storage_handle * pstore, const char *mmap_file,
+status storage_create(storage_handle *pstore, const char *mmap_file,
 		      int open_flags, mode_t mode_flags, boolean persist,
 		      identifier base_id, identifier max_id,
 		      size_t value_size, size_t property_size,
@@ -320,7 +320,7 @@ status storage_create(storage_handle * pstore, const char *mmap_file,
     return st;
 }
 
-status storage_open(storage_handle * pstore, const char *mmap_file,
+status storage_open(storage_handle *pstore, const char *mmap_file,
 		    int open_flags)
 {
     status st;
@@ -347,7 +347,7 @@ status storage_open(storage_handle * pstore, const char *mmap_file,
     return st;
 }
 
-status storage_destroy(storage_handle * pstore)
+status storage_destroy(storage_handle *pstore)
 {
     status st = OK;
     if (!pstore || !*pstore)
@@ -496,7 +496,7 @@ status storage_set_description(storage_handle store, const char *desc)
     return OK;
 }
 
-status storage_get_created_time(storage_handle store, microsec * when)
+status storage_get_created_time(storage_handle store, microsec *when)
 {
     if (!when)
 	return error_invalid_arg("storage_get_created_time");
@@ -505,7 +505,7 @@ status storage_get_created_time(storage_handle store, microsec * when)
     return OK;
 }
 
-status storage_get_touched_time(storage_handle store, microsec * when)
+status storage_get_touched_time(storage_handle store, microsec *when)
 {
     status st;
     revision rev;
@@ -579,7 +579,7 @@ status storage_write_queue(storage_handle store, identifier id)
 }
 
 status storage_read_queue(storage_handle store, q_index idx,
-			  identifier * pident)
+			  identifier *pident)
 {
     if (!pident)
 	return error_invalid_arg("storage_read_queue");
@@ -593,7 +593,7 @@ status storage_read_queue(storage_handle store, q_index idx,
 }
 
 status storage_get_id(storage_handle store, record_handle rec,
-		      identifier * pident)
+		      identifier *pident)
 {
     if (!pident)
 	return error_invalid_arg("storage_get_id");
@@ -607,7 +607,7 @@ status storage_get_id(storage_handle store, record_handle rec,
 }
 
 status storage_get_record(storage_handle store, identifier id,
-			  record_handle * prec)
+			  record_handle *prec)
 {
     if (!prec)
 	return error_invalid_arg("storage_get_record");
@@ -621,7 +621,7 @@ status storage_get_record(storage_handle store, identifier id,
 }
 
 status storage_find_next_unused(storage_handle store, record_handle prior,
-				record_handle * prec, revision * old_rev)
+				record_handle *prec, revision *old_rev)
 {
     if (!prec)
 	return error_invalid_arg("storage_find_next_unused");
@@ -663,7 +663,7 @@ status storage_find_next_unused(storage_handle store, record_handle prior,
 }
 
 status storage_find_prev_used(storage_handle store, record_handle prior,
-			      record_handle * prec, revision * old_rev)
+			      record_handle *prec, revision *old_rev)
 {
     if (!prec)
 	return error_invalid_arg("storage_find_prev_used");
@@ -762,7 +762,7 @@ status storage_delete(const char *mmap_file, boolean force)
     return OK;
 }
 
-status storage_grow(storage_handle store, storage_handle * pnewstore,
+status storage_grow(storage_handle store, storage_handle *pnewstore,
 		    const char *new_mmap_file, int open_flags,
 		    identifier new_base_id, identifier new_max_id,
 		    size_t new_value_size, size_t new_property_size,
@@ -928,12 +928,12 @@ void record_set_revision(record_handle rec, revision rev)
     spin_unlock(&rec->rev, rev);
 }
 
-status record_read_lock(record_handle rec, revision * old_rev)
+status record_read_lock(record_handle rec, revision *old_rev)
 {
     return spin_read_lock(&rec->rev, old_rev);
 }
 
-status record_write_lock(record_handle rec, revision * old_rev)
+status record_write_lock(record_handle rec, revision *old_rev)
 {
     return spin_write_lock(&rec->rev, old_rev);
 }

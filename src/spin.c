@@ -12,12 +12,12 @@
 #define MAX_WAIT_USEC (1 * 1000000)
 #define SLEEP_USEC 1000
 
-void spin_create(volatile spin_lock * lock)
+void spin_create(volatile spin_lock *lock)
 {
     SYNC_LOCK_RELEASE(lock);
 }
 
-status spin_read_lock(volatile spin_lock * lock, spin_lock * old_rev)
+status spin_read_lock(volatile spin_lock *lock, spin_lock *old_rev)
 {
     spin_lock rev;
     int spins = 0, sleeps = 0;
@@ -41,7 +41,7 @@ status spin_read_lock(volatile spin_lock * lock, spin_lock * old_rev)
     return OK;
 }
 
-status spin_write_lock(volatile spin_lock * lock, spin_lock * old_rev)
+status spin_write_lock(volatile spin_lock *lock, spin_lock *old_rev)
 {
     spin_lock rev;
     int spins = 0, sleeps = 0;
@@ -65,7 +65,7 @@ status spin_write_lock(volatile spin_lock * lock, spin_lock * old_rev)
     return OK;
 }
 
-void spin_unlock(volatile spin_lock * lock, spin_lock new_rev)
+void spin_unlock(volatile spin_lock *lock, spin_lock new_rev)
 {
     SYNC_SYNCHRONIZE();
     *lock = new_rev;

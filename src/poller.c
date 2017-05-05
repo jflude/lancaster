@@ -16,7 +16,7 @@ struct poller {
     sock_handle *socks;
 };
 
-status poller_create(poller_handle * ppoller, int nsock)
+status poller_create(poller_handle *ppoller, int nsock)
 {
     if (!ppoller || nsock <= 0)
 	return error_invalid_arg("poller_create");
@@ -44,7 +44,7 @@ status poller_create(poller_handle * ppoller, int nsock)
     return OK;
 }
 
-status poller_destroy(poller_handle * ppoller)
+status poller_destroy(poller_handle *ppoller)
 {
     if (!ppoller || !*ppoller)
 	return OK;

@@ -719,7 +719,7 @@ static status event_func(poller_handle poller, sock_handle sock,
     return FAILED(st) ? tcp_on_hup(sndr, sock) : st;
 }
 
-static status init(sender_handle * psndr, const char *mmap_file,
+static status init(sender_handle *psndr, const char *mmap_file,
 		   const char *tcp_address, unsigned short tcp_port,
 		   const char *mcast_address, unsigned short mcast_port,
 		   const char *mcast_interface, short mcast_ttl,
@@ -873,7 +873,7 @@ static status init(sender_handle * psndr, const char *mmap_file,
     return st;
 }
 
-status sender_create(sender_handle * psndr, const char *mmap_file,
+status sender_create(sender_handle *psndr, const char *mmap_file,
 		     const char *tcp_address, unsigned short tcp_port,
 		     const char *mcast_address, unsigned short mcast_port,
 		     const char *mcast_interface, short mcast_ttl,
@@ -903,7 +903,7 @@ status sender_create(sender_handle * psndr, const char *mmap_file,
     return st;
 }
 
-status sender_destroy(sender_handle * psndr)
+status sender_destroy(sender_handle *psndr)
 {
     status st = OK;
     if (!psndr || !*psndr ||
