@@ -196,8 +196,8 @@ static status mcast_on_read(receiver_handle recv)
 	get_sock_addr_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
 	get_sock_addr_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
 	return error_msg(UNEXPECTED_SOURCE,
-			 "mcast_on_read: unexpected source: %s from %s, not %s",
-			 pub, src, tcp);
+			 "mcast_on_read: unexpected source: "
+			 "%s from %s, not %s", pub, src, tcp);
     }
 
     recv->mcast_recv_time = now;
@@ -338,7 +338,8 @@ static status tcp_on_read(receiver_handle recv)
 
 	    if (*in_seq_ref == WILL_QUIT_SEQ) {
 #if defined(DEBUG_PROTOCOL)
-		fprintf(recv->debug_file, "%s   tcp will quit\n", debug_time());
+		fprintf(recv->debug_file, "%s   tcp will quit\n",
+			debug_time());
 #endif
 		recv->is_stopping = TRUE;
 		return st;
@@ -346,7 +347,8 @@ static status tcp_on_read(receiver_handle recv)
 
 	    if (*in_seq_ref == HEARTBEAT_SEQ) {
 #if defined(DEBUG_PROTOCOL)
-		fprintf(recv->debug_file, "%s   tcp heartbeat\n", debug_time());
+		fprintf(recv->debug_file, "%s   tcp heartbeat\n",
+			debug_time());
 #endif
 		recv->in_next = recv->in_buf;
 		recv->in_remain = sizeof(sequence);
@@ -367,7 +369,8 @@ static status tcp_on_read(receiver_handle recv)
 	if (*in_seq_ref > recv->record_seqs[*id - recv->base_id]) {
 	    microsec now;
 	    if (FAILED(st = clock_time(&now)) ||
-		FAILED(st = update_record(recv, *in_seq_ref, *id, id + 1, now)))
+		FAILED(st = update_record(recv, *in_seq_ref,
+					  *id, id + 1, now)))
 		return st;
 	}
 
@@ -466,7 +469,8 @@ static status init(receiver_handle * precv, const char *mmap_file,
 			 version_get_wire_major(),
 			 version_get_wire_minor());
 
-    st = sscanf(buf + wire_ver_len, "%u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
+    st = sscanf(buf + wire_ver_len,
+		"%u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
 		&data_ver, mcast_address, &mcast_port,
 		&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 		&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
@@ -525,7 +529,8 @@ static status init(receiver_handle * precv, const char *mmap_file,
 #ifdef CYGWIN_OS
 	!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
 #else
-	!FAILED(st = sock_addr_create(&bind_addr, mcast_address, mcast_port)) &&
+	!FAILED(st = sock_addr_create(&bind_addr, mcast_address,
+				      mcast_port)) &&
 #endif
 	!FAILED(st = sock_bind((*precv)->mcast_sock, bind_addr)) &&
 	!FAILED(st = sock_mcast_add((*precv)->mcast_sock,
@@ -624,7 +629,8 @@ status receiver_run(receiver_handle recv)
     while (!recv->is_stopping) {
 	microsec now, mc_hb_usec;
 #if defined(DEBUG_PROTOCOL)
-	fprintf(recv->debug_file, "%s ======================================\n",
+	fprintf(recv->debug_file,
+		"%s ======================================\n",
 		debug_time());
 #endif
 	if (FAILED(st = poller_events(recv->poller, 10)) ||
@@ -633,7 +639,8 @@ status receiver_run(receiver_handle recv)
 	    FAILED(st = clock_time(&now)) ||
 	    (recv->touch_period_usec > 0 &&
 	     (now - recv->touched_time) >= recv->touch_period_usec &&
-	     FAILED(st = storage_touch(recv->store, recv->touched_time = now))))
+	     FAILED(st = storage_touch(recv->store,
+				       recv->touched_time = now))))
 	    break;
 
 	mc_hb_usec =

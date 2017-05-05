@@ -124,7 +124,8 @@ status sock_addr_split(const char *addr_and_port, char *paddr,
 
     sz = colon - addr_and_port;
     if (sz >= addr_sz)
-	return error_msg(BUFFER_TOO_SMALL, "sock_addr_split: buffer too small");
+	return error_msg(BUFFER_TOO_SMALL,
+			 "sock_addr_split: buffer too small");
 
     strncpy(paddr, addr_and_port, sz);
     paddr[sz] = '\0';
@@ -291,7 +292,8 @@ status sock_set_nonblock(sock_handle sock)
 status sock_set_reuseaddr(sock_handle sock, boolean reuse)
 {
     int val = !!reuse;
-    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1)
+    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR,
+		   &val, sizeof(val)) == -1)
 	return error_errno("setsockopt");
 
     return OK;
@@ -318,7 +320,8 @@ status sock_set_tx_buf(sock_handle sock, size_t buf_sz)
 status sock_set_tcp_nodelay(sock_handle sock, boolean disable_delay)
 {
     int val = !!disable_delay;
-    if (setsockopt(sock->fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1)
+    if (setsockopt(sock->fd, IPPROTO_TCP, TCP_NODELAY,
+		   &val, sizeof(val)) == -1)
 	 return error_errno("setsockopt");
 
     return OK;

@@ -137,16 +137,15 @@ am__v_AR_1 =
 liblancaster_a_AR = $(AR) $(ARFLAGS)
 liblancaster_a_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-am_liblancaster_a_OBJECTS = src/a2i.$(OBJEXT) src/clock.$(OBJEXT) \
-	src/dict.$(OBJEXT) src/error.$(OBJEXT) src/latency.$(OBJEXT) \
-	src/sender.$(OBJEXT) src/spin.$(OBJEXT) src/table.$(OBJEXT) \
-	src/twist.$(OBJEXT) src/xalloc.$(OBJEXT) src/advert.$(OBJEXT) \
-	src/dump.$(OBJEXT) src/grower.$(OBJEXT) src/poller.$(OBJEXT) \
-	src/receiver.$(OBJEXT) src/signals.$(OBJEXT) \
-	src/storage.$(OBJEXT) src/thread.$(OBJEXT) \
-	src/version.$(OBJEXT) src/batch.$(OBJEXT) \
-	src/reporter.$(OBJEXT) src/socket.$(OBJEXT) \
-	src/toucher.$(OBJEXT)
+am_liblancaster_a_OBJECTS = src/a2i.$(OBJEXT) src/advert.$(OBJEXT) \
+	src/batch.$(OBJEXT) src/clock.$(OBJEXT) src/dict.$(OBJEXT) \
+	src/dump.$(OBJEXT) src/error.$(OBJEXT) src/latency.$(OBJEXT) \
+	src/poller.$(OBJEXT) src/receiver.$(OBJEXT) \
+	src/reporter.$(OBJEXT) src/sender.$(OBJEXT) \
+	src/signals.$(OBJEXT) src/socket.$(OBJEXT) src/spin.$(OBJEXT) \
+	src/storage.$(OBJEXT) src/table.$(OBJEXT) src/thread.$(OBJEXT) \
+	src/toucher.$(OBJEXT) src/twist.$(OBJEXT) \
+	src/version.$(OBJEXT) src/xalloc.$(OBJEXT)
 liblancaster_a_OBJECTS = $(am_liblancaster_a_OBJECTS)
 PROGRAMS = $(bin_PROGRAMS)
 am_copier_OBJECTS = src/copier.$(OBJEXT)
@@ -358,7 +357,17 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
 lib_LIBRARIES = liblancaster.a
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
-liblancaster_a_SOURCES = src/a2i.c src/clock.c src/dict.c src/error.c src/latency.c src/sender.c src/spin.c src/table.c src/twist.c src/xalloc.c src/advert.c src/dump.c src/grower.c src/poller.c src/receiver.c src/signals.c src/storage.c src/thread.c src/version.c src/batch.c src/reporter.c src/socket.c src/toucher.c
+liblancaster_a_SOURCES = src/a2i.c src/a2i.h src/advert.c src/advert.h \
+	src/batch.c src/batch.h src/clock.c src/clock.h src/datum.h src/dict.c \
+	src/dict.h src/dump.c src/dump.h src/error.c src/error.h src/h2n2h.h \
+	src/latency.c src/latency.h src/poller.c src/poller.h src/receiver.c \
+	src/receiver.h src/reporter.c src/reporter.h src/sender.c src/sender.h \
+	src/sequence.h src/signals.c src/signals.h src/socket.c src/socket.h \
+	src/spin.c src/spin.h src/status.h src/storage.c src/storage.h \
+	src/sync.h src/table.c src/table.h src/thread.c src/thread.h \
+	src/toucher.c src/toucher.h src/twist.c src/twist.h src/version.c \
+	src/version.h src/xalloc.c src/xalloc.h
+
 LDADD = liblancaster.a
 copier_SOURCES = src/copier.c
 deleter_SOURCES = src/deleter.c
@@ -461,41 +470,39 @@ src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
 src/a2i.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/clock.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/dict.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/error.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/latency.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/sender.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/spin.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/table.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/twist.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/xalloc.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
 src/advert.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/batch.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/clock.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/dict.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/dump.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/grower.$(OBJEXT): src/$(am__dirstamp) \
+src/error.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/latency.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/poller.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/receiver.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-src/signals.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/storage.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/thread.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/version.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/batch.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/reporter.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/sender.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/signals.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/socket.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/spin.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/storage.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/table.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/thread.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/toucher.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/twist.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/version.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/xalloc.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
 liblancaster.a: $(liblancaster_a_OBJECTS) $(liblancaster_a_DEPENDENCIES) $(EXTRA_liblancaster_a_DEPENDENCIES) 
@@ -562,6 +569,8 @@ src/eraser.$(OBJEXT): src/$(am__dirstamp) \
 eraser$(EXEEXT): $(eraser_OBJECTS) $(eraser_DEPENDENCIES) $(EXTRA_eraser_DEPENDENCIES) 
 	@rm -f eraser$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(eraser_OBJECTS) $(eraser_LDADD) $(LIBS)
+src/grower.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 
 grower$(EXEEXT): $(grower_OBJECTS) $(grower_DEPENDENCIES) $(EXTRA_grower_DEPENDENCIES) 
 	@rm -f grower$(EXEEXT)

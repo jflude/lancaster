@@ -24,7 +24,8 @@ typedef long microsec;
 status clock_sleep(microsec usec);
 status clock_time(microsec * pusec);
 
-status clock_get_text(microsec usec, int precision, char *text, size_t text_sz);
+status clock_get_text(microsec usec, int precision,
+		      char *text, size_t text_sz);
 
 status clock_get_short_text(microsec usec, int precision,
 			    char *text, size_t text_sz);

@@ -20,9 +20,9 @@ AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.
 AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h])
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h])
-AC_CHECK_HEADERS([sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h \
+			      stdint.h stdlib.h string.h sys/ioctl.h \
+			      sys/socket.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_MODE_T

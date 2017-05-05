@@ -38,10 +38,9 @@ READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
 numbers, indicating which conditions occured in this last "tick":-
 
-    0 - no data was read
-    1 - data was read
-    2 - data was read out-of-order to what was written
-    4 - change queue was overrun (only if -Q option is specified)
+    0 - no data was read 1 - data was read 2 - data was read out-of-order to
+    what was written 4 - change queue was overrun (only if -Q option is
+    specified)
 
 If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.  If the storage has not been "touched"
@@ -55,7 +54,7 @@ note the fact in its output, instead of exiting with an error.
 The -p option causes the programs to include the specified prefix in error
 messages, to allow easier identification when running multiple instances.
 
-The -L option causes error and warning messages to be prefixed with a timestamp,
+The -L option causes diagnostic messages to be prefixed with a timestamp,
 suitable for outputing to a log file.
 
              ===============================================
@@ -78,33 +77,34 @@ hosts wanting to receive it.
 PUBLISHER looks for a storage to read from (such as one created by WRITER).  It
 will listen on TCP-ADDRESS:PORT for connections from subscribers.  When one is
 made, PUBLISHER will send the subscriber the MULTICAST-ADDRESS:PORT to receive
-data, and the HEARTBEAT-PERIOD microseconds (defaulting to one second) it should
-expect to receive heartbeats in the absence of data (PUBLISHER will send
-separate heartbeats over both the TCP and multicast channels.  If a heartbeat is
-not received in time, SUBSCRIBER will exit with an error.)  PUBLISHER will
+data, and the HEARTBEAT-PERIOD microseconds (defaulting to one second) it
+should expect to receive heartbeats in the absence of data (PUBLISHER will send
+separate heartbeats over both the TCP and multicast channels.  If a heartbeat
+is not received in time, SUBSCRIBER will exit with an error.)  PUBLISHER will
 attempt to fill a UDP packet with data before sending it, but will send a
 partial packet if the data in it is older than MAX-PACKET-AGE microseconds
 (defaulting to 2 milliseconds).  PUBLISHER will multicast data over the
 DATA-INTERFACE network interface rather than the system's default, if the -i
-option is specified.  Multicast data will be sent with a TTL other than 1 if the
--t option is specified.  Multicast data will "loopback" (be delivered also on
-the sending host) if the -l option is specified, which enables testing on a
+option is specified.  Multicast data will be sent with a TTL other than 1 if
+the -t option is specified.  Multicast data will "loopback" (be delivered also
+on the sending host) if the -l option is specified, which enables testing on a
 single host.  If the -a option is specified, PUBLISHER will "advertize" its
-existence by multicasting its connection and storage details every ADVERT-PERIOD
-microseconds (defaulting to 10 seconds).  Those advertisements will be multicast
-over the ADVERT-INTERFACE network interface if the -I option is specified, or
-the system's default if not.  If the storage has not been recently "touched" by
-its writer within ORPHAN-TIMEOUT microseconds (defaulting to 3 seconds), then
-PUBLISHER will exit with an error.  An ORPHAN-TIMEOUT of zero will disable this
-checking.  The -R option will cause PUBLISHER to ignore the recreation
-(reopening) of the storage by its writer (without this option, recreation causes
-PUBLISHER to exit with an error).  The -Q option will cause PUBLISHER to ignore
-overruns of the change queue, instead of exiting with an error.
+existence by multicasting its connection and storage details every
+ADVERT-PERIOD microseconds (defaulting to 10 seconds).  Those advertisements
+will be multicast over the ADVERT-INTERFACE network interface if the -I option
+is specified, or the system's default if not.  If the storage has not been
+recently "touched" by its writer within ORPHAN-TIMEOUT microseconds (defaulting
+to 3 seconds), then PUBLISHER will exit with an error.  An ORPHAN-TIMEOUT of
+zero will disable this checking.  The -R option will cause PUBLISHER to ignore
+the recreation (reopening) of the storage by its writer (without this option,
+recreation causes PUBLISHER to exit with an error).  The -Q option will cause
+PUBLISHER to ignore overruns of the change queue, instead of exiting with an
+error.
 
-SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on 
+SUBSCRIBER will try to connect to a PUBLISHER at TCP-ADDRESS:PORT, and based on
 the attributes that PUBLISHER sends it, create a storage similar in structure
-to PUBLISHER's (except for the change queue capacity, which may be specified for
-SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
+to PUBLISHER's (except for the change queue capacity, which may be specified
+for SUBSCRIBER independently, with the -q option).  Data read by PUBLISHER is
 multicast to SUBSCRIBER and written to SUBSCRIBER's storage.  SUBSCRIBER will
 "touch" the storage every TOUCH-PERIOD microseconds (defaulting to one second).
 A TOUCH-PERIOD of zero will disable "touching".  SUBSCRIBER will expect to
@@ -112,23 +112,23 @@ receive regular heartbeats from PUBLISHER and will exit with an error if more
 than MAX-MISSED-HEARTBEATS are not received, as configurable by the -H option
 (the default value is 5 heartbeats).
 
-Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal output
-of statistics to be output in JSON format.  The UDP address and port to send
-statistics to, if any, is specified by the -S option.PUBLISHER also has an -s
-option which causes it to output storage latency statistics instead of its usual
-output (the -j option also includes the storage latency statistics).
+Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal
+output of statistics to be output in JSON format.  The UDP address and port to
+send statistics to, if any, is specified by the -S option.PUBLISHER also has an
+-s option which causes it to output storage latency statistics instead of its
+usual output (the -j option also includes the storage latency statistics).
 
-A typical scenario for testing would be to run WRITER and PUBLISHER on one host,
-and SUBSCRIBER and READER on another.  For example, if the former were to be
-run on pslchi6dpricedev45 (10.2.2.152):-
+A typical scenario for testing would be to run WRITER and PUBLISHER on one
+host, and SUBSCRIBER and READER on another.  For example, if the former were to
+be run on pslchi6dpricedev45 (10.2.2.152):-
 
-    dev45$ writer -q 4096 /tmp/his-local-file 1000
-    dev45$ publisher /tmp/his-local-file 10.2.2.152:23266 227.1.1.34:56134
+    dev45$ writer -q 4096 /tmp/his-local-file 1000 dev45$ publisher
+    /tmp/his-local-file 10.2.2.152:23266 227.1.1.34:56134
 
 ...and the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
 
-    dev42$ subscriber shm:/her-local-segment 10.2.2.152:23266
-    dev42$ reader shm:/her-local-segment
+    dev42$ subscriber shm:/her-local-segment 10.2.2.152:23266 dev42$ reader
+    shm:/her-local-segment
 
              ===============================================
 
@@ -143,20 +143,20 @@ These are utility programs to show, modify or delete a storage.
 
 INSPECTOR, given the -a option, outputs the attribute values of a storage, such
 as the size of a record within it, the capacity of its change queue, the
-description associated with it, etc.  The -q option will cause the change queue,
-if any, to be output, while the -r option will cause the timestamp and revision
-of the specified records to be output - for all records, if no record
+description associated with it, etc.  The -q option will cause the change
+queue, if any, to be output, while the -r option will cause the timestamp and
+revision of the specified records to be output - for all records, if no record
 identifier(s) are specified).  Properties for records will be included in the
 output if the -p option is given.  If no option is specified, the program will
 only attempt to open and verify the storage, exiting with zero (success) if the
 format of the storage is valid.
 
-The GROWER program will create a new storage based upon an existing storage, and
-containing the same data copied to its records (as applicable).  Any attribute
-of the old storage can be carried over unchanged to the new storage, by
-specifying "=" for it.  For example, to create a new storage "new-store" that is
-identical to the existing "old-store", except for having a change queue capacity
-of 1024 records:-
+The GROWER program will create a new storage based upon an existing storage,
+and containing the same data copied to its records (as applicable).  Any
+attribute of the old storage can be carried over unchanged to the new storage,
+by specifying "=" for it.  For example, to create a new storage "new-store"
+that is identical to the existing "old-store", except for having a change queue
+capacity of 1024 records:-
 
     dev45$ grower old-store new-store = = = = 1024
 
@@ -178,9 +178,9 @@ then it is not an error if a storage does not exist.
 These are utility programs to modify the contents of storages.
 
 ERASER removes the specified records from the specified storage.  The storage
-is compacted to eliminate the holes left behind if the -c option is given.  (The
-compaction is performed by moving the last record in the storage to the place
-where the erased record used to be).
+is compacted to eliminate the holes left behind if the -c option is given.
+(The compaction is performed by moving the last record in the storage to the
+place where the erased record used to be).
 
 COPIER makes a copy of the specified source record in the destination storage.
 
@@ -192,8 +192,7 @@ identifiers of the records it is operating upon.
 Exit statuses: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
 
-  0       - no error
-  1-127   - C library error (error numbers as per errno.h)
-  128-192 - terminated by a signal (128 + the signal number, given by kill -l)
-  200-205 - C library error (error numbers as per errno.h, after subtracting 70)
-  220-255 - Lancaster library error (as per status.h, after negating)
+  0 - no error 1-127 - C library error (error numbers as per errno.h) 128-192 -
+  terminated by a signal (128 + the signal number, given by kill -l) 200-205 -
+  C library error (error numbers as per errno.h, after subtracting 70) 220-255
+  - Lancaster library error (as per status.h, after negating)

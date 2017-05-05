@@ -117,7 +117,8 @@ static status check_done(microsec then, microsec timeout, boolean sleep)
     else if (timeout < 0)
 	return FALSE;
 
-    if ((sleep && FAILED(st = clock_sleep(1))) || FAILED(st = clock_time(&now)))
+    if ((sleep && FAILED(st = clock_sleep(1))) ||
+	FAILED(st = clock_time(&now)))
 	return st;
 
     if ((now - then) > timeout)
