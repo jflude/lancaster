@@ -129,7 +129,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 	    return error_errno("fstat");
 
-	if ((size_t) file_stat.st_size != seg_sz)
+	if ((size_t)file_stat.st_size != seg_sz)
 	    return error_msg(STORAGE_UNEQUAL,
 			     "storage_create: storage is unequal");
     }
@@ -183,7 +183,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	 return error_msg(STORAGE_UNEQUAL,
 			  "storage_create: storage is unequal");
 
-    (*pstore)->first = (void *) (((char *) (*pstore)->seg) + hdr_sz);
+    (*pstore)->first = (void *)(((char *)(*pstore)->seg) + hdr_sz);
     (*pstore)->limit =
 	STORAGE_RECORD(*pstore, (*pstore)->first, max_id - base_id);
 
@@ -236,7 +236,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
     if (fstat((*pstore)->seg_fd, &file_stat) == -1)
 	return error_errno("fstat");
 
-    if ((size_t) file_stat.st_size < sizeof(struct segment))
+    if ((size_t)file_stat.st_size < sizeof(struct segment))
 	return error_msg(STORAGE_CORRUPTED,
 			 "storage_open: storage is truncated");
 
@@ -276,7 +276,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 	return NO_MEMORY;
 
     (*pstore)->first =
-	(void *) (((char *) (*pstore)->seg) + (*pstore)->seg->hdr_size);
+	(void *)(((char *)(*pstore)->seg) + (*pstore)->seg->hdr_size);
 
     (*pstore)->limit =
 	STORAGE_RECORD(*pstore, (*pstore)->first,
@@ -303,7 +303,7 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 	open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
 	return error_msg(INVALID_OPEN_FLAGS,
 			 "storage_create: invalid open flags: 0%07o",
-			 (unsigned) open_flags);
+			 (unsigned)open_flags);
 
     *pstore = XMALLOC(struct storage);
     if (!*pstore)
@@ -332,7 +332,7 @@ status storage_open(storage_handle *pstore, const char *mmap_file,
 	(open_flags & ~(O_RDONLY | O_RDWR | O_NOFOLLOW)))
 	return error_msg(INVALID_OPEN_FLAGS,
 			 "storage_open: invalid open flags: 0%07o",
-			 (unsigned) open_flags);
+			 (unsigned)open_flags);
 
     *pstore = XMALLOC(struct storage);
     if (!*pstore)
@@ -602,7 +602,7 @@ status storage_get_id(storage_handle store, record_handle rec,
 	return error_msg(INVALID_RECORD,
 			 "storage_get_id: invalid record address");
 
-    *pident = ((char *) rec - (char *) store->first) / store->seg->rec_size;
+    *pident = ((char *)rec - (char *)store->first) / store->seg->rec_size;
     return OK;
 }
 
@@ -738,7 +738,7 @@ status storage_reset(storage_handle store)
 	return error_msg(STORAGE_READ_ONLY,
 			 "storage_reset: storage is read-only");
 
-    memset(store->first, 0, (char *) store->limit - (char *) store->first);
+    memset(store->first, 0, (char *)store->limit - (char *)store->first);
 
     store->seg->q_head = 0;
     if (store->seg->q_mask != (size_t) - 1)
@@ -782,7 +782,7 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
     if (open_flags & ~(O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW))
 	return error_msg(INVALID_OPEN_FLAGS,
 			 "storage_grow: invalid open flags: 0%07o",
-			 (unsigned) open_flags);
+			 (unsigned)open_flags);
 
     if (fstat(store->seg_fd, &file_stat) == -1)
 	return error_errno("fstat");
@@ -820,14 +820,14 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 	    memcpy(val_copy_buf, old_r, val_copy_sz);
 
 	    if (new_property_size > 0)
-		memcpy(prop_copy_buf, (char *) old_r + store->seg->prop_offset,
+		memcpy(prop_copy_buf, (char *)old_r + store->seg->prop_offset,
 		       prop_copy_sz);
 	} while (rev != record_get_revision(old_r));
 
 	memcpy(new_r, val_copy_buf, val_copy_sz);
 
 	if (new_property_size > 0)
-	    memcpy((char *) new_r + (*pnewstore)->seg->prop_offset,
+	    memcpy((char *)new_r + (*pnewstore)->seg->prop_offset,
 		   prop_copy_buf, prop_copy_sz);
     }
 
@@ -860,7 +860,7 @@ status storage_clear_record(storage_handle store, record_handle rec)
     memset(rec->val, 0, store->seg->val_size);
 
     if (store->seg->prop_size > 0)
-	memset((char *) rec + store->seg->prop_offset, 0,
+	memset((char *)rec + store->seg->prop_offset, 0,
 	       store->seg->prop_size);
 
     rec->ts = 0;
@@ -889,8 +889,8 @@ status storage_copy_record(storage_handle from_store, record_handle from_rec,
     memcpy(to_rec->val, from_rec->val, from_store->seg->val_size);
 
     if (with_prop && from_store->seg->prop_size > 0)
-	memcpy((char *) to_rec + to_store->seg->prop_offset,
-	       (char *) from_rec + from_store->seg->prop_offset,
+	memcpy((char *)to_rec + to_store->seg->prop_offset,
+	       (char *)from_rec + from_store->seg->prop_offset,
 	       from_store->seg->prop_size);
 
     to_rec->ts = to_ts;
@@ -900,7 +900,7 @@ status storage_copy_record(storage_handle from_store, record_handle from_rec,
 void *storage_get_property_ref(storage_handle store, record_handle rec)
 {
     return store->seg->prop_offset
-	? ((char *) rec + store->seg->prop_offset) : NULL;
+	? ((char *)rec + store->seg->prop_offset) : NULL;
 }
 
 void *record_get_value_ref(record_handle rec)

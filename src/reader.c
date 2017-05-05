@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 	    if (FAILED(st = clock_sleep(1)))
 		break;
 	} else {
-	    if ((size_t) (new_head - old_head) > q_capacity) {
+	    if ((size_t)(new_head - old_head) > q_capacity) {
 		if (ignore_overrun) {
 		    old_head = new_head - q_capacity;
 		    event |= QUEUE_OVERRUN;

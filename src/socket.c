@@ -59,7 +59,7 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
 	sock_addr_destroy(paddr);
 	return error_msg(INVALID_ADDRESS,
 			 "inet_aton: invalid address: \"%s:%d\"",
-			 address, (int) port);
+			 address, (int)port);
     }
 
     return OK;
@@ -96,7 +96,7 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 
     if (!with_port)
 	p_buf[0] = '\0';
-    else if (sprintf(p_buf, ":%d", (int) ntohs(addr->sa.sin_port)) < 0)
+    else if (sprintf(p_buf, ":%d", (int)ntohs(addr->sa.sin_port)) < 0)
 	return error_errno("sock_addr_get_text");
 
     if (strlen(a_buf) + strlen(p_buf) >= text_sz)

@@ -134,7 +134,7 @@ static status update_record(receiver_handle recv, sequence seq, identifier id,
 
 static status request_gap(receiver_handle recv, sequence low, sequence high)
 {
-    struct sequence_range *r = (struct sequence_range *) recv->out_buf;
+    struct sequence_range *r = (struct sequence_range *)recv->out_buf;
     status st;
 
     r->low = htonll(low);
@@ -163,7 +163,7 @@ static status get_sock_addr_text(sock_addr_handle addr, char *text,
 {
     status st;
     if (FAILED(st = sock_addr_get_text(addr, text, text_sz, with_port)))
-	sprintf(text, "sock_addr_get_text failed: error #%d", (int) st);
+	sprintf(text, "sock_addr_get_text failed: error #%d", (int)st);
 
     return st;
 }
@@ -176,15 +176,15 @@ static status mcast_on_read(receiver_handle recv)
     unsigned long mcast_ip, tcp_ip;
 
     char *buf = alloca(recv->mcast_mtu);
-    sequence *in_seq_ref = (sequence *) buf;
-    microsec *in_stamp_ref = (microsec *) (in_seq_ref + 1);
+    sequence *in_seq_ref = (sequence *)buf;
+    microsec *in_stamp_ref = (microsec *)(in_seq_ref + 1);
 
     if (FAILED(st = st2 = sock_recvfrom(recv->mcast_sock, recv->mcast_src_addr,
 					buf, recv->mcast_mtu)) ||
 	FAILED(st = clock_time(&now)))
 	return st;
 
-    if ((size_t) st2 < (sizeof(sequence) + sizeof(microsec)))
+    if ((size_t)st2 < (sizeof(sequence) + sizeof(microsec)))
 	return error_msg(PROTOCOL_ERROR, "mcast_on_read: packet truncated");
 
     mcast_ip = sock_addr_get_ip(recv->mcast_src_addr);
@@ -229,7 +229,7 @@ static status mcast_on_read(receiver_handle recv)
 	last = buf + st2;
 
 	for (; p < last; p += sizeof(identifier) + recv->val_size) {
-	    identifier *id = (identifier *) p;
+	    identifier *id = (identifier *)p;
 	    if (FAILED(st = update_record(recv, *in_seq_ref,
 					  ntohll(*id), id + 1, now)))
 		return st;
@@ -330,8 +330,8 @@ static status tcp_on_read(receiver_handle recv)
 	return st;
 
     if (recv->in_remain == 0) {
-	sequence *in_seq_ref = (sequence *) recv->in_buf;
-	identifier *id = (identifier *) (in_seq_ref + 1);
+	sequence *in_seq_ref = (sequence *)recv->in_buf;
+	identifier *id = (identifier *)(in_seq_ref + 1);
 
 	if ((recv->in_next - recv->in_buf) == sizeof(sequence)) {
 	    *in_seq_ref = ntohll(*in_seq_ref);
@@ -386,7 +386,7 @@ static status event_func(poller_handle poller, sock_handle sock,
 {
     receiver_handle recv = param;
     status st = OK;
-    (void) poller;
+    (void)poller;
 
     if (sock == recv->mcast_sock)
 	return mcast_on_read(recv);
@@ -548,7 +548,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 #if defined(DEBUG_PROTOCOL)
 	sprintf(debug_name, "RECV-%s-%d-%d.DEBUG",
-		tcp_address, (int) tcp_port, (int) getpid());
+		tcp_address, (int)tcp_port, (int)getpid());
 
 	(*precv)->debug_file = fopen(debug_name, "w");
 	if (!(*precv)->debug_file)

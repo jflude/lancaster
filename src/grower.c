@@ -14,7 +14,7 @@
 #include "storage.h"
 #include "version.h"
 
-typedef long (*attr_func) (storage_handle);
+typedef long (*attr_func)(storage_handle);
 
 static storage_handle old_store, new_store;
 
@@ -74,11 +74,11 @@ int main(int argc, char *argv[])
     new_file = argv[optind++];
     new_base_id = parse(argv[optind++], storage_get_base_id);
     new_max_id = parse(argv[optind++], storage_get_max_id);
-    new_val_size = parse(argv[optind++], (attr_func) storage_get_value_size);
+    new_val_size = parse(argv[optind++], (attr_func)storage_get_value_size);
     new_prop_size =
-	parse(argv[optind++], (attr_func) storage_get_property_size);
+	parse(argv[optind++], (attr_func)storage_get_property_size);
     new_q_capacity =
-	parse(argv[optind++], (attr_func) storage_get_queue_capacity);
+	parse(argv[optind++], (attr_func)storage_get_queue_capacity);
 
     if (FAILED(storage_grow(old_store, &new_store, new_file, O_CREAT,
 			    new_base_id, new_max_id, new_val_size,

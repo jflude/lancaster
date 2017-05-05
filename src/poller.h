@@ -18,7 +18,7 @@ extern "C" {
 struct poller;
 typedef struct poller *poller_handle;
 
-typedef status(*poller_func) (poller_handle, sock_handle, short *, void *);
+typedef status (*poller_func)(poller_handle, sock_handle, short *, void *);
 
 status poller_create(poller_handle *ppoller, int nsock);
 status poller_destroy(poller_handle *ppoller);

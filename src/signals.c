@@ -20,7 +20,7 @@ static void on_signal(int sig)
     is_raised[sig] = 1;
 }
 
-static status set_action(int sig, void (*handler) (int))
+static status set_action(int sig, void (*handler)(int))
 {
     struct sigaction sa;
     sa.sa_flags = 0;

@@ -124,7 +124,7 @@ static status mcast_send_pkt(sender_handle sndr)
     if (FAILED(st = clock_time(&now)))
 	return st;
 
-    *((microsec *) (sndr->pkt_buf + sizeof(sequence))) = htonll(now);
+    *((microsec *)(sndr->pkt_buf + sizeof(sequence))) = htonll(now);
 
     if (FAILED(st2 = sock_sendto(sndr->mcast_sock,
 				 sndr->sendto_addr, sndr->pkt_buf,
@@ -132,7 +132,7 @@ static status mcast_send_pkt(sender_handle sndr)
 	return st2;
 
     sndr->last_active_time = sndr->mcast_send_time = now;
-    seq = ntohll(*((sequence *) sndr->pkt_buf));
+    seq = ntohll(*((sequence *)sndr->pkt_buf));
 
     if (seq >= 0 && ++sndr->next_seq == SEQUENCE_MAX)
 	return error_msg(SEQUENCE_OVERFLOW,
@@ -140,7 +140,7 @@ static status mcast_send_pkt(sender_handle sndr)
 
 #if defined(DEBUG_PROTOCOL)
     fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
-	    debug_time(), ntohll(*((sequence *) sndr->pkt_buf)));
+	    debug_time(), ntohll(*((sequence *)sndr->pkt_buf)));
 #endif
 
     sndr->pkt_next = sndr->pkt_buf;
@@ -193,11 +193,11 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
     }
 
     if (used_sz == 0) {
-	*((sequence *) sndr->pkt_buf) = htonll(sndr->next_seq);
+	*((sequence *)sndr->pkt_buf) = htonll(sndr->next_seq);
 	sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
     }
 
-    *((identifier *) sndr->pkt_next) = htonll(id);
+    *((identifier *)sndr->pkt_next) = htonll(id);
     sndr->pkt_next += sizeof(identifier);
 
     for (;;) {
@@ -243,7 +243,7 @@ static status mcast_on_empty_queue(sender_handle sndr)
 	else {
 	    if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
 		if (sndr->pkt_next == sndr->pkt_buf) {
-		    *((sequence *) sndr->pkt_buf) = htonll(-sndr->next_seq);
+		    *((sequence *)sndr->pkt_buf) = htonll(-sndr->next_seq);
 		    sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 #if defined(DEBUG_PROTOCOL)
 		    fprintf(sndr->debug_file, "%s mcast heartbeat\n",
@@ -278,7 +278,7 @@ static status mcast_on_write(sender_handle sndr)
 	st = mcast_on_empty_queue(sndr);
     else {
 	size_t q_cap = storage_get_queue_capacity(sndr->store);
-	if ((size_t) qi > q_cap) {
+	if ((size_t)qi > q_cap) {
 #if defined(DEBUG_PROTOCOL)
 	    fprintf(sndr->debug_file, "%s mcast queue overrun\n", debug_time());
 #endif
@@ -478,8 +478,8 @@ static status close_sock_func(poller_handle poller, sock_handle sock,
 {
     struct tcp_client *clnt = sock_get_property_ref(sock);
     status st;
-    (void) events;
-    (void) param;
+    (void)events;
+    (void)param;
 
     if (clnt) {
 	xfree(clnt->out_buf);
@@ -511,14 +511,14 @@ static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
     struct tcp_client *clnt = sock_get_property_ref(sock);
     sequence *out_seq_ref;
     status st;
-    (void) poller;
-    (void) events;
-    (void) param;
+    (void)poller;
+    (void)events;
+    (void)param;
 
     if (!clnt)
 	return OK;
 
-    out_seq_ref = (sequence *) clnt->out_buf;
+    out_seq_ref = (sequence *)clnt->out_buf;
     *out_seq_ref = htonll(WILL_QUIT_SEQ);
     clnt->out_next = clnt->out_buf;
     clnt->out_remain = sizeof(sequence);
@@ -550,8 +550,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
 	return st;
 
     if (clnt->out_remain == 0) {
-	sequence *out_seq_ref = (sequence *) clnt->out_buf;
-	identifier *out_id_ref = (identifier *) (out_seq_ref + 1);
+	sequence *out_seq_ref = (sequence *)clnt->out_buf;
+	identifier *out_id_ref = (identifier *)(out_seq_ref + 1);
 
 	if (IS_VALID_RANGE(clnt->reply_range)) {
 	    for (; clnt->reply_id < sndr->max_id; ++clnt->reply_id) {
@@ -667,7 +667,7 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
 	return st;
 
     if (clnt->in_remain == 0) {
-	struct sequence_range *r = (struct sequence_range *) clnt->in_buf;
+	struct sequence_range *r = (struct sequence_range *)clnt->in_buf;
 	r->low = ntohll(r->low);
 	r->high = ntohll(r->high);
 
@@ -699,7 +699,7 @@ static status event_func(poller_handle poller, sock_handle sock,
 {
     sender_handle sndr = param;
     status st = OK;
-    (void) poller;
+    (void)poller;
 
     if (sock == sndr->listen_sock)
 	return tcp_on_accept(sndr, sock);
@@ -834,12 +834,12 @@ static status init(sender_handle *psndr, const char *mmap_file,
 		 "%ld\r\n%lu\r\n%lu\r\n%ld\r\n%ld\r\n",
 		 (version_get_wire_major() << 8)
 		 | version_get_wire_minor(),
-		 (int) storage_get_data_version((*psndr)->store),
+		 (int)storage_get_data_version((*psndr)->store),
 		 mcast_address,
 		 mcast_port,
 		 (*psndr)->mcast_mtu,
-		 (long) (*psndr)->base_id,
-		 (long) (*psndr)->max_id,
+		 (long)(*psndr)->base_id,
+		 (long)(*psndr)->max_id,
 		 storage_get_value_size((*psndr)->store),
 		 storage_get_queue_capacity((*psndr)->store),
 		 max_pkt_age_usec, (*psndr)->heartbeat_usec);
@@ -862,7 +862,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
     sprintf(debug_name, "SEND-%s-%d-%d.DEBUG", tcp_address,
-	    (int) sock_addr_get_port((*psndr)->listen_addr), (int) getpid());
+	    (int)sock_addr_get_port((*psndr)->listen_addr), (int)getpid());
 
     (*psndr)->debug_file = fopen(debug_name, "w");
     if (!(*psndr)->debug_file)

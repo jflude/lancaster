@@ -139,7 +139,7 @@ static void *stats_func(thread_handle thr)
 
     if (FAILED(st = clock_time(&last_print))) {
 	sender_stop(sndr);
-	return (void *) (long) st;
+	return (void *)(long)st;
     }
 
     while (!thread_is_stopping(thr)) {
@@ -174,7 +174,7 @@ static void *stats_func(thread_handle thr)
 	putchar('\n');
 
     sender_stop(sndr);
-    return (void *) (long) st;
+    return (void *)(long)st;
 }
 
 int main(int argc, char *argv[])
@@ -305,13 +305,13 @@ int main(int argc, char *argv[])
 	error_report_fatal();
 
     if (!as_json && tcp_port == 0)
-	printf("listening on port %d\n", (int) sender_get_listen_port(sndr));
+	printf("listening on port %d\n", (int)sender_get_listen_port(sndr));
 
     if (FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
 	FAILED(sender_run(sndr)) ||
 	FAILED(thread_stop(stats_thread, &stats_result)) ||
 	FAILED(thread_destroy(&stats_thread)) ||
-	FAILED((status) (long) stats_result) ||
+	FAILED((status)(long)stats_result) ||
 	FAILED(reporter_destroy(&reporter)) ||
 	FAILED(advert_destroy(&adv)) ||
 	FAILED(sender_destroy(&sndr)) ||

@@ -126,7 +126,7 @@ static void *mcast_func(thread_handle thr)
     if (!FAILED(st))
 	st = st2;
 
-    return (void *) (long) st;
+    return (void *)(long)st;
 }
 
 static status init(advert_handle *padvert, const char *mcast_address,
@@ -160,17 +160,15 @@ static status init(advert_handle *padvert, const char *mcast_address,
 	    return st;
     }
 
-    (void) (FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
-	    FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock, mcast_ttl))
-	    || FAILED(st =
-		      sock_set_mcast_loopback((*padvert)->mcast_sock,
-					      mcast_loopback))
-	    || FAILED(st =
-		      sock_addr_create(&(*padvert)->sendto_addr, mcast_address,
-				       mcast_port))
-	    || FAILED(st =
-		      thread_create(&(*padvert)->mcast_thr, mcast_func,
-				    *padvert)));
+    (void)(FAILED(st = sock_set_reuseaddr((*padvert)->mcast_sock, TRUE)) ||
+	   FAILED(st = sock_set_mcast_ttl((*padvert)->mcast_sock,
+					  mcast_ttl)) ||
+	   FAILED(st = sock_set_mcast_loopback((*padvert)->mcast_sock,
+					       mcast_loopback)) ||
+	   FAILED(st = sock_addr_create(&(*padvert)->sendto_addr,
+					mcast_address, mcast_port)) ||
+	   FAILED(st = thread_create(&(*padvert)->mcast_thr, mcast_func,
+				     *padvert)));
     return st;
 }
 
@@ -231,7 +229,7 @@ status advert_stop(advert_handle advert)
     void *p;
     status st2, st = thread_stop(advert->mcast_thr, &p);
     if (!FAILED(st))
-	st = (long) p;
+	st = (long)p;
 
     st2 = sock_close(advert->mcast_sock);
     if (!FAILED(st))

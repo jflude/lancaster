@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 	if (FAILED(twist_create(&twister)))
 	    error_report_fatal();
 
-	twist_seed(twister, (unsigned) time(NULL));
+	twist_seed(twister, (unsigned)time(NULL));
 
 	for (;;)
 	    if (FAILED(st = update(twist_rand(twister) % MAX_ID, xyz++)))

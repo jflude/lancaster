@@ -43,7 +43,7 @@ static void *touch_func(thread_handle thr)
 	    break;
     }
 
-    return (void *) (long) st;
+    return (void *)(long)st;
 }
 
 status toucher_create(toucher_handle *ptouch, microsec touch_period_usec)
@@ -99,7 +99,7 @@ status toucher_stop(toucher_handle touch)
     void *p;
     status st = thread_stop(touch->thr, &p);
     if (!FAILED(st))
-	st = (long) p;
+	st = (long)p;
 
     return st;
 }

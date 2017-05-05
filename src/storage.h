@@ -24,7 +24,7 @@ typedef struct storage *storage_handle;
 struct record;
 typedef struct record *record_handle;
 
-typedef status(*storage_iterate_func) (storage_handle, record_handle, void *);
+typedef status (*storage_iterate_func)(storage_handle, record_handle, void *);
 
 typedef long identifier;
 typedef long q_index;

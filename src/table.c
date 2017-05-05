@@ -84,7 +84,7 @@ status table_lookup(table_handle tab, table_key key, table_value *pval)
     if (!pval)
 	return error_invalid_arg("table_lookup");
 
-    hash = (tab->h_fn ? tab->h_fn(key) : (long) key) & tab->mask;
+    hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
     for (c = tab->array[hash]; c; c = c->next) {
 	if (tab->eq_fn) {
@@ -103,7 +103,7 @@ status table_lookup(table_handle tab, table_key key, table_value *pval)
 status table_insert(table_handle tab, table_key key, table_value val)
 {
     struct chain *c = NULL;
-    size_t hash = (tab->h_fn ? tab->h_fn(key) : (long) key) & tab->mask;
+    size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
     if (!tab->array[hash]) {
 	c = XMALLOC(struct chain);
@@ -143,7 +143,7 @@ status table_remove(table_handle tab, table_key key)
 {
     struct chain *c;
     struct chain *prev = NULL;
-    size_t hash = (tab->h_fn ? tab->h_fn(key) : (long) key) & tab->mask;
+    size_t hash = (tab->h_fn ? tab->h_fn(key) : (long)key) & tab->mask;
 
     for (c = tab->array[hash]; c; prev = c, c = c->next) {
 	if (tab->eq_fn) {

@@ -139,7 +139,7 @@ static void *stats_func(thread_handle thr)
 
     if (FAILED(st = clock_time(&last_print))) {
 	receiver_stop(rcvr);
-	return (void *) (long) st;
+	return (void *)(long)st;
     }
 
     while (!thread_is_stopping(thr)) {
@@ -172,7 +172,7 @@ static void *stats_func(thread_handle thr)
 	putchar('\n');
 
     receiver_stop(rcvr);
-    return (void *) (long) st;
+    return (void *)(long)st;
 }
 
 int main(int argc, char *argv[])
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 	FAILED(receiver_run(rcvr)) ||
 	FAILED(thread_stop(stats_thread, &stats_result)) ||
 	FAILED(thread_destroy(&stats_thread)) ||
-	FAILED((status) (long) stats_result) ||
+	FAILED((status)(long)stats_result) ||
 	FAILED(reporter_destroy(&reporter)) ||
 	FAILED(receiver_destroy(&rcvr)) ||
 	FAILED(signal_remove_handler(SIGHUP)) ||
