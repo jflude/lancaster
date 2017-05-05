@@ -59,7 +59,7 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
 	sock_addr_destroy(paddr);
 	return error_msg(INVALID_ADDRESS,
 			 "inet_aton: invalid address: \"%s:%d\"",
-			 address, (int) port);
+			 address, (int)port);
     }
 
     return OK;
@@ -96,7 +96,7 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 
     if (!with_port)
 	p_buf[0] = '\0';
-    else if (sprintf(p_buf, ":%d", (int) ntohs(addr->sa.sin_port)) < 0)
+    else if (sprintf(p_buf, ":%d", (int)ntohs(addr->sa.sin_port)) < 0)
 	return error_errno("sock_addr_get_text");
 
     if (strlen(a_buf) + strlen(p_buf) >= text_sz)
@@ -219,7 +219,7 @@ status sock_get_local_address(sock_handle sock, sock_addr_handle addr)
 	return error_invalid_arg("sock_get_local_address");
 
     len = sizeof(addr->sa);
-    if (getsockname(sock->fd, (struct sockaddr *) &addr->sa, &len) == -1)
+    if (getsockname(sock->fd, (struct sockaddr *)&addr->sa, &len) == -1)
 	return error_errno("getsockname");
 
     return OK;
@@ -232,7 +232,7 @@ status sock_get_remote_address(sock_handle sock, sock_addr_handle addr)
 	return error_invalid_arg("sock_get_remote_address");
 
     len = sizeof(addr->sa);
-    if (getpeername(sock->fd, (struct sockaddr *) &addr->sa, &len) == -1)
+    if (getpeername(sock->fd, (struct sockaddr *)&addr->sa, &len) == -1)
 	return error_errno("getpeername");
 
     return OK;
@@ -248,10 +248,10 @@ status sock_get_interface_address(sock_handle sock, const char *device,
     BZERO(&ifr);
     strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-    if (ioctl(sock->fd, (int) SIOCGIFADDR, &ifr) == -1)
+    if (ioctl(sock->fd, (int)SIOCGIFADDR, &ifr) == -1)
 	return error_errno("ioctl");
 
-    addr->sa.sin_addr = ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr;
+    addr->sa.sin_addr = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
     return OK;
 }
 
@@ -264,7 +264,7 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
     BZERO(&ifr);
     strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
-    if (ioctl(sock->fd, (int) SIOCGIFMTU, &ifr) == -1)
+    if (ioctl(sock->fd, (int)SIOCGIFMTU, &ifr) == -1)
 	return error_errno("ioctl");
 
     *pmtu = ifr.ifr_mtu;
@@ -283,7 +283,7 @@ status sock_set_nonblock(sock_handle sock)
 	return error_errno("fcntl");
 #else
     flags = 1;
-    if (ioctl(sock->fd, (int) FIOBIO, &flags) == -1)
+    if (ioctl(sock->fd, (int)FIOBIO, &flags) == -1)
 	return error_errno("ioctl");
 #endif
     return OK;
@@ -363,7 +363,7 @@ status sock_bind(sock_handle sock, sock_addr_handle addr)
     if (!addr)
 	return error_invalid_arg("sock_bind");
 
-    if (bind(sock->fd, (struct sockaddr *) &addr->sa, sizeof(addr->sa)) == -1)
+    if (bind(sock->fd, (struct sockaddr *)&addr->sa, sizeof(addr->sa)) == -1)
 	return error_errno("bind");
 
     return OK;
@@ -411,7 +411,7 @@ status sock_connect(sock_handle sock, sock_addr_handle addr)
     if (!addr)
 	return error_invalid_arg("sock_connect");
 
-    if (connect(sock->fd, (const struct sockaddr *) &addr->sa,
+    if (connect(sock->fd, (const struct sockaddr *)&addr->sa,
 		sizeof(addr->sa)) == -1)
 	return error_errno("connect");
 
@@ -513,7 +513,7 @@ status sock_sendto(sock_handle sock, sock_addr_handle addr,
 	return error_invalid_arg("sock_sendto");
 
     count = sendto(sock->fd, data, data_sz, 0,
-		   (const struct sockaddr *) &addr->sa, sizeof(addr->sa));
+		   (const struct sockaddr *)&addr->sa, sizeof(addr->sa));
     if (count == -1) {
 #ifdef EAGAIN
 	if (errno == EAGAIN)
@@ -542,7 +542,7 @@ status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
 
     addrlen = sizeof(addr->sa);
     count = recvfrom(sock->fd, data, data_sz, 0,
-		     (struct sockaddr *) &addr->sa, &addrlen);
+		     (struct sockaddr *)&addr->sa, &addrlen);
     if (count == -1) {
 #ifdef EAGAIN
 	if (errno == EAGAIN)

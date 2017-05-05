@@ -52,7 +52,7 @@ status batch_read_records(storage_handle store, size_t copy_size,
 	    ++times;
 
 	if (values)
-	    values = (char *) values + copy_size;
+	    values = (char *)values + copy_size;
     }
 
     return OK;
@@ -97,7 +97,7 @@ status batch_write_records(storage_handle store, size_t copy_size,
 	if (has_ch_q && FAILED(st = storage_write_queue(store, *ids)))
 	    return st;
 
-	values = (char *) values + copy_size;
+	values = (char *)values + copy_size;
 	++ids;
     }
 
@@ -166,10 +166,10 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 	    if (FAILED(st = check_done(then, timeout, TRUE)))
 		return st;
 	    else if (st)
-		return (status) n;
+		return (status)n;
 	}
 
-	avail = (size_t) (new_head - *head);
+	avail = (size_t)(new_head - *head);
 	if (avail > q_capacity)
 	    return error_msg(CHANGE_QUEUE_OVERRUN,
 			     "batch_read_changed_records: "
@@ -208,7 +208,7 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 		++times;
 
 	    if (values)
-		values = (char *) values + copy_size;
+		values = (char *)values + copy_size;
 
 	    if (ids)
 		*ids++ = id;
@@ -223,5 +223,5 @@ status batch_read_changed_records(storage_handle store, size_t copy_size,
 	    break;
     }
 
-    return (status) n;
+    return (status)n;
 }

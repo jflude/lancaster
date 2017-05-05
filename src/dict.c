@@ -32,7 +32,7 @@ static boolean s2id_eq_fn(table_key key1, table_key key2)
 
 static void s2id_dtor_fn(table_key key, table_value val)
 {
-    (void) val;
+    (void)val;
     XFREE(key);
 }
 
@@ -85,11 +85,11 @@ status dict_assoc(dict_handle dict, const char *symbol, identifier id)
     if (!p)
 	return NO_MEMORY;
 
-    if (FAILED(st = table_insert(dict->s2id, (table_key) p,
-				 (table_value) (long) id)))
+    if (FAILED(st = table_insert(dict->s2id, (table_key)p,
+				 (table_value)(long)id)))
 	return st;
 
-    return table_insert(dict->id2s, (table_key) (long) id, (table_value) p);
+    return table_insert(dict->id2s, (table_key)(long)id, (table_value)p);
 }
 
 status dict_get_id(dict_handle dict, const char *symbol, identifier *pident)
@@ -100,8 +100,8 @@ status dict_get_id(dict_handle dict, const char *symbol, identifier *pident)
     if (!symbol || !pident)
 	return error_invalid_arg("dict_get_id");
 
-    if (!FAILED(st = table_lookup(dict->s2id, (table_key) symbol, &val)) && st)
-	*pident = (long) val;
+    if (!FAILED(st = table_lookup(dict->s2id, (table_key)symbol, &val)) && st)
+	*pident = (long)val;
 
     return st;
 }
@@ -111,6 +111,6 @@ status dict_get_symbol(dict_handle dict, identifier id, const char **psymbol)
     if (!psymbol)
 	return error_invalid_arg("dict_get_symbol");
 
-    return table_lookup(dict->id2s, (table_key) (long) id,
-			(table_value *) (void **) psymbol);
+    return table_lookup(dict->id2s, (table_key)(long)id,
+			(table_value *)(void **)psymbol);
 }

@@ -13,7 +13,7 @@
 #include "clock.h"
 #include "error.h"
 
-#if HAVE_NANOSLEEP
+#ifdef HAVE_NANOSLEEP
 
 status clock_sleep(microsec usec)
 {
@@ -61,7 +61,7 @@ status clock_sleep(microsec usec)
 
 #endif
 
-#if HAVE_CLOCK_GETTIME
+#ifdef HAVE_CLOCK_GETTIME
 
 status clock_time(microsec *pusec)
 {

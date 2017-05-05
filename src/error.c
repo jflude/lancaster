@@ -165,7 +165,7 @@ int error_errno(const char *func)
 
 int error_eintr(const char *func)
 {
-    return (errno == EINTR ? signal_on_eintr : error_errno) (func);
+    return (errno == EINTR ? signal_on_eintr : error_errno)(func);
 }
 
 int error_invalid_arg(const char *func)

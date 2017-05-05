@@ -21,10 +21,10 @@ typedef struct table *table_handle;
 typedef void *table_key;
 typedef void *table_value;
 
-typedef int (*table_hash_func) (table_key);
-typedef boolean(*table_equality_func) (table_key, table_key);
-typedef void (*table_destroy_func) (table_key, table_value);
-typedef status(*table_iterate_func) (table_key, table_value);
+typedef int (*table_hash_func)(table_key);
+typedef boolean (*table_equality_func)(table_key, table_key);
+typedef void (*table_destroy_func)(table_key, table_value);
+typedef status (*table_iterate_func)(table_key, table_value);
 
 status table_create(table_handle *ptab, size_t tab_capacity,
 		    table_hash_func h_fn, table_equality_func eq_fn,
