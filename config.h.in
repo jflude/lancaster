@@ -5,8 +5,14 @@
    */
 #undef CRAY_STACKSEG_END
 
+/* Host operating system is Cygwin */
+#undef CYGWIN_OS
+
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
+
+/* Host operating system is Darwin */
+#undef DARWIN_OS
 
 /* Define to 1 if you have the `alarm' function. */
 #undef HAVE_ALARM

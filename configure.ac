@@ -21,8 +21,8 @@ AC_CHECK_LIB([pthread], [pthread_create])
 # Checks for header files.
 AC_FUNC_ALLOCA
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h \
-			      stdint.h stdlib.h string.h sys/ioctl.h \
-			      sys/socket.h sys/time.h unistd.h])
+stdint.h stdlib.h string.h sys/ioctl.h \
+sys/socket.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_MODE_T
@@ -36,6 +36,11 @@ AC_FUNC_MMAP
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday memset])
 AC_CHECK_FUNCS([munmap nanosleep socket sqrt strchr strerror strrchr])
+
+# Checks for system type
+AS_CASE([$host],
+[cygwin*-*-*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
+[darwin*-*-*], AC_DEFINE([DARWIN_OS], [1], [Host operating system is Darwin]))
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

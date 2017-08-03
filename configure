@@ -4726,8 +4726,8 @@ _ACEOF
 fi
 
 for ac_header in arpa/inet.h fcntl.h float.h limits.h netinet/in.h stddef.h \
-			      stdint.h stdlib.h string.h sys/ioctl.h \
-			      sys/socket.h sys/time.h unistd.h
+stdint.h stdlib.h string.h sys/ioctl.h \
+sys/socket.h sys/time.h unistd.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -5147,6 +5147,20 @@ _ACEOF
 fi
 done
 
+
+# Checks for system type
+case $host in #(
+  cygwin*-*-*) :
+
+$as_echo "#define CYGWIN_OS 1" >>confdefs.h
+ ;; #(
+  darwin*-*-*) :
+
+$as_echo "#define DARWIN_OS 1" >>confdefs.h
+ ;; #(
+  *) :
+     ;;
+esac
 
 ac_config_files="$ac_config_files Makefile"
 
