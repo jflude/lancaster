@@ -3,7 +3,6 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <float.h>
@@ -14,6 +13,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "clock.h"
+#include "config.h"
 #include "error.h"
 #include "h2n2h.h"
 #include "latency.h"

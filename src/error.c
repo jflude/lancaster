@@ -151,16 +151,29 @@ int error_eof(const char *func)
     return format(EOF + LANCASTER_ERROR_BASE, func, "end of file");
 }
 
+static void xstrerror_r(int code, char *buf, size_t buf_len)
+{
+    if (code < sys_nerr)
+	snprintf(buf, buf_len, "%s", sys_errlist[code]);
+    else
+	snprintf(buf, buf_len, "Unknown error %d", code);
+}
+
 int error_errno(const char *func)
 {
+    char buf[128];
+    int code;
+
     if (!func) {
 	error_invalid_arg("error_errno");
 	error_report_fatal();
     }
 
-    return format(ERRNO_ERROR_BASE_1 -
-		  (errno < 128 ? errno : errno + ERRNO_ERROR_BASE_2),
-		  func, strerror(errno));
+    code = ERRNO_ERROR_BASE_1 -
+	(errno < 128 ? errno : errno + ERRNO_ERROR_BASE_2)
+
+    xstrerror_r(errno, buf, sizeof(buf));
+    return format(code, func, buf);
 }
 
 int error_eintr(const char *func)

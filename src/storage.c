@@ -3,7 +3,6 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -12,6 +11,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include "clock.h"
+#include "config.h"
 #include "error.h"
 #include "spin.h"
 #include "storage.h"
@@ -25,6 +25,10 @@
 
 #ifndef O_NOFOLLOW
 #define O_NOFOLLOW 0
+#endif
+
+#ifndef _SC_PAGESIZE
+#define _SC_PAGESIZE _SC_PAGE_SIZE
 #endif
 
 struct record {

@@ -42,9 +42,12 @@ void *xcalloc(size_t n, size_t sz)
 
 void *xrealloc(void *p, size_t sz)
 {
+    if (!p && sz > 0)
+	return xmalloc(sz);
+
     p = realloc(p, sz);
 
-    if (sz > 0 && !p) {
+    if (!p && sz > 0) {
 	errno = ENOMEM;
 	error_errno("realloc");
     }

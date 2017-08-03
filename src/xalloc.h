@@ -10,6 +10,7 @@
 
 #include <stddef.h>
 #include <string.h>
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,22 @@ char *xstrdup(const char *p);
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#elif defined(__GNUC__)
+#define alloca __builtin_alloca
+#elif defined(_AIX)
+#define alloca __alloca
+#elif defined(_MSC_VER)
+#include <malloc.h>
+#define alloca _alloca
+#else
+#ifdef  __cplusplus
+extern "C"
+#endif
+void *alloca(size_t);
 #endif
 
 #endif
