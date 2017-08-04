@@ -13,7 +13,6 @@
 #include <time.h>
 #include <unistd.h>
 #include "clock.h"
-#include "config.h"
 #include "error.h"
 #include "h2n2h.h"
 #include "latency.h"
@@ -25,6 +24,10 @@
 #include "spin.h"
 #include "version.h"
 #include "xalloc.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #define INITIAL_MC_HB_USEC (10 * 1000000)
 #define CONNECT_READ_TIMEOUT_SEC 10

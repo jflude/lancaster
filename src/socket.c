@@ -16,10 +16,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include "a2i.h"
-#include "config.h"
 #include "error.h"
 #include "socket.h"
 #include "xalloc.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #if defined(SIOCRIPMTU) && defined(SIOCSIPMTU)
 #define SIOCGIFMTU SIOCRIPMTU

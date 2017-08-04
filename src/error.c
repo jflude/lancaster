@@ -10,10 +10,13 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
-#include "config.h"
 #include "error.h"
 #include "signals.h"
 #include "spin.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 static volatile spin_lock msg_lock;
 static char prog_name[256], last_msg[512], saved_msg[512];

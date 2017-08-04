@@ -11,13 +11,16 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include "clock.h"
-#include "config.h"
 #include "error.h"
 #include "spin.h"
 #include "storage.h"
 #include "sync.h"
 #include "version.h"
 #include "xalloc.h"
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #ifndef O_ACCMODE
 #define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
