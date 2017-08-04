@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include "clock.h"
+#include "config.h"
 #include "error.h"
 
 #ifdef HAVE_NANOSLEEP

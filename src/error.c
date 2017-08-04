@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include "config.h"
 #include "error.h"
 #include "signals.h"
 #include "spin.h"
@@ -151,12 +152,33 @@ int error_eof(const char *func)
     return format(EOF + LANCASTER_ERROR_BASE, func, "end of file");
 }
 
-static void xstrerror_r(int code, char *buf, size_t buf_len)
+static const char *xstrerror_r(int code, char *buf, size_t buf_len)
 {
+#if HAVE_STRERROR_R
+#ifdef STRERROR_R_CHAR_P
+    char *ret;
+    errno = 0;
+    ret = strerror_r(code, buf, buf_len);
+    if (errno == 0)
+	buf = ret;
+    else
+	snprintf(buf, buf_len, "strerror_r error %d", errno);
+#else
+    int ret;
+    if ((ret = strerror_r(code, buf, buf_len)) != 0) {
+	if (ret == -1)
+	    ret = errno;
+
+	snprintf(buf, buf_len, "strerror_r error %d", ret);
+     }
+#endif
+#else
     if (code < sys_nerr)
 	snprintf(buf, buf_len, "%s", sys_errlist[code]);
     else
 	snprintf(buf, buf_len, "Unknown error %d", code);
+#endif
+    return buf;
 }
 
 int error_errno(const char *func)
@@ -170,10 +192,9 @@ int error_errno(const char *func)
     }
 
     code = ERRNO_ERROR_BASE_1 -
-	(errno < 128 ? errno : errno + ERRNO_ERROR_BASE_2)
+	(errno < 128 ? errno : errno + ERRNO_ERROR_BASE_2);
 
-    xstrerror_r(errno, buf, sizeof(buf));
-    return format(code, func, buf);
+    return format(code, func, xstrerror_r(errno, buf, sizeof(buf)));
 }
 
 int error_eintr(const char *func)
