@@ -32,3 +32,23 @@ core
 core.*
 *.DEBUG
 .vscode/
+
+# autoconf files
+Makefile
+config.h
+config.status
+src/.deps/
+src/.dirstamp
+stamp-h1
+
+# built binaries
+copier
+deleter
+eraser
+grower
+inspector
+publisher
+reader
+subscriber
+writer
+
