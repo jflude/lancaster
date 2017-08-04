@@ -8,8 +8,8 @@
 #ifndef POLLER_H
 #define POLLER_H
 
-#include "socket.h"
-#include "status.h"
+#include <lancaster/socket.h>
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

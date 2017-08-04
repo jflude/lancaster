@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/latency.h>
+#include <lancaster/spin.h>
+#include <lancaster/xalloc.h>
 #include <math.h>
-#include "error.h"
-#include "latency.h"
-#include "spin.h"
-#include "xalloc.h"
 
 struct stats {
     long count;

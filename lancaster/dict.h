@@ -8,9 +8,9 @@
 #ifndef DICT_H
 #define DICT_H
 
+#include <lancaster/status.h>
+#include <lancaster/storage.h>
 #include <stddef.h>
-#include "status.h"
-#include "storage.h"
 
 #ifdef __cplusplus
 extern "C" {

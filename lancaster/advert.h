@@ -8,7 +8,7 @@
 #ifndef ADVERT_H
 #define ADVERT_H
 
-#include "sender.h"
+#include <lancaster/sender.h>
 
 #ifdef __cplusplus
 extern "C" {

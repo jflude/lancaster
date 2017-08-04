@@ -3,10 +3,10 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include "error.h"
-#include "clock.h"
-#include "spin.h"
-#include "sync.h"
+#include <lancaster/error.h>
+#include <lancaster/clock.h>
+#include <lancaster/spin.h>
+#include <lancaster/sync.h>
 
 #define MAX_SPINS 10000
 #define MAX_WAIT_USEC (1 * 1000000)

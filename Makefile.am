@@ -5,19 +5,63 @@ bin_PROGRAMS = copier deleter eraser grower inspector publisher reader \
 	subscriber writer
 
 lib_LIBRARIES = liblancaster.a
+
+nobase_include_HEADERS = \
+	lancaster/a2i.h \
+	lancaster/advert.h \
+	lancaster/batch.h \
+	lancaster/clock.h \
+	lancaster/datum.h \
+	lancaster/dict.h \
+	lancaster/dump.h \
+	lancaster/error.h \
+	lancaster/h2n2h.h \
+	lancaster/latency.h \
+	lancaster/poller.h \
+	lancaster/receiver.h \
+	lancaster/reporter.h \
+	lancaster/sender.h \
+	lancaster/sequence.h \
+	lancaster/signals.h \
+	lancaster/socket.h \
+	lancaster/spin.h \
+	lancaster/status.h \
+	lancaster/storage.h \
+	lancaster/sync.h \
+	lancaster/table.h \
+	lancaster/thread.h \
+	lancaster/toucher.h \
+	lancaster/twist.h \
+	lancaster/version.h \
+	lancaster/xalloc.h
+
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
 dist_doc_DATA = COPYING.LESSER README
 
-liblancaster_a_SOURCES = src/a2i.c src/a2i.h src/advert.c src/advert.h \
-	src/batch.c src/batch.h src/clock.c src/clock.h src/datum.h src/dict.c \
-	src/dict.h src/dump.c src/dump.h src/error.c src/error.h src/h2n2h.h \
-	src/latency.c src/latency.h src/poller.c src/poller.h src/receiver.c \
-	src/receiver.h src/reporter.c src/reporter.h src/sender.c src/sender.h \
-	src/sequence.h src/signals.c src/signals.h src/socket.c src/socket.h \
-	src/spin.c src/spin.h src/status.h src/storage.c src/storage.h \
-	src/sync.h src/table.c src/table.h src/thread.c src/thread.h \
-	src/toucher.c src/toucher.h src/twist.c src/twist.h src/version.c \
-	src/version.h src/xalloc.c src/xalloc.h
+liblancaster_a_SOURCES = \
+	src/a2i.c \
+	src/advert.c \
+	src/batch.c \
+	src/clock.c \
+	src/dict.c \
+	src/dump.c \
+	src/error.c \
+	src/latency.c \
+	src/poller.c \
+	src/receiver.c \
+	src/reporter.c \
+	src/sender.c \
+	src/signals.c \
+	src/socket.c \
+	src/spin.c \
+	src/storage.c \
+	src/table.c \
+	src/thread.c \
+	src/toucher.c \
+	src/twist.c \
+	src/version.c \
+	src/xalloc.c \
+	src/xalloca.h
 
 LDADD = liblancaster.a
 

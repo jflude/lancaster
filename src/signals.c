@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/signals.h>
 #include <signal.h>
 #include <string.h>
 #include <stddef.h>
-#include "error.h"
-#include "signals.h"
 
 #ifndef NSIG
 #define NSIG 65

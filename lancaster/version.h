@@ -3,7 +3,7 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-/* library build version */
+/* storage layout, network protocol and package versions */
 
 #ifndef VERSION_H
 #define VERSION_H
@@ -12,13 +12,13 @@
 extern "C" {
 #endif
 
-const char *version_get_source(void);
-
 int version_get_file_major(void);
 int version_get_file_minor(void);
 
 int version_get_wire_major(void);
 int version_get_wire_minor(void);
+
+void show_version(const char *canon_name);
 
 #ifdef __cplusplus
 }

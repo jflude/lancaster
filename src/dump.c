@@ -3,9 +3,9 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/dump.h>
+#include <lancaster/error.h>
 #include <ctype.h>
-#include "dump.h"
-#include "error.h"
 
 #define OCTET_PER_LINE 16
 

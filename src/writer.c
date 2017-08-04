@@ -5,6 +5,15 @@
 
 /* test writer */
 
+#include <lancaster/a2i.h>
+#include <lancaster/clock.h>
+#include <lancaster/datum.h>
+#include <lancaster/error.h>
+#include <lancaster/signals.h>
+#include <lancaster/storage.h>
+#include <lancaster/toucher.h>
+#include <lancaster/twist.h>
+#include <lancaster/version.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -13,15 +22,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "a2i.h"
-#include "clock.h"
-#include "datum.h"
-#include "error.h"
-#include "signals.h"
-#include "storage.h"
-#include "toucher.h"
-#include "twist.h"
-#include "version.h"
 
 #define DEFAULT_QUEUE_CAPACITY 256
 #define DEFAULT_TOUCH_USEC (1 * 1000000)
@@ -37,12 +37,6 @@ static void show_syntax(void)
 	    "STORAGE-FILE DELAY\n", error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("writer %s\n", version_get_source());
-    exit(0);
 }
 
 static status update(identifier id, long n)
@@ -114,7 +108,7 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("writer");
 	default:
 	    show_syntax();
 	}

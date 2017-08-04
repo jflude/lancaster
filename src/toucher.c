@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include "error.h"
-#include "spin.h"
-#include "thread.h"
-#include "toucher.h"
-#include "xalloc.h"
+#include <lancaster/error.h>
+#include <lancaster/spin.h>
+#include <lancaster/thread.h>
+#include <lancaster/toucher.h>
+#include <lancaster/xalloc.h>
 
 struct target {
     storage_handle store;

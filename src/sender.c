@@ -3,6 +3,16 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/h2n2h.h>
+#include <lancaster/latency.h>
+#include <lancaster/poller.h>
+#include <lancaster/sender.h>
+#include <lancaster/sequence.h>
+#include <lancaster/signals.h>
+#include <lancaster/spin.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -11,16 +21,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include "error.h"
-#include "h2n2h.h"
-#include "latency.h"
-#include "poller.h"
-#include "sender.h"
-#include "sequence.h"
-#include "signals.h"
-#include "spin.h"
-#include "version.h"
-#include "xalloc.h"
 
 #define IDLE_SLEEP_USEC 10
 #define IDLE_TIMEOUT_USEC 100
@@ -32,7 +32,7 @@
 #endif
 
 #if defined(DEBUG_PROTOCOL)
-#include "dump.h"
+#include <lancaster/dump.h>
 #endif
 
 struct sender_stats {

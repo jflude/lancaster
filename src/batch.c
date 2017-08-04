@@ -3,10 +3,10 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/batch.h>
+#include <lancaster/error.h>
+#include <lancaster/signals.h>
 #include <string.h>
-#include "batch.h"
-#include "error.h"
-#include "signals.h"
 
 status batch_read_records(storage_handle store, size_t copy_size,
 			  const identifier *ids, void *values, revision *revs,

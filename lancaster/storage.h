@@ -8,11 +8,11 @@
 #ifndef STORAGE_H
 #define STORAGE_H
 
+#include <lancaster/clock.h>
+#include <lancaster/spin.h>
+#include <lancaster/status.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include "clock.h"
-#include "spin.h"
-#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

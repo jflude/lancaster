@@ -3,12 +3,12 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/reporter.h>
+#include <lancaster/socket.h>
+#include <lancaster/xalloc.h>
 #include <string.h>
 #include <netinet/in.h>
-#include "error.h"
-#include "reporter.h"
-#include "socket.h"
-#include "xalloc.h"
 
 struct reporter {
     sock_handle udp_sock;

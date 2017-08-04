@@ -5,15 +5,15 @@
 
 /* erase a record from a storage */
 
+#include <lancaster/a2i.h>
+#include <lancaster/error.h>
+#include <lancaster/storage.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "a2i.h"
-#include "error.h"
-#include "storage.h"
-#include "version.h"
-#include "xalloc.h"
 
 struct arg {
     identifier id;
@@ -26,12 +26,6 @@ static void show_syntax(void)
 	    "RECORD-ID [RECORD-ID...]\n", error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("eraser %s\n", version_get_source());
-    exit(0);
 }
 
 int main(int argc, char *argv[])
@@ -57,7 +51,7 @@ int main(int argc, char *argv[])
 	    verbose = TRUE;
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("eraser");
 	default:
 	    show_syntax();
 	}

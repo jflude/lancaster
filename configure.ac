@@ -5,7 +5,7 @@ AC_PREREQ([2.69])
 AC_INIT([lancaster], [1.0], [bug-lancaster@peak6.com])
 AM_INIT_AUTOMAKE([1.14])
 
-AC_CONFIG_SRCDIR([src/status.h])
+AC_CONFIG_SRCDIR([src/error.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

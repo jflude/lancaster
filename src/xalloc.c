@@ -3,10 +3,10 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <stdlib.h>
-#include "error.h"
-#include "xalloc.h"
 
 void *xmalloc(size_t sz)
 {

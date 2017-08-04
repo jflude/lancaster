@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/thread.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <pthread.h>
-#include "error.h"
-#include "thread.h"
-#include "xalloc.h"
 
 struct thread {
     pthread_t sys_thr;

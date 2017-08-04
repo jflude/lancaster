@@ -8,9 +8,9 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
+#include <lancaster/status.h>
 #include <limits.h>
 #include <stddef.h>
-#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

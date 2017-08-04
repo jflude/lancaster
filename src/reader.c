@@ -5,20 +5,20 @@
 
 /* test reader */
 
+#include <lancaster/a2i.h>
+#include <lancaster/clock.h>
+#include <lancaster/datum.h>
+#include <lancaster/error.h>
+#include <lancaster/latency.h>
+#include <lancaster/signals.h>
+#include <lancaster/storage.h>
+#include <lancaster/version.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "a2i.h"
-#include "clock.h"
-#include "datum.h"
-#include "error.h"
-#include "latency.h"
-#include "signals.h"
-#include "storage.h"
-#include "version.h"
 
 #define DISPLAY_DELAY_USEC (0.2 * 1000000)
 #define DEFAULT_ORPHAN_TIMEOUT_USEC (3 * 1000000)
@@ -39,12 +39,6 @@ static void show_syntax(void)
 	    error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("reader %s\n", version_get_source());
-    exit(0);
 }
 
 static status output_stg(double secs)
@@ -137,7 +131,7 @@ int main(int argc, char *argv[])
 	    stg_stats = TRUE;
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("reader");
 	default:
 	    show_syntax();
 	}

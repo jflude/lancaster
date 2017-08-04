@@ -8,7 +8,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include "status.h"
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

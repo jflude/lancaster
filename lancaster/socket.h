@@ -3,13 +3,13 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-/* portable IPv4 sockets */
+/* portable Berkeley sockets */
 
 #ifndef SOCK_H
 #define SOCK_H
 
+#include <lancaster/status.h>
 #include <stddef.h>
-#include "status.h"
 
 #define DEFAULT_MTU 1500
 #define IP_OVERHEAD 20

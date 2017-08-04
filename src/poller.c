@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/poller.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <poll.h>
-#include "error.h"
-#include "poller.h"
-#include "xalloc.h"
 
 struct poller {
     nfds_t count;

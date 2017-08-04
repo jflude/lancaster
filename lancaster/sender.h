@@ -8,9 +8,9 @@
 #ifndef SENDER_H
 #define SENDER_H
 
-#include "clock.h"
-#include "status.h"
-#include "storage.h"
+#include <lancaster/clock.h>
+#include <lancaster/status.h>
+#include <lancaster/storage.h>
 
 #ifdef __cplusplus
 extern "C" {

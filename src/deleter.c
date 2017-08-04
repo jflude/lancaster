@@ -5,12 +5,12 @@
 
 /* delete a storage */
 
+#include <lancaster/error.h>
+#include <lancaster/storage.h>
+#include <lancaster/version.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "error.h"
-#include "storage.h"
-#include "version.h"
 
 static void show_syntax(void)
 {
@@ -18,12 +18,6 @@ static void show_syntax(void)
 	    "[STORAGE-FILE...]\n", error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("deleter %s\n", version_get_source());
-    exit(0);
 }
 
 int main(int argc, char *argv[])
@@ -42,7 +36,7 @@ int main(int argc, char *argv[])
 	    error_with_timestamp(TRUE);
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("deleter");
 	default:
 	    show_syntax();
 	}

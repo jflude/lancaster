@@ -8,7 +8,7 @@
 #ifndef TWIST_H
 #define TWIST_H
 
-#include "status.h"
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

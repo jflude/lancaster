@@ -3,12 +3,13 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include "version.h"
+#include <lancaster/version.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-const char *version_get_source(void)
-{
-     return "1.0";
-}
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 int version_get_file_major(void)
 {
@@ -28,4 +29,10 @@ int version_get_wire_major(void)
 int version_get_wire_minor(void)
 {
      return 0;
+}
+
+void show_version(const char *canon_name)
+{
+     printf("%s (%s)\n", PACKAGE_NAME, canon_name);
+     exit(0);
 }

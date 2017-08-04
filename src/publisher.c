@@ -5,21 +5,21 @@
 
 /* generic publisher */
 
+#include <lancaster/a2i.h>
+#include <lancaster/advert.h>
+#include <lancaster/clock.h>
+#include <lancaster/error.h>
+#include <lancaster/reporter.h>
+#include <lancaster/sender.h>
+#include <lancaster/signals.h>
+#include <lancaster/socket.h>
+#include <lancaster/thread.h>
+#include <lancaster/version.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "a2i.h"
-#include "advert.h"
-#include "clock.h"
-#include "error.h"
-#include "reporter.h"
-#include "sender.h"
-#include "signals.h"
-#include "socket.h"
-#include "thread.h"
-#include "version.h"
 
 #define DEFAULT_ADVERT_USEC (10 * 1000000)
 #define DEFAULT_HEARTBEAT_USEC (1 * 1000000)
@@ -44,12 +44,6 @@ static void show_syntax(void)
 	    error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("publisher %s\n", version_get_source());
-    exit(0);
 }
 
 static status output_stg(double secs)
@@ -276,7 +270,7 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("publisher");
 	default:
 	    show_syntax();
 	}

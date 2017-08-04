@@ -5,14 +5,14 @@
 
 /* modify the attributes of a storage */
 
+#include <lancaster/a2i.h>
+#include <lancaster/error.h>
+#include <lancaster/storage.h>
+#include <lancaster/version.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "a2i.h"
-#include "error.h"
-#include "storage.h"
-#include "version.h"
 
 typedef long (*attr_func)(storage_handle);
 
@@ -25,12 +25,6 @@ static void show_syntax(void)
 	    "NEW-QUEUE-CAPACITY\n", error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("grower %s\n", version_get_source());
-    exit(0);
 }
 
 static long parse(const char *text, attr_func fn)
@@ -60,7 +54,7 @@ int main(int argc, char *argv[])
 	    error_with_timestamp(TRUE);
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("grower");
 	default:
 	    show_syntax();
 	}

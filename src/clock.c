@@ -3,6 +3,8 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/clock.h>
+#include <lancaster/error.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,8 +12,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include "clock.h"
-#include "error.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

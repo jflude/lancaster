@@ -5,21 +5,21 @@
 
 /* generic subscriber */
 
+#include <lancaster/a2i.h>
+#include <lancaster/error.h>
+#include <lancaster/clock.h>
+#include <lancaster/receiver.h>
+#include <lancaster/reporter.h>
+#include <lancaster/signals.h>
+#include <lancaster/socket.h>
+#include <lancaster/thread.h>
+#include <lancaster/version.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include "a2i.h"
-#include "error.h"
-#include "clock.h"
-#include "receiver.h"
-#include "reporter.h"
-#include "signals.h"
-#include "socket.h"
-#include "thread.h"
-#include "version.h"
 
 #define DEFAULT_TOUCH_USEC (1 * 1000000)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
@@ -106,12 +106,6 @@ static status output_std(double secs)
 	st = error_errno("printf");
 
     return st;
-}
-
-static void show_version(void)
-{
-    printf("subscriber %s\n", version_get_source());
-    exit(0);
 }
 
 static void *stats_func(thread_handle thr)
@@ -226,7 +220,7 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("subscriber");
 	default:
 	    show_syntax();
 	}

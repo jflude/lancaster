@@ -3,17 +3,17 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/advert.h>
+#include <lancaster/error.h>
+#include <lancaster/socket.h>
+#include <lancaster/spin.h>
+#include <lancaster/thread.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include "advert.h"
-#include "error.h"
-#include "socket.h"
-#include "spin.h"
-#include "thread.h"
-#include "version.h"
-#include "xalloc.h"
 
 struct notice {
     sender_handle sender;

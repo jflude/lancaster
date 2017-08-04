@@ -8,7 +8,7 @@
 #ifndef A2I_H
 #define A2I_H
 
-#include "status.h"
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

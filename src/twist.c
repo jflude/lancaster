@@ -3,9 +3,9 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include "error.h"
-#include "twist.h"
-#include "xalloc.h"
+#include <lancaster/error.h>
+#include <lancaster/twist.h>
+#include <lancaster/xalloc.h>
 
 struct twist {
     int index;

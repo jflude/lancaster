@@ -17,6 +17,7 @@
 
 
 
+
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -87,8 +88,8 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
 	$(srcdir)/config.h.in $(dist_bin_SCRIPTS) depcomp \
-	$(dist_doc_DATA) COPYING.LESSER compile config.guess \
-	config.sub install-sh missing
+	$(dist_doc_DATA) $(nobase_include_HEADERS) COPYING.LESSER \
+	compile config.guess config.sub install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -127,7 +128,8 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(bindir)" "$(DESTDIR)$(docdir)"
+	"$(DESTDIR)$(bindir)" "$(DESTDIR)$(docdir)" \
+	"$(DESTDIR)$(includedir)"
 LIBRARIES = $(lib_LIBRARIES)
 AR = ar
 ARFLAGS = cru
@@ -228,6 +230,7 @@ am__can_run_installinfo = \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
 DATA = $(dist_doc_DATA)
+HEADERS = $(nobase_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) \
 	$(LISP)config.h.in
 # Read a list of newline-separated strings from the standard input,
@@ -358,18 +361,61 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
 lib_LIBRARIES = liblancaster.a
+nobase_include_HEADERS = \
+	lancaster/a2i.h \
+	lancaster/advert.h \
+	lancaster/batch.h \
+	lancaster/clock.h \
+	lancaster/datum.h \
+	lancaster/dict.h \
+	lancaster/dump.h \
+	lancaster/error.h \
+	lancaster/h2n2h.h \
+	lancaster/latency.h \
+	lancaster/poller.h \
+	lancaster/receiver.h \
+	lancaster/reporter.h \
+	lancaster/sender.h \
+	lancaster/sequence.h \
+	lancaster/signals.h \
+	lancaster/socket.h \
+	lancaster/spin.h \
+	lancaster/status.h \
+	lancaster/storage.h \
+	lancaster/sync.h \
+	lancaster/table.h \
+	lancaster/thread.h \
+	lancaster/toucher.h \
+	lancaster/twist.h \
+	lancaster/version.h \
+	lancaster/xalloc.h
+
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
 dist_doc_DATA = COPYING.LESSER README
-liblancaster_a_SOURCES = src/a2i.c src/a2i.h src/advert.c src/advert.h \
-	src/batch.c src/batch.h src/clock.c src/clock.h src/datum.h src/dict.c \
-	src/dict.h src/dump.c src/dump.h src/error.c src/error.h src/h2n2h.h \
-	src/latency.c src/latency.h src/poller.c src/poller.h src/receiver.c \
-	src/receiver.h src/reporter.c src/reporter.h src/sender.c src/sender.h \
-	src/sequence.h src/signals.c src/signals.h src/socket.c src/socket.h \
-	src/spin.c src/spin.h src/status.h src/storage.c src/storage.h \
-	src/sync.h src/table.c src/table.h src/thread.c src/thread.h \
-	src/toucher.c src/toucher.h src/twist.c src/twist.h src/version.c \
-	src/version.h src/xalloc.c src/xalloc.h
+liblancaster_a_SOURCES = \
+	src/a2i.c \
+	src/advert.c \
+	src/batch.c \
+	src/clock.c \
+	src/dict.c \
+	src/dump.c \
+	src/error.c \
+	src/latency.c \
+	src/poller.c \
+	src/receiver.c \
+	src/reporter.c \
+	src/sender.c \
+	src/signals.c \
+	src/socket.c \
+	src/spin.c \
+	src/storage.c \
+	src/table.c \
+	src/thread.c \
+	src/toucher.c \
+	src/twist.c \
+	src/version.c \
+	src/xalloc.c \
+	src/xalloca.h
 
 LDADD = liblancaster.a
 copier_SOURCES = src/copier.c
@@ -719,6 +765,30 @@ uninstall-dist_docDATA:
 	@list='$(dist_doc_DATA)'; test -n "$(docdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(docdir)'; $(am__uninstall_files_from_dir)
+install-nobase_includeHEADERS: $(nobase_include_HEADERS)
+	@$(NORMAL_INSTALL)
+	@list='$(nobase_include_HEADERS)'; test -n "$(includedir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(includedir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(includedir)" || exit 1; \
+	fi; \
+	$(am__nobase_list) | while read dir files; do \
+	  xfiles=; for file in $$files; do \
+	    if test -f "$$file"; then xfiles="$$xfiles $$file"; \
+	    else xfiles="$$xfiles $(srcdir)/$$file"; fi; done; \
+	  test -z "$$xfiles" || { \
+	    test "x$$dir" = x. || { \
+	      echo " $(MKDIR_P) '$(DESTDIR)$(includedir)/$$dir'"; \
+	      $(MKDIR_P) "$(DESTDIR)$(includedir)/$$dir"; }; \
+	    echo " $(INSTALL_HEADER) $$xfiles '$(DESTDIR)$(includedir)/$$dir'"; \
+	    $(INSTALL_HEADER) $$xfiles "$(DESTDIR)$(includedir)/$$dir" || exit $$?; }; \
+	done
+
+uninstall-nobase_includeHEADERS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(nobase_include_HEADERS)'; test -n "$(includedir)" || list=; \
+	$(am__nobase_strip_setup); files=`$(am__nobase_strip)`; \
+	dir='$(DESTDIR)$(includedir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -944,9 +1014,10 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-am
-all-am: Makefile $(LIBRARIES) $(PROGRAMS) $(SCRIPTS) $(DATA) config.h
+all-am: Makefile $(LIBRARIES) $(PROGRAMS) $(SCRIPTS) $(DATA) \
+		$(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(docdir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(docdir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -1005,7 +1076,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-dist_docDATA
+install-data-am: install-dist_docDATA install-nobase_includeHEADERS
 
 install-dvi: install-dvi-am
 
@@ -1054,7 +1125,8 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
-	uninstall-dist_docDATA uninstall-libLIBRARIES
+	uninstall-dist_docDATA uninstall-libLIBRARIES \
+	uninstall-nobase_includeHEADERS
 
 .MAKE: all install-am install-strip
 
@@ -1069,13 +1141,14 @@ uninstall-am: uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
 	install-data-am install-dist_binSCRIPTS install-dist_docDATA \
 	install-dvi install-dvi-am install-exec install-exec-am \
 	install-html install-html-am install-info install-info-am \
-	install-libLIBRARIES install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
-	uninstall-dist_docDATA uninstall-libLIBRARIES
+	install-libLIBRARIES install-man install-nobase_includeHEADERS \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
+	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-dist_binSCRIPTS uninstall-dist_docDATA \
+	uninstall-libLIBRARIES uninstall-nobase_includeHEADERS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

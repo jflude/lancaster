@@ -3,9 +3,9 @@
    Use of this source code is governed by the LICENSE file.
 */
 
-#include "error.h"
-#include "table.h"
-#include "xalloc.h"
+#include <lancaster/error.h>
+#include <lancaster/table.h>
+#include <lancaster/xalloc.h>
 
 struct chain {
     table_key key;

@@ -8,7 +8,7 @@
 #ifndef REPORTER_H
 #define REPORTER_H
 
-#include "status.h"
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

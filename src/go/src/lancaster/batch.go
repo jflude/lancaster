@@ -6,7 +6,7 @@
 package lancaster
 
 /*
-#include "batch.h"
+#include <lancaster/batch.h>
 */
 import "C"
 

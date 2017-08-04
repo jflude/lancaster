@@ -8,7 +8,7 @@
 #ifndef SIGNALS_H
 #define SIGNALS_H
 
-#include "status.h"
+#include <lancaster/status.h>
 
 #ifdef __cplusplus
 extern "C" {

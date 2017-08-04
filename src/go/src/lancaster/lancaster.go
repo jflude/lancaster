@@ -10,11 +10,11 @@ package lancaster
 #cgo LDFLAGS: ../../../../lib/liblancaster.a
 #cgo linux LDFLAGS: -lrt
 
-#include "batch.h"
-#include "error.h"
-#include "datum.h"
-#include "status.h"
-#include "storage.h"
+#include <lancaster/batch.h>
+#include <lancaster/error.h>
+#include <lancaster/datum.h>
+#include <lancaster/status.h>
+#include <lancaster/storage.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>

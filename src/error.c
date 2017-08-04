@@ -3,6 +3,9 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/error.h>
+#include <lancaster/signals.h>
+#include <lancaster/spin.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -10,9 +13,6 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
-#include "error.h"
-#include "signals.h"
-#include "spin.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

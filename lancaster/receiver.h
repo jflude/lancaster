@@ -8,7 +8,7 @@
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
-#include "storage.h"
+#include <lancaster/storage.h>
 
 #ifdef __cplusplus
 extern "C" {

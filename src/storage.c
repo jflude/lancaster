@@ -3,6 +3,13 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/clock.h>
+#include <lancaster/error.h>
+#include <lancaster/spin.h>
+#include <lancaster/storage.h>
+#include <lancaster/sync.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -10,13 +17,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include "clock.h"
-#include "error.h"
-#include "spin.h"
-#include "storage.h"
-#include "sync.h"
-#include "version.h"
-#include "xalloc.h"
+#include "xalloca.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

@@ -8,8 +8,8 @@
 #ifndef SPIN_H
 #define SPIN_H
 
+#include <lancaster/status.h>
 #include <limits.h>
-#include "status.h"
 
 #ifdef __cplusplus
 extern "C" {

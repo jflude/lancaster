@@ -3,11 +3,11 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/dict.h>
+#include <lancaster/error.h>
+#include <lancaster/table.h>
+#include <lancaster/xalloc.h>
 #include <string.h>
-#include "dict.h"
-#include "error.h"
-#include "table.h"
-#include "xalloc.h"
 
 struct dict {
     table_handle s2id;

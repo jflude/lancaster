@@ -5,18 +5,18 @@
 
 /* show the attributes and records of a storage */
 
+#include <lancaster/a2i.h>
+#include <lancaster/clock.h>
+#include <lancaster/dump.h>
+#include <lancaster/error.h>
+#include <lancaster/storage.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "a2i.h"
-#include "clock.h"
-#include "dump.h"
-#include "error.h"
-#include "storage.h"
-#include "version.h"
-#include "xalloc.h"
 
 #define SHOW_ATTRIBUTES 1
 #define SHOW_QUEUE 2
@@ -40,12 +40,6 @@ static void show_syntax(void)
 	    "STORAGE-FILE [RECORD-ID...]\n", error_get_program_name());
 
     exit(-SYNTAX_ERROR);
-}
-
-static void show_version(void)
-{
-    printf("inspector %s\n", version_get_source());
-    exit(0);
 }
 
 static status print_attributes(storage_handle store)
@@ -272,7 +266,7 @@ int main(int argc, char *argv[])
 	    show |= SHOW_RECORDS;
 	    break;
 	case 'v':
-	    show_version();
+	    show_version("inspector");
 	case 'V':
 	    show |= SHOW_VALUES | SHOW_RECORDS;
 	    break;

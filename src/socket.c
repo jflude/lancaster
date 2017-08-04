@@ -3,6 +3,10 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/a2i.h>
+#include <lancaster/error.h>
+#include <lancaster/socket.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -15,10 +19,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include "a2i.h"
-#include "error.h"
-#include "socket.h"
-#include "xalloc.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

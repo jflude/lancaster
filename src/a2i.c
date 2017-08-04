@@ -3,10 +3,10 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/a2i.h>
+#include <lancaster/error.h>
 #include <errno.h>
 #include <stdio.h>
-#include "a2i.h"
-#include "error.h"
 
 status a2i(const char *text, const char *format, void *pnum)
 {

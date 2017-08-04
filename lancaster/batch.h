@@ -8,10 +8,10 @@
 #ifndef BATCH_H
 #define BATCH_H
 
+#include <lancaster/clock.h>
+#include <lancaster/status.h>
+#include <lancaster/storage.h>
 #include <stddef.h>
-#include "clock.h"
-#include "status.h"
-#include "storage.h"
 
 #ifdef __cplusplus
 extern "C" {

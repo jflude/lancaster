@@ -3,6 +3,18 @@
    Use of this source code is governed by the LICENSE file.
 */
 
+#include <lancaster/clock.h>
+#include <lancaster/error.h>
+#include <lancaster/h2n2h.h>
+#include <lancaster/latency.h>
+#include <lancaster/poller.h>
+#include <lancaster/receiver.h>
+#include <lancaster/sequence.h>
+#include <lancaster/signals.h>
+#include <lancaster/socket.h>
+#include <lancaster/spin.h>
+#include <lancaster/version.h>
+#include <lancaster/xalloc.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <float.h>
@@ -12,18 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "clock.h"
-#include "error.h"
-#include "h2n2h.h"
-#include "latency.h"
-#include "poller.h"
-#include "receiver.h"
-#include "sequence.h"
-#include "signals.h"
-#include "socket.h"
-#include "spin.h"
-#include "version.h"
-#include "xalloc.h"
+#include "xalloca.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -35,7 +36,7 @@
 
 #if defined(DEBUG_PROTOCOL)
 #include <unistd.h>
-#include "dump.h"
+#include <lancaster/dump.h>
 #endif
 
 struct receiver_stats {

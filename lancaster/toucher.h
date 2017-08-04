@@ -8,8 +8,8 @@
 #ifndef TOUCHER_H
 #define TOUCHER_H
 
-#include "clock.h"
-#include "storage.h"
+#include <lancaster/clock.h>
+#include <lancaster/storage.h>
 
 #ifdef __cplusplus
 extern "C" {
