@@ -6,6 +6,7 @@ bin_PROGRAMS = copier deleter eraser grower inspector publisher reader \
 
 lib_LIBRARIES = liblancaster.a
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
+dist_doc_DATA = COPYING.LESSER README
 
 liblancaster_a_SOURCES = src/a2i.c src/a2i.h src/advert.c src/advert.h \
 	src/batch.c src/batch.h src/clock.c src/clock.h src/datum.h src/dict.c \
