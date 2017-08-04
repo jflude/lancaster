@@ -193,7 +193,8 @@ identifiers of the records it is operating upon.
 Exit statuses: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
 
-  0 - no error 1-127 - C library error (error numbers as per errno.h) 128-192 -
-  terminated by a signal (128 + the signal number, given by kill -l) 200-205 -
-  C library error (error numbers as per errno.h, after subtracting 70) 220-255
-  - Lancaster library error (as per status.h, after negating)
+        0 - no error
+    1-127 - C library error (error numbers as per errno.h)
+  128-192 - terminated by a signal (128 + the signal number, given by kill -l)
+  200-205 - C library error (error numbers as per errno.h, after subtracting 70)
+  220-255 - Lancaster library error (as per status.h, after negating)
