@@ -4,7 +4,7 @@ libdir=${exec_prefix}/lib/lancaster
 includedir=${prefix}/include/lancaster
 
 Name: Lancaster
-Description: Multicast caching of shared memory
+Description: Efficient multicasting of ephemeral data
 Version: 1.0-1
 Libs: -L${libdir} -llancaster -lrt
 Libs.private:

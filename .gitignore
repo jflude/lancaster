@@ -1,22 +1,4 @@
-# Object files
-*.o
-
-# Libraries
-*.lib
-*.a
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.app
-a.out
-
-# Editor files
+# editor files
 *~
 *.bak
 *.swo
@@ -25,11 +7,27 @@ a.out
 .#*
 TAGS
 
-# Build files
-.gradle
-DEPEND.mk
+# object files
+*.o
 
-# Etc
+# libraries
+*.a
+*.dll
+*.dylib
+*.lib
+*.so
+*.so.*
+
+# executables
+a.out
+*.app
+*.exe
+
+# build files
+autom4te.cache
+.gradle
+
+# etc
 core
 core.*
 *.DEBUG
