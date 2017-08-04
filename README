@@ -5,8 +5,8 @@ The software consists of a C library, liblancaster, provided in both static and
 dynamic forms, together with nine utility programs for use in production and
 development environments.
 
-Any questions, bug reports, suggestions for improvements etc. - please contact
-Justin Flude <jflude@peak6.com>
+Any questions, bug reports, suggestions for improvements etc. - please email
+the maintainers at bug-lancaster@peak6.com
 
              ===============================================
 
@@ -39,9 +39,10 @@ READER outputs a hexadecimal digit every fifth of a second to indicate the
 integrity of the read data - its value is the bitwise OR-ing of the following
 numbers, indicating which conditions occured in this last "tick":-
 
-    0 - no data was read 1 - data was read 2 - data was read out-of-order to
-    what was written 4 - change queue was overrun (only if -Q option is
-    specified)
+    0 - no data was read
+    1 - some data was read
+    2 - some data was read, but it was delivered out of order
+    4 - the change queue was overrun (only if -Q option is specified)
 
 If the -s option is supplied to READER then it will output storage latency
 statistics instead of its usual output.  If the storage has not been "touched"
@@ -123,13 +124,13 @@ A typical scenario for testing would be to run WRITER and PUBLISHER on one
 host, and SUBSCRIBER and READER on another.  For example, if the former were to
 be run on pslchi6dpricedev45 (10.2.2.152):-
 
-    dev45$ writer -q 4096 /tmp/his-local-file 1000 dev45$ publisher
-    /tmp/his-local-file 10.2.2.152:23266 227.1.1.34:56134
+    dev45$ writer -q 4096 /tmp/his-local-file 1000 &
+    dev45$ publisher /tmp/his-local-file 10.2.2.152:23266 227.1.1.34:56134
 
 ...and the SUBSCRIBER and READER commands on pslchi6dpricedev42:-
 
-    dev42$ subscriber shm:/her-local-segment 10.2.2.152:23266 dev42$ reader
-    shm:/her-local-segment
+    dev42$ subscriber shm:/her-local-segment 10.2.2.152:23266 &
+    dev42$ reader shm:/her-local-segment
 
              ===============================================
 

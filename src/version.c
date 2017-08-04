@@ -33,6 +33,6 @@ int version_get_wire_minor(void)
 
 void show_version(const char *canon_name)
 {
-     printf("%s (%s)\n", PACKAGE_NAME, canon_name);
+     printf("%s (%s)\n", PACKAGE_STRING, canon_name);
      exit(0);
 }
