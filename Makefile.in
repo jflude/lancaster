@@ -88,7 +88,7 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	$(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
 	$(srcdir)/config.h.in $(dist_bin_SCRIPTS) depcomp \
-	$(dist_doc_DATA) $(nobase_include_HEADERS) COPYING.LESSER TODO \
+	$(dist_doc_DATA) $(nobase_include_HEADERS) COPYING TODO \
 	compile config.guess config.sub install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -391,7 +391,7 @@ nobase_include_HEADERS = \
 	lancaster/xalloc.h
 
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
-dist_doc_DATA = COPYING.LESSER README
+dist_doc_DATA = COPYING README
 liblancaster_a_SOURCES = \
 	src/a2i.c \
 	src/advert.c \

@@ -1,6 +1,6 @@
 /*
    Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the LICENSE file.
+   Use of this source code is governed by the COPYING file.
 */
 
 /* show the attributes and records of a storage */

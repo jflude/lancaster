@@ -36,7 +36,7 @@ nobase_include_HEADERS = \
 	lancaster/xalloc.h
 
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
-dist_doc_DATA = LICENSE README
+dist_doc_DATA = COPYING README
 
 liblancaster_a_SOURCES = \
 	src/a2i.c \
