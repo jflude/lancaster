@@ -1,6 +1,8 @@
 # LANCASTER - things that still need to be done
 # Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
 
+- sync.h is not yet portable
+
 - develop "easy" READER & WRITER example programs using the batch functions
 
 - integrate the Go interface & utilities into the autoconf build system
