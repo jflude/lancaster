@@ -3,6 +3,9 @@
 
 - sync.h is not yet portable
 
+- support DNS lookups on addresses passed as arguments to programs (modify the
+  sock.c module to provide an API)
+
 - develop "easy" READER & WRITER example programs using the batch functions
 
 - integrate the Go interface & utilities into the autoconf build system
