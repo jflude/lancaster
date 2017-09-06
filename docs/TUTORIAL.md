@@ -6,7 +6,7 @@ means running on the same LAN with support for multicast on your switches.
 
 From a high-level perspective, the flow of data looks like this:
 
-    writer -> shm:/lancaster -> publisher -> subscriber -> shm:/lanster -> reader
+    writer -> shm:/lancaster -> publisher -> subscriber -> shm:/lancaster -> reader
 
 That is, the writer application writes to the shared memory "lancaster" storage. The publisher
 reads this shared memory and multicasts it to subscribers running on different hosts. The
@@ -32,7 +32,7 @@ storage (which can be a file or shared memory).
 
 Our writer will create a store named "TEST" that's written to shared memory at "shm:/lancaster", as
 shown in the command below. We also specify that the local change capacity (`-q`) is 1024 records.
-We tell the writer to write every 1000ms. Let's just start it in the background.
+We tell the writer to write every 1000us. Let's just start it in the background.
 
     ./writer -q 1024 shm:/lancaster 1000 &
 
@@ -88,7 +88,8 @@ a bitwise OR of the following values.
     * 4 - change queue was overrun (only if -Q option is specified)
 
 Thus a "1" means data were received successfully, a "3" means data was received but it was out of
-order, a "5" means it was received but the change queues was overrun, and so on.
+order, a "5" means it was received but the change queue was overrun (it couldn't be processed quickly
+enough to keep up with the writer), and so on.
 
 ## Troubleshooting
 
