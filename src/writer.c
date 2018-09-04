@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 /* test writer */
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 		    goto finish;
     }
 
-  finish:
+finish:
     if (FAILED(st) ||
 	FAILED(toucher_destroy(&toucher)) ||
 	(at_random && FAILED(twist_destroy(&twister))) ||

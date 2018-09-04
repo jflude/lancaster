@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 /* generic subscriber */
@@ -124,7 +124,7 @@ static void *stats_func(thread_handle thr)
 	else {
 	    int sz = delim_pos - storage_desc;
 	    if (sz >= sizeof(alias))
-		 sz = sizeof(alias) - 1;
+		sz = sizeof(alias) - 1;
 
 	    strncpy(alias, storage_desc, sz);
 	    alias[sz] = '\0';

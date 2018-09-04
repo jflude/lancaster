@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 /* packet sequence numbers */
@@ -29,8 +29,8 @@ struct sequence_range {
 #define IS_VALID_RANGE(r) ((r).low < (r).high)
 #define IS_WITHIN_RANGE(r, n) ((n) >= (r).low && (n) < (r).high)
 
-#define INVALIDATE_RANGE(r) \
-	((void)((r).low = SEQUENCE_MAX, (r).high = SEQUENCE_MIN))
+#define INVALIDATE_RANGE(r)					\
+    ((void)((r).low = SEQUENCE_MAX, (r).high = SEQUENCE_MIN))
 
 #ifdef __cplusplus
 }

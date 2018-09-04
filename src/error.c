@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/error.h>
@@ -173,7 +173,7 @@ static const char *xstrerror_r(int code, char *buf, size_t buf_len)
 	    ret = errno;
 
 	snprintf(buf, buf_len, "strerror_r error %d", ret);
-     }
+    }
 #endif
 #else
     if (code < sys_nerr)

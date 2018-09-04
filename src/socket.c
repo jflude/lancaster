@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/a2i.h>
@@ -326,7 +326,7 @@ status sock_set_tcp_nodelay(sock_handle sock, boolean disable_delay)
     int val = !!disable_delay;
     if (setsockopt(sock->fd, IPPROTO_TCP, TCP_NODELAY,
 		   &val, sizeof(val)) == -1)
-	 return error_errno("setsockopt");
+	return error_errno("setsockopt");
 
     return OK;
 }

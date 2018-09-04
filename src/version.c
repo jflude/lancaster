@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/version.h>
@@ -13,26 +13,26 @@
 
 int version_get_file_major(void)
 {
-     return 1;
+    return 1;
 }
 
 int version_get_file_minor(void)
 {
-     return 0;
+    return 0;
 }
 
 int version_get_wire_major(void)
 {
-     return 2;
+    return 2;
 }
 
 int version_get_wire_minor(void)
 {
-     return 0;
+    return 0;
 }
 
 void show_version(const char *canon_name)
 {
-     printf("%s (%s)\n", PACKAGE_STRING, canon_name);
-     exit(0);
+    printf("%s (%s)\n", PACKAGE_STRING, canon_name);
+    exit(0);
 }

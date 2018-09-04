@@ -10,7 +10,7 @@ TAGS
 # object files
 *.o
 
-# libraries
+# library files
 *.a
 *.dll
 *.dylib
@@ -18,30 +18,27 @@ TAGS
 *.so
 *.so.*
 
-# executables
+# executable files
 a.out
 *.app
 *.exe
 
-# build files
-autom4te.cache
-.gradle
-
-# etc
-core
-core.*
-*.DEBUG
-.vscode/
-
-# autoconf files
+# autotools files
 Makefile
+autom4te.cache
 config.h
+config.log
 config.status
 src/.deps/
 src/.dirstamp
 stamp-h1
 
-# built binaries
+# debug files
+core
+core.*
+*.DEBUG
+
+# target files
 copier
 deleter
 eraser
@@ -51,4 +48,3 @@ publisher
 reader
 subscriber
 writer
-

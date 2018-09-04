@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 /* test reader */
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 	}
     }
 
-  finish:
+finish:
     putchar('\n');
 
     if (FAILED(st) ||

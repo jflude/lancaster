@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 /* portable memory allocation and deallocation */
@@ -26,11 +26,11 @@ char *xstrdup(const char *p);
 #define COUNTOF(a) (sizeof(a) / sizeof((a)[0]))
 
 #define XMALLOC(t) (xmalloc(sizeof(t)))
-#define XFREE(p) \
-	do { \
-		xfree(p); \
-		(p) = NULL; \
-	} while (0)
+#define XFREE(p)				\
+    do {					\
+	xfree(p);				\
+	(p) = NULL;				\
+    } while (0)
 
 #define DEFAULT_ALIGNMENT 8
 #define ALIGNED_SIZE(sz, aln) (((sz) - 1 + (aln)) & ~((aln) - 1))

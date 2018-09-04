@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/error.h>
@@ -81,16 +81,20 @@ struct sender {
 #endif
 };
 
+#define SENDER_SEQ(sndr) (*((sequence *)sndr->pkt_buf))
+#define SENDER_USEC(sndr) (*((microsec *)(sndr->pkt_buf + sizeof(sequence))))
+#define SENDER_ID(sndr) (*((identifier *)sndr->pkt_next))
+
 struct tcp_client {
     sender_handle sndr;
     sock_handle sock;
     size_t pkt_size;
     char *in_buf;
     char *in_next;
-    size_t in_remain;
+    size_t in_todo;
     char *out_buf;
     char *out_next;
-    size_t out_remain;
+    size_t out_todo;
     microsec tcp_send_time;
     struct sequence_range union_range;
     struct sequence_range reply_range;
@@ -100,6 +104,11 @@ struct tcp_client {
     char peer_name[256];
 #endif
 };
+
+#define CLIENT_SEQ(clnt) (*((sequence *)clnt->out_buf))
+#define CLIENT_ID(clnt) (*(identifier *)(clnt->out_buf + sizeof(sequence)))
+#define CLIENT_VAL(clnt) ((void *)(clnt->out_buf + sizeof(sequence)	\
+				   + sizeof(identifier)))
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
 static const char *debug_time(void)
@@ -124,7 +133,7 @@ static status mcast_send_pkt(sender_handle sndr)
     if (FAILED(st = clock_time(&now)))
 	return st;
 
-    *((microsec *)(sndr->pkt_buf + sizeof(sequence))) = htonll(now);
+    SENDER_USEC(sndr) = htonll(now);
 
     if (FAILED(st2 = sock_sendto(sndr->mcast_sock,
 				 sndr->sendto_addr, sndr->pkt_buf,
@@ -132,7 +141,7 @@ static status mcast_send_pkt(sender_handle sndr)
 	return st2;
 
     sndr->last_active_time = sndr->mcast_send_time = now;
-    seq = ntohll(*((sequence *)sndr->pkt_buf));
+    seq = ntohll(SENDER_SEQ(sndr));
 
     if (seq >= 0 && ++sndr->next_seq == SEQUENCE_MAX)
 	return error_msg(SEQUENCE_OVERFLOW,
@@ -140,7 +149,7 @@ static status mcast_send_pkt(sender_handle sndr)
 
 #if defined(DEBUG_PROTOCOL)
     fprintf(sndr->debug_file, "%s mcast send seq %07ld\n",
-	    debug_time(), ntohll(*((sequence *)sndr->pkt_buf)));
+	    debug_time(), ntohll(SENDER_SEQ(sndr)));
 #endif
 
     sndr->pkt_next = sndr->pkt_buf;
@@ -193,11 +202,11 @@ static status mcast_accum_record(sender_handle sndr, identifier id)
     }
 
     if (used_sz == 0) {
-	*((sequence *)sndr->pkt_buf) = htonll(sndr->next_seq);
+	SENDER_SEQ(sndr) = htonll(sndr->next_seq);
 	sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
     }
 
-    *((identifier *)sndr->pkt_next) = htonll(id);
+    SENDER_ID(sndr) = htonll(id);
     sndr->pkt_next += sizeof(identifier);
 
     for (;;) {
@@ -243,7 +252,7 @@ static status mcast_on_empty_queue(sender_handle sndr)
 	else {
 	    if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
 		if (sndr->pkt_next == sndr->pkt_buf) {
-		    *((sequence *)sndr->pkt_buf) = htonll(-sndr->next_seq);
+		    SENDER_SEQ(sndr) = htonll(-sndr->next_seq);
 		    sndr->pkt_next += sizeof(sequence) + sizeof(microsec);
 #if defined(DEBUG_PROTOCOL)
 		    fprintf(sndr->debug_file, "%s mcast heartbeat\n",
@@ -311,12 +320,12 @@ static status tcp_read_buf(struct tcp_client *clnt)
     size_t recv_sz = 0;
 #endif
 
-    while (clnt->in_remain > 0) {
-	if (FAILED(st = sock_read(clnt->sock, clnt->in_next, clnt->in_remain)))
+    while (clnt->in_todo > 0) {
+	if (FAILED(st = sock_read(clnt->sock, clnt->in_next, clnt->in_todo)))
 	    break;
 
 	clnt->in_next += st;
-	clnt->in_remain -= st;
+	clnt->in_todo -= st;
 
 #if defined(DEBUG_PROTOCOL)
 	recv_sz += st;
@@ -335,13 +344,13 @@ static status tcp_write_buf(struct tcp_client *clnt)
     status st = OK;
     size_t sent_sz = 0;
 
-    while (clnt->out_remain > 0) {
+    while (clnt->out_todo > 0) {
 	if (FAILED(st = sock_write(clnt->sock, clnt->out_next,
-				   clnt->out_remain)))
+				   clnt->out_todo)))
 	    break;
 
 	clnt->out_next += st;
-	clnt->out_remain -= st;
+	clnt->out_todo -= st;
 	sent_sz += st;
     }
 
@@ -383,7 +392,8 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
     st = sock_write(accepted, buf, strlen(buf));
 
     alarm(0);
-    if (FAILED(st2 = signal_remove_handler(SIGALRM)) && !FAILED(st))
+    st2 = signal_remove_handler(SIGALRM);
+    if (!FAILED(st))
 	st = st2;
 
     if (FAILED(st)) {
@@ -391,13 +401,6 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 	    st = error_msg(PROTOCOL_TIMEOUT,
 			   "tcp_on_accept: protocol timed out");
 
-	error_save_last();
-	sock_destroy(&accepted);
-	error_restore_last();
-	return st;
-    }
-
-    if (FAILED(st)) {
 	error_save_last();
 	sock_destroy(&accepted);
 	error_restore_last();
@@ -427,7 +430,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
     clnt->sndr = sndr;
     clnt->sock = accepted;
     clnt->in_next = clnt->in_buf;
-    clnt->in_remain = sizeof(struct sequence_range);
+    clnt->in_todo = sizeof(struct sequence_range);
     clnt->pkt_size = sizeof(sequence) + sizeof(identifier) + sndr->val_size;
 
     INVALIDATE_RANGE(clnt->union_range);
@@ -445,9 +448,9 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
     sock_set_property_ref(accepted, clnt);
 
-    if (FAILED(st = clock_time(&clnt->tcp_send_time)) ||
-	FAILED(st = sock_set_nonblock(accepted)) ||
-	FAILED(st = poller_add(sndr->poller, accepted, POLLIN | POLLOUT)))
+    if (FAILED(st = sock_set_nonblock(accepted)) ||
+	FAILED(st = poller_add(sndr->poller, accepted, POLLIN | POLLOUT)) ||
+	FAILED(st = clock_time(&clnt->tcp_send_time)))
 	return st;
 
     sndr->last_active_time = clnt->tcp_send_time;
@@ -459,6 +462,7 @@ static status tcp_on_accept(sender_handle sndr, sock_handle sock)
 
 	sndr->last_q_idx = storage_get_queue_head(sndr->store);
     }
+
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
     if (!FAILED(st)) {
 	sock_addr_handle sa;
@@ -509,7 +513,6 @@ static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
 				 short *events, void *param)
 {
     struct tcp_client *clnt = sock_get_property_ref(sock);
-    sequence *out_seq_ref;
     status st;
     (void)poller;
     (void)events;
@@ -518,19 +521,86 @@ static status tcp_will_quit_func(poller_handle poller, sock_handle sock,
     if (!clnt)
 	return OK;
 
-    out_seq_ref = (sequence *)clnt->out_buf;
-    *out_seq_ref = htonll(WILL_QUIT_SEQ);
+    CLIENT_SEQ(clnt) = htonll(WILL_QUIT_SEQ);
     clnt->out_next = clnt->out_buf;
-    clnt->out_remain = sizeof(sequence);
+    clnt->out_todo = sizeof(sequence);
 
     do {
 	st = tcp_write_buf(clnt);
 	if (st != BLOCKED && FAILED(st))
 	    break;
-    } while (clnt->out_remain > 0);
+    } while (clnt->out_todo > 0);
 
     return st;
 }
+
+static status tcp_write_reply(sender_handle sndr, struct tcp_client *clnt,
+			      sequence seq)
+{
+    record_handle rec = NULL;
+    revision rev;
+    void *val_from;
+    void *val_to = CLIENT_VAL(clnt);
+
+    status st;
+    if (FAILED(st = storage_get_record(sndr->store, clnt->reply_id, &rec)))
+	return st;
+
+    val_from = record_get_value_ref(rec);
+    do {
+	if (FAILED(st = record_read_lock(rec, &rev)))
+	    return st;
+
+	if (rev == 0)
+	    return FALSE;
+
+	memcpy(val_to, val_from, sndr->val_size);
+    } while (rev != record_get_revision(rec));
+
+    CLIENT_SEQ(clnt) = htonll(seq);
+    CLIENT_ID(clnt) = htonll(clnt->reply_id);
+
+    clnt->out_next = clnt->out_buf;
+    clnt->out_todo = clnt->pkt_size;
+    ++clnt->reply_id;
+
+#if defined(DEBUG_PROTOCOL)
+    fprintf(sndr->debug_file,
+	    "%s     %s tcp gap reply seq %07ld, id #%07ld\n",
+	    debug_time(), clnt->peer_name,
+	    seq, clnt->reply_id - 1);
+#endif
+    return TRUE;
+}
+
+static status tcp_write_in_range(sender_handle sndr, struct tcp_client *clnt)
+{
+    sequence *out_seq_ref = (sequence *)clnt->out_buf;
+    identifier *out_id_ref = (identifier *)(out_seq_ref + 1);
+    
+    for (; clnt->reply_id < sndr->max_id; ++clnt->reply_id) {
+	sequence seq = sndr->record_seqs[clnt->reply_id - sndr->base_id];
+	if (seq < clnt->min_seq_found)
+	    clnt->min_seq_found = seq;
+
+	if (IS_WITHIN_RANGE(clnt->reply_range, seq)) {
+	    status st = tcp_write_reply(sndr, clnt, seq);
+	    if (FAILED(st))
+		return st;
+	    else if (!st)
+		break;
+	}
+    }
+
+    sndr->min_seq = clnt->min_seq_found;
+    INVALIDATE_RANGE(clnt->reply_range);
+
+#if defined(DEBUG_PROTOCOL)
+    fprintf(sndr->debug_file, "%s   %s tcp gap request DONE\n",
+	    debug_time(), clnt->peer_name);
+#endif
+    return OK;
+}    
 
 static status tcp_on_write(sender_handle sndr, sock_handle sock)
 {
@@ -539,8 +609,8 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
     status st;
 
 #if defined(DEBUG_PROTOCOL)
-    fprintf(sndr->debug_file, "%s   %s tcp write ready, %lu bytes remain\n",
-	    debug_time(), clnt->peer_name, clnt->out_remain);
+    fprintf(sndr->debug_file, "%s   %s tcp write ready, %lu bytes to do\n",
+	    debug_time(), clnt->peer_name, clnt->out_todo);
 #endif
 
     st = tcp_write_buf(clnt);
@@ -549,74 +619,27 @@ static status tcp_on_write(sender_handle sndr, sock_handle sock)
     else if (FAILED(st))
 	return st;
 
-    if (clnt->out_remain == 0) {
-	sequence *out_seq_ref = (sequence *)clnt->out_buf;
-	identifier *out_id_ref = (identifier *)(out_seq_ref + 1);
+    if (clnt->out_todo != 0)
+	return st;
 
-	if (IS_VALID_RANGE(clnt->reply_range)) {
-	    for (; clnt->reply_id < sndr->max_id; ++clnt->reply_id) {
-		sequence seq =
-		    sndr->record_seqs[clnt->reply_id - sndr->base_id];
-		if (seq < clnt->min_seq_found)
-		    clnt->min_seq_found = seq;
+    if (IS_VALID_RANGE(clnt->reply_range))
+	return tcp_write_in_range(sndr, clnt);
 
-		if (IS_WITHIN_RANGE(clnt->reply_range, seq)) {
-		    record_handle rec = NULL;
-		    revision rev;
-		    void *val_at;
-		    if (FAILED(st = storage_get_record(sndr->store,
-						       clnt->reply_id, &rec)))
-			return st;
+    if (FAILED(st = clock_time(&now)))
+	return st;
 
-		    val_at = record_get_value_ref(rec);
-		    do {
-			if (FAILED(st = record_read_lock(rec, &rev)))
-			    return st;
-
-			if (rev == 0)
-			    goto next_id;
-
-			memcpy(out_id_ref + 1, val_at, sndr->val_size);
-		    } while (rev != record_get_revision(rec));
-
-		    *out_seq_ref = htonll(seq);
-		    *out_id_ref = htonll(clnt->reply_id);
-
-		    clnt->out_next = clnt->out_buf;
-		    clnt->out_remain = clnt->pkt_size;
-		    ++clnt->reply_id;
-#if defined(DEBUG_PROTOCOL)
-		    fprintf(sndr->debug_file,
-			    "%s     %s tcp gap response seq %07ld, id #%07ld\n",
-			    debug_time(), clnt->peer_name,
-			    seq, clnt->reply_id - 1);
-#endif
-		    return OK;
-		}
-	      next_id:;
-	    }
-
-	    sndr->min_seq = clnt->min_seq_found;
-	    INVALIDATE_RANGE(clnt->reply_range);
+    if ((now - clnt->tcp_send_time) >= sndr->heartbeat_usec) {
+	CLIENT_SEQ(clnt) = htonll(HEARTBEAT_SEQ);
+	clnt->out_next = clnt->out_buf;
+	clnt->out_todo = sizeof(sequence);
 
 #if defined(DEBUG_PROTOCOL)
-	    fprintf(sndr->debug_file, "%s   %s tcp gap request DONE\n",
-		    debug_time(), clnt->peer_name);
+	fprintf(sndr->debug_file, "%s   %s tcp heartbeat\n",
+		debug_time(), clnt->peer_name);
 #endif
-	} else if (!FAILED(st = clock_time(&now)) &&
-		   (now - clnt->tcp_send_time) >= sndr->heartbeat_usec) {
-	    *out_seq_ref = htonll(HEARTBEAT_SEQ);
-	    clnt->out_next = clnt->out_buf;
-	    clnt->out_remain = sizeof(sequence);
-
-#if defined(DEBUG_PROTOCOL)
-	    fprintf(sndr->debug_file, "%s   %s tcp heartbeat\n",
-		    debug_time(), clnt->peer_name);
-#endif
-	}
     }
 
-    return st;
+    return OK;
 }
 
 static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
@@ -628,23 +651,24 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 	    debug_time(), clnt->peer_name);
 #endif
 
-    if (clnt->in_next == clnt->in_buf) {
-	if (clnt->union_range.high <= sndr->min_seq)
-	    INVALIDATE_RANGE(clnt->union_range);
-	else if (!IS_VALID_RANGE(clnt->reply_range)) {
-	    clnt->reply_range = clnt->union_range;
-	    INVALIDATE_RANGE(clnt->union_range);
+    if (clnt->in_next != clnt->in_buf)
+	return OK;
 
-	    clnt->reply_id = sndr->base_id;
-	    clnt->min_seq_found = SEQUENCE_MAX;
+    if (clnt->union_range.high <= sndr->min_seq)
+	INVALIDATE_RANGE(clnt->union_range);
+    else if (!IS_VALID_RANGE(clnt->reply_range)) {
+	clnt->reply_range = clnt->union_range;
+	INVALIDATE_RANGE(clnt->union_range);
+
+	clnt->reply_id = sndr->base_id;
+	clnt->min_seq_found = SEQUENCE_MAX;
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
-	    fprintf(sndr->debug_file,
-		    "%s   %s tcp gap request seq %07ld --> %07ld\n",
-		    debug_time(), clnt->peer_name, clnt->reply_range.low,
-		    clnt->reply_range.high);
+	fprintf(sndr->debug_file,
+		"%s   %s tcp gap request seq %07ld --> %07ld\n",
+		debug_time(), clnt->peer_name, clnt->reply_range.low,
+		clnt->reply_range.high);
 #endif
-	}
     }
 
     return OK;
@@ -653,11 +677,12 @@ static status tcp_on_read_blocked(sender_handle sndr, sock_handle sock)
 static status tcp_on_read(sender_handle sndr, sock_handle sock)
 {
     struct tcp_client *clnt = sock_get_property_ref(sock);
+    struct sequence_range *r;
     status st;
 
 #if defined(DEBUG_PROTOCOL)
-    fprintf(sndr->debug_file, "%s   %s tcp read ready, %lu bytes remain\n",
-	    debug_time(), clnt->peer_name, clnt->in_remain);
+    fprintf(sndr->debug_file, "%s   %s tcp read ready, %lu bytes to do\n",
+	    debug_time(), clnt->peer_name, clnt->in_todo);
 #endif
 
     st = tcp_read_buf(clnt);
@@ -666,31 +691,31 @@ static status tcp_on_read(sender_handle sndr, sock_handle sock)
     else if (FAILED(st))
 	return st;
 
-    if (clnt->in_remain == 0) {
-	struct sequence_range *r = (struct sequence_range *)clnt->in_buf;
-	r->low = ntohll(r->low);
-	r->high = ntohll(r->high);
+    if (clnt->in_todo != 0)
+	return st;
 
-	if (!IS_VALID_RANGE(*r))
-	    return error_msg(PROTOCOL_ERROR,
-			     "tcp_on_read: invalid sequence range");
+    r = (struct sequence_range *)clnt->in_buf;
+    r->low = ntohll(r->low);
+    r->high = ntohll(r->high);
 
-	if (r->low < clnt->union_range.low)
-	    clnt->union_range.low = r->low;
+    if (!IS_VALID_RANGE(*r))
+	return error_msg(PROTOCOL_ERROR,
+			 "tcp_on_read: invalid sequence range");
 
-	if (r->high > clnt->union_range.high)
-	    clnt->union_range.high = r->high;
+    if (r->low < clnt->union_range.low)
+	clnt->union_range.low = r->low;
 
-	clnt->in_next = clnt->in_buf;
-	clnt->in_remain = sizeof(struct sequence_range);
+    if (r->high > clnt->union_range.high)
+	clnt->union_range.high = r->high;
 
-	if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
-	    return st;
+    clnt->in_next = clnt->in_buf;
+    clnt->in_todo = sizeof(struct sequence_range);
 
-	++sndr->next_stats->tcp_gap_count;
-	spin_unlock(&sndr->stats_lock, 0);
-    }
+    if (FAILED(st = spin_write_lock(&sndr->stats_lock, NULL)))
+	return st;
 
+    ++sndr->next_stats->tcp_gap_count;
+    spin_unlock(&sndr->stats_lock, 0);
     return st;
 }
 

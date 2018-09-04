@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/clock.h>
@@ -80,8 +80,8 @@ struct storage {
 
 #define MAGIC_NUMBER 0x0C0FFEE0
 
-#define STORAGE_RECORD(stg, base, idx) \
-	((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
+#define STORAGE_RECORD(stg, base, idx)					\
+    ((record_handle)((char *)base + (idx) * (stg)->seg->rec_size))
 
 static status init_create(storage_handle *pstore, const char *mmap_file,
 			  int open_flags, mode_t mode_flags, boolean persist,
@@ -157,7 +157,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 
     if (open_flags & O_CREAT) {
 	(*pstore)->seg->file_version =
-	     (version_get_file_major() << 8) | version_get_file_minor();
+	    (version_get_file_major() << 8) | version_get_file_minor();
 
 	(*pstore)->seg->seg_size = seg_sz;
 	(*pstore)->seg->hdr_size = hdr_sz;
@@ -188,8 +188,8 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	     (*pstore)->seg->q_mask != (q_capacity - 1) ||
 	     (!desc && (*pstore)->seg->description[0] != '\0') ||
 	     (desc && strcmp(desc, (*pstore)->seg->description) != 0))
-	 return error_msg(STORAGE_UNEQUAL,
-			  "storage_create: storage is unequal");
+	return error_msg(STORAGE_UNEQUAL,
+			 "storage_create: storage is unequal");
 
     (*pstore)->first = (void *)(((char *)(*pstore)->seg) + hdr_sz);
     (*pstore)->limit =
@@ -820,7 +820,7 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
     for (old_r = store->first, new_r = (*pnewstore)->first;
 	 old_r < store->limit && new_r < (*pnewstore)->limit;
 	 old_r = STORAGE_RECORD(store, old_r, 1),
-	 new_r = STORAGE_RECORD(*pnewstore, new_r, 1)) {
+	     new_r = STORAGE_RECORD(*pnewstore, new_r, 1)) {
 	do {
 	    if (FAILED(st = record_read_lock(old_r, &rev)))
 		return st;

@@ -1,6 +1,6 @@
 /*
-   Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
-   Use of this source code is governed by the COPYING file.
+  Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+  Use of this source code is governed by the COPYING file.
 */
 
 #include <lancaster/clock.h>
@@ -58,10 +58,10 @@ struct receiver {
     size_t val_size;
     char *in_buf;
     char *in_next;
-    size_t in_remain;
+    size_t in_todo;
     char *out_buf;
     char *out_next;
-    size_t out_remain;
+    size_t out_todo;
     microsec mcast_recv_time;
     microsec tcp_recv_time;
     microsec touched_time;
@@ -145,7 +145,7 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
     r->high = htonll(high);
 
     recv->out_next = recv->out_buf;
-    recv->out_remain = sizeof(struct sequence_range);
+    recv->out_todo = sizeof(struct sequence_range);
 
     if (FAILED(st = poller_set_event(recv->poller, recv->tcp_sock,
 				     POLLIN | POLLOUT)) ||
@@ -260,13 +260,13 @@ static status tcp_read_buf(receiver_handle recv)
     status st = OK;
     size_t recv_sz = 0;
 
-    while (recv->in_remain > 0) {
+    while (recv->in_todo > 0) {
 	if (FAILED(st = sock_read(recv->tcp_sock, recv->in_next,
-				  recv->in_remain)))
+				  recv->in_todo)))
 	    break;
 
 	recv->in_next += st;
-	recv->in_remain -= st;
+	recv->in_todo -= st;
 	recv_sz += st;
     }
 
@@ -293,13 +293,13 @@ static status tcp_write_buf(receiver_handle recv)
     size_t sent_sz = 0;
 #endif
 
-    while (recv->out_remain > 0) {
+    while (recv->out_todo > 0) {
 	if (FAILED(st = sock_write(recv->tcp_sock, recv->out_next,
-				   recv->out_remain)))
+				   recv->out_todo)))
 	    break;
 
 	recv->out_next += st;
-	recv->out_remain -= st;
+	recv->out_todo -= st;
 
 #if defined(DEBUG_PROTOCOL)
 	sent_sz += st;
@@ -319,8 +319,11 @@ static status tcp_on_write(receiver_handle recv)
     if (st == BLOCKED)
 	st = OK;
 
-    if (recv->out_remain == 0)
-	st = poller_set_event(recv->poller, recv->tcp_sock, POLLIN);
+    if (recv->out_todo == 0) {
+	status st2 = poller_set_event(recv->poller, recv->tcp_sock, POLLIN);
+	if (!FAILED(st))
+	    st = st2;
+    }
 
     return st;
 }
@@ -333,7 +336,7 @@ static status tcp_on_read(receiver_handle recv)
     else if (FAILED(st))
 	return st;
 
-    if (recv->in_remain == 0) {
+    if (recv->in_todo == 0) {
 	sequence *in_seq_ref = (sequence *)recv->in_buf;
 	identifier *id = (identifier *)(in_seq_ref + 1);
 
@@ -355,11 +358,11 @@ static status tcp_on_read(receiver_handle recv)
 			debug_time());
 #endif
 		recv->in_next = recv->in_buf;
-		recv->in_remain = sizeof(sequence);
+		recv->in_todo = sizeof(sequence);
 		return st;
 	    }
 
-	    recv->in_remain = sizeof(identifier) + recv->val_size;
+	    recv->in_todo = sizeof(identifier) + recv->val_size;
 	    return OK;
 	}
 
@@ -367,7 +370,7 @@ static status tcp_on_read(receiver_handle recv)
 
 #if defined(DEBUG_PROTOCOL)
 	fprintf(recv->debug_file,
-		"%s     tcp gap response seq %07ld, id #%07ld\n",
+		"%s     tcp gap reply seq %07ld, id #%07ld\n",
 		debug_time(), *in_seq_ref, *id);
 #endif
 	if (*in_seq_ref > recv->record_seqs[*id - recv->base_id]) {
@@ -379,7 +382,7 @@ static status tcp_on_read(receiver_handle recv)
 	}
 
 	recv->in_next = recv->in_buf;
-	recv->in_remain = sizeof(sequence);
+	recv->in_todo = sizeof(sequence);
     }
 
     return st;
@@ -448,7 +451,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
     st = sock_read((*precv)->tcp_sock, buf, sizeof(buf) - 1);
 
     alarm(0);
-    if (FAILED(st2 = signal_remove_handler(SIGALRM)) && !FAILED(st))
+    st2 = signal_remove_handler(SIGALRM);
+    if (!FAILED(st))
 	st = st2;
 
     if (FAILED(st)) {
@@ -509,7 +513,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	return NO_MEMORY;
 
     (*precv)->in_next = (*precv)->in_buf;
-    (*precv)->in_remain = sizeof(sequence);
+    (*precv)->in_todo = sizeof(sequence);
 
     rec_seq_sz = (max_id - base_id) * sizeof(sequence);
     (*precv)->record_seqs = xmalloc(rec_seq_sz);
@@ -562,7 +566,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 #endif
     }
 
-    if (FAILED(st2 = sock_addr_destroy(&iface_addr)) && !FAILED(st))
+    st2 = sock_addr_destroy(&iface_addr);
+    if (!FAILED(st))
 	st = st2;
 
     return st;
