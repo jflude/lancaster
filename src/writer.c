@@ -12,7 +12,6 @@
 #include <lancaster/signals.h>
 #include <lancaster/storage.h>
 #include <lancaster/toucher.h>
-#include <lancaster/twist.h>
 #include <lancaster/version.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -73,7 +72,6 @@ static status update(identifier id, long n)
 int main(int argc, char *argv[])
 {
     status st = OK;
-    twist_handle twister;
     toucher_handle toucher;
     const char *mmap_file;
     size_t q_capacity = DEFAULT_QUEUE_CAPACITY;
@@ -131,13 +129,9 @@ int main(int argc, char *argv[])
 	error_report_fatal();
 
     if (at_random) {
-	if (FAILED(twist_create(&twister)))
-	    error_report_fatal();
-
-	twist_seed(twister, (unsigned)time(NULL));
-
+	srand((unsigned)time(NULL));
 	for (;;)
-	    if (FAILED(st = update(twist_rand(twister) % MAX_ID, xyz++)))
+	    if (FAILED(st = update(rand() % MAX_ID, xyz++)))
 		goto finish;
     } else {
 	identifier id;
@@ -150,7 +144,6 @@ int main(int argc, char *argv[])
 finish:
     if (FAILED(st) ||
 	FAILED(toucher_destroy(&toucher)) ||
-	(at_random && FAILED(twist_destroy(&twister))) ||
 	FAILED(storage_destroy(&store)) ||
 	FAILED(signal_remove_handler(SIGHUP)) ||
 	FAILED(signal_remove_handler(SIGINT)) ||

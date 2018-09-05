@@ -31,7 +31,6 @@ nobase_include_HEADERS = \
 	lancaster/table.h \
 	lancaster/thread.h \
 	lancaster/toucher.h \
-	lancaster/twist.h \
 	lancaster/version.h \
 	lancaster/xalloc.h
 
@@ -58,7 +57,6 @@ liblancaster_a_SOURCES = \
 	src/table.c \
 	src/thread.c \
 	src/toucher.c \
-	src/twist.c \
 	src/version.c \
 	src/xalloc.c \
 	src/xalloca.h
