@@ -37,9 +37,10 @@ AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday])
 AC_CHECK_FUNCS([memset msync munmap nanosleep socket sqrt strchr strrchr])
 
 # Checks for the host's system type
+AC_CANONICAL_HOST
 AS_CASE([$host],
-[cygwin*-*-*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
-[darwin*-*-*], AC_DEFINE([DARWIN_OS], [1], [Host operating system is Darwin]))
+[*-*-cygwin*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
+[*-*-darwin*], AC_DEFINE([DARWIN_OS], [1], [Host operating system is Darwin]))
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
