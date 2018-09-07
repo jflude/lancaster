@@ -127,6 +127,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
 	    if (errno == EINTR)
 		return error_eintr("ftruncate");
+/* Darwin does not support calling ftruncate on an existing segment */
 #ifdef DARWIN_OS
 	    if (errno != EINVAL)
 #endif

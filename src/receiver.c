@@ -534,6 +534,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
 				      mcast_port)) &&
 	!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
+/* Windows does not support binding to a specific multicast address */
 #ifdef CYGWIN_OS
 	!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
 #else
