@@ -48,3 +48,6 @@ publisher
 reader
 subscriber
 writer
+
+# distribution files
+lancaster-*.*.tar.gz
