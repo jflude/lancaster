@@ -1,5 +1,5 @@
 # LANCASTER - fast, reliable multicasting of ephemeral data
-# Copyright (c)2014-2018 Peak6 Investments, LP.  All rights reserved.
+# Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
 
 The software consists of a C library, liblancaster, provided in both static and
 dynamic forms, together with nine utility programs for use in production and
