@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-typedef long (*attr_func)(storage_handle);
+typedef int64_t (*attr_func)(storage_handle);
 
 static storage_handle old_store, new_store;
 

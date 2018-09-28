@@ -195,30 +195,40 @@ static status mcast_on_read(receiver_handle recv)
     tcp_ip = sock_addr_get_ip(recv->tcp_addr);
 
     if (mcast_ip != tcp_ip) {
+#if defined(CYGWIN_OS) && !defined(DEBUG_TRAFFIC)
+	return OK;
+#else
 	char pub[256], src[256], tcp[256];
 	get_sock_addr_text(recv->mcast_pub_addr, pub, sizeof(pub), TRUE);
 	get_sock_addr_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
 	get_sock_addr_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
+
+#ifdef CYGWIN_OS
+	fprintf(recv->debug_file,
+		"mcast_on_read: unexpected source: "
+		"%s from %s, not %s", pub, src, tcp);
+	return OK;
+#else
 	return error_msg(UNEXPECTED_SOURCE,
 			 "mcast_on_read: unexpected source: "
 			 "%s from %s, not %s", pub, src, tcp);
+#endif
+#endif
     }
 
     recv->mcast_recv_time = now;
-
     if (FAILED(st = update_stats(recv, st2, now - ntohll(*in_stamp_ref))))
 	return st;
 
     *in_seq_ref = ntohll(*in_seq_ref);
 
-#if defined(DEBUG_PROTOCOL)
-    if (*in_seq_ref < 0) {
+#if defined(DEBUG_PROTOCOL) || defined(DEBUG_TRAFFIC)
+    if (*in_seq_ref < 0)
 	fprintf(recv->debug_file, "%s mcast heartbeat seq %07ld\n",
 		debug_time(), -*in_seq_ref);
-    } else {
+    else
 	fprintf(recv->debug_file, "%s mcast recv seq %07ld\n",
 		debug_time(), *in_seq_ref);
-    }
 #endif
 
     if (*in_seq_ref < 0) {
@@ -417,7 +427,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
     char buf[512], mcast_address[32];
     unsigned wire_ver, data_ver;
     int wire_ver_len, mcast_port, proto_len;
-    long base_id, max_id, hb_usec, max_age_usec;
+    identifier base_id, max_id;
+    microsec hb_usec, max_age_usec;
     size_t pub_q_capacity, val_size, rec_seq_sz;
     status st, st2;
 #if defined(DEBUG_PROTOCOL)
@@ -478,7 +489,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 			 version_get_wire_minor());
 
     st = sscanf(buf + wire_ver_len,
-		"%u %31s %d %lu %ld %ld %lu %lu %ld %ld %n",
+		"%u %31s %d %lu %" SCNd64 " %" SCNd64
+		" %lu %lu %" SCNd64 " %" SCNd64 " %n",
 		&data_ver, mcast_address, &mcast_port,
 		&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
 		&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
@@ -534,7 +546,10 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
 				      mcast_port)) &&
 	!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
-/* Windows does not support binding to a specific multicast address */
+/*
+  Windows does not support binding to a remote multicast address.
+  See http://www.nealc.com/blog/blog/2012/09/11/testing/
+*/
 #ifdef CYGWIN_OS
 	!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
 #else

@@ -8,6 +8,7 @@
 #ifndef CLOCK_H
 #define CLOCK_H
 
+#include <lancaster/int64.h>
 #include <lancaster/status.h>
 #include <limits.h>
 #include <stddef.h>
@@ -16,10 +17,10 @@
 extern "C" {
 #endif
 
-typedef long microsec;
+typedef int64_t microsec;
 
-#define MICROSEC_MIN LONG_MIN
-#define MICROSEC_MAX LONG_MAX
+#define MICROSEC_MIN INT64_MIN
+#define MICROSEC_MAX INT64_MAX
 
 status clock_sleep(microsec usec);
 status clock_time(microsec *pusec);

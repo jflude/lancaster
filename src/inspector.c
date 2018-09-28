@@ -63,8 +63,8 @@ static status print_attributes(storage_handle store)
 	       "description:      \"%s\"\n"
 	       "file version:     %d.%d\n"
 	       "data version:     %d.%d\n"
-	       "base id:          %ld\n"
-	       "max id:           %ld\n"
+	       "base id:          %" PRId64 "\n"
+	       "max id:           %" PRId64 "\n"
 	       "segment size:     %ld\n"
 	       "record size:      %lu\n"
 	       "value size:       %lu\n"
@@ -127,7 +127,8 @@ static status print_queue(storage_handle store)
 	if (FAILED(st = storage_read_queue(store, i, &id)))
 	    return st;
 
-	if (printf("%08ld #%08ld%s\n", i, id, (q_head == i ? head : "")) < 0)
+	if (printf("%08ld #%08" PRId64 "%s\n",
+		   i, id, (q_head == i ? head : "")) < 0)
 	    return (feof(stdin) ? error_eof : error_errno)("printf");
     }
 
@@ -184,7 +185,7 @@ static status print_record(storage_handle store, record_handle rec)
 	FAILED(st = clock_get_text(ts_copy, 6, ts_text, sizeof(ts_text))))
 	return st;
 
-    st = sprintf(buf, " #%08ld [0x%012lX] rev %08ld %s",
+    st = sprintf(buf, " #%08" PRId64 " [0x%012lX] rev %08" PRId64 " %s",
 		 id, (char *)rec - (char *)storage_get_array(store),
 		 rev_copy, ts_text);
     if (st < 0)

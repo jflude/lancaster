@@ -8,6 +8,7 @@
 #ifndef SPIN_H
 #define SPIN_H
 
+#include <lancaster/int64.h>
 #include <lancaster/status.h>
 #include <limits.h>
 
@@ -15,12 +16,12 @@
 extern "C" {
 #endif
 
-typedef long spin_lock;
+typedef int64_t spin_lock;
 
-#define SPIN_MIN LONG_MIN
-#define SPIN_MAX LONG_MAX
+#define SPIN_MIN INT64_MIN
+#define SPIN_MAX INT64_MAX
 
-#define SPIN_MASK (0x80uL << (CHAR_BIT * (sizeof(spin_lock) - 1)))
+#define SPIN_MASK ((spin_lock)0x80 << (CHAR_BIT * (sizeof(spin_lock) - 1)))
 
 void spin_create(volatile spin_lock *lock);
 status spin_read_lock(volatile spin_lock *lock, spin_lock *old_rev);

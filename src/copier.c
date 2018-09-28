@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	status st;
 	revision src_rev, dest_rev;
 	if (verbose)
-	    printf("copying #%08ld [%s]", parg->id, src_file);
+	    printf("copying #%08" PRId64 " [%s]", parg->id, src_file);
 
 	if (FAILED(st = storage_find_next_unused(dest_store, dest_rec,
 						 &dest_rec, &dest_rev))) {
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 		error_report_fatal();
 	    }
 
-	    printf(" to #%08ld [%s]\n", id, dest_file);
+	    printf(" to #%08" PRId64 " [%s]\n", id, dest_file);
 	}
     }
 

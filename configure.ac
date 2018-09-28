@@ -19,28 +19,34 @@ AC_CHECK_LIB([rt], [shm_open])
 AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.
-AC_FUNC_ALLOCA
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h limits.h malloc.h netinet/in.h \
-stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h \
-unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h float.h inttypes.h limits.h malloc.h])
+AC_CHECK_HEADERS([netinet/in.h stddef.h stdlib.h string.h sys/ioctl.h])
+AC_CHECK_HEADERS([sys/socket.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_TYPE_MODE_T
+AC_TYPE_INT64_T
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
+AC_TYPE_MODE_T
 AC_CHECK_DECLS([sys_siglist])
 
 # Checks for library functions.
+AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday])
 AC_CHECK_FUNCS([memset msync munmap nanosleep socket sqrt strchr strrchr])
 
-# Checks for the host's system type
+# Checks for the host's type of CPU and operating system.
 AC_CANONICAL_HOST
 AS_CASE([$host],
 [*-*-cygwin*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
 [*-*-darwin*], AC_DEFINE([DARWIN_OS], [1], [Host operating system is Darwin]))
+AS_CASE([$host],
+[x86_64*], AC_DEFINE([X86_64_CPU], [1], [Host CPU is x86_64]),
+[arm*], AC_DEFINE([ARM_CPU], [1], [Host CPU is ARM]),
+[mips*], AC_DEFINE([MIPS_CPU], [1], [Host CPU is MIPS]),
+[ppc*], AC_DEFINE([PPC_CPU], [1], [Host CPU is PPC]))
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

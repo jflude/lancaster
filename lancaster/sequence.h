@@ -8,16 +8,17 @@
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
+#include <lancaster/int64.h>
 #include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef long sequence;
+typedef int64_t sequence;
 
-#define SEQUENCE_MIN LONG_MIN
-#define SEQUENCE_MAX LONG_MAX
+#define SEQUENCE_MIN INT64_MIN
+#define SEQUENCE_MAX INT64_MAX
 
 #define HEARTBEAT_SEQ -1
 #define WILL_QUIT_SEQ -2

@@ -15,6 +15,7 @@ typedef int boolean;
 
 typedef int status;
 
+#define OK 0
 #define FAILED(x) ((x) < OK)
 
 #define SIG_ERROR_BASE -128
@@ -22,7 +23,6 @@ typedef int status;
 #define ERRNO_ERROR_BASE_2 70
 #define LANCASTER_ERROR_BASE -220
 
-#define OK 0
 /* #define EOF (LANCASTER_ERROR_BASE - 1) */
 #define SYNTAX_ERROR (LANCASTER_ERROR_BASE - 2)
 #define BLOCKED (LANCASTER_ERROR_BASE - 3)

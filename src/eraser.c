@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
     for (parg = args; parg < last_arg; ++parg) {
 	revision rev;
 	if (verbose)
-	    printf("erasing #%08ld [%s]\n", parg->id, stg_file);
+	    printf("erasing #%08" PRId64 " [%s]\n", parg->id, stg_file);
 
 	if (FAILED(record_write_lock(parg->rec, &rev)))
 	    error_report_fatal();
@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
 		record_set_revision(last_rec, last_rev);
 	    else {
 		if (verbose)
-		    printf("compacting #%08ld [%s]\n", parg->id, stg_file);
+		    printf("compacting #%08" PRId64 " [%s]\n",
+			   parg->id, stg_file);
 
 		if (FAILED(record_write_lock(parg->rec, &rev))) {
 		    record_set_revision(last_rec, last_rev);

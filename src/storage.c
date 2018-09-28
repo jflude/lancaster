@@ -127,7 +127,10 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 	if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
 	    if (errno == EINTR)
 		return error_eintr("ftruncate");
-/* Darwin does not support calling ftruncate on an existing segment */
+/*
+  Darwin does not support calling ftruncate on an existing segment.
+  See http://lists.squid-cache.org/pipermail/squid-dev/2016-January/004831.html
+*/
 #ifdef DARWIN_OS
 	    if (errno != EINVAL)
 #endif

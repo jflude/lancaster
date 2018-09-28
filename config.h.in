@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Host CPU is ARM */
+#undef ARM_CPU
+
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
    */
@@ -146,6 +149,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Host CPU is MIPS */
+#undef MIPS_CPU
+
 /* Name of package */
 #undef PACKAGE
 
@@ -167,6 +173,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Host CPU is PPC */
+#undef PPC_CPU
+
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at runtime.
@@ -183,6 +192,13 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Host CPU is x86_64 */
+#undef X86_64_CPU
+
+/* Define to the type of a signed integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#undef int64_t
 
 /* Define to `int' if <sys/types.h> does not define. */
 #undef mode_t

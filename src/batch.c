@@ -12,7 +12,7 @@ status batch_read_records(storage_handle store, size_t copy_size,
 			  const identifier *ids, void *values, revision *revs,
 			  microsec *times, size_t count)
 {
-    size_t val_sz, n;
+    size_t n, val_sz = 0;
 
     if (count == 0 || !ids ||
 	(!values && !revs && !times) || (values && copy_size == 0))

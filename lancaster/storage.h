@@ -9,6 +9,7 @@
 #define STORAGE_H
 
 #include <lancaster/clock.h>
+#include <lancaster/int64.h>
 #include <lancaster/spin.h>
 #include <lancaster/status.h>
 #include <stddef.h>
@@ -26,7 +27,7 @@ typedef struct record *record_handle;
 
 typedef status (*storage_iterate_func)(storage_handle, record_handle, void *);
 
-typedef long identifier;
+typedef int64_t identifier;
 typedef long q_index;
 typedef spin_lock revision;
 

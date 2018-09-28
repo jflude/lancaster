@@ -1,6 +1,6 @@
 # LANCASTER - things that still need to be done
 
-- sync.h is not yet portable
+- not yet portable (especially sync.h) - requires gcc or clang
 
 - support DNS lookups on addresses passed as arguments to programs (modify the
   sock.c module to provide an API)

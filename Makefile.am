@@ -16,6 +16,7 @@ nobase_include_HEADERS = \
 	lancaster/dump.h \
 	lancaster/error.h \
 	lancaster/h2n2h.h \
+	lancaster/int64.h \
 	lancaster/latency.h \
 	lancaster/poller.h \
 	lancaster/receiver.h \

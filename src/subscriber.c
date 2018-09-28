@@ -122,7 +122,7 @@ static void *stats_func(thread_handle thr)
 	if (!delim_pos)
 	    strncpy(alias, "unknown", sizeof(alias));
 	else {
-	    int sz = delim_pos - storage_desc;
+	    size_t sz = delim_pos - storage_desc;
 	    if (sz >= sizeof(alias))
 		sz = sizeof(alias) - 1;
 
