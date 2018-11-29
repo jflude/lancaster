@@ -63,6 +63,9 @@ liblancaster_a_SOURCES = \
 	src/xalloca.h
 
 LDADD = liblancaster.a
+publisher_LDADD = $(LDADD) -lm
+reader_LDADD = $(LDADD) -lm
+subscriber_LDADD = $(LDADD) -lm
 
 copier_SOURCES = src/copier.c
 deleter_SOURCES = src/deleter.c

@@ -95,8 +95,8 @@ status latency_roll(latency_handle lat)
     spin_unlock(&lat->lock, 0);
 
     lat->curr->stddev =
-	lat->curr->count > 1 ? sqrt(lat->curr->M2 / (lat->curr->count - 1)) : 0;
-
+	lat->curr->count > 1 ? sqrt(lat->curr->M2 / (lat->curr->count - 1))
+	                     : 0;
     return OK;
 }
 

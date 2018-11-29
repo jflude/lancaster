@@ -429,7 +429,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
     int wire_ver_len, mcast_port, proto_len;
     identifier base_id, max_id;
     microsec hb_usec, max_age_usec;
-    size_t pub_q_capacity, val_size, rec_seq_sz;
+    unsigned long mcast_mtu, val_size, pub_q_capacity;
+    size_t rec_seq_sz;
     status st, st2;
 #if defined(DEBUG_PROTOCOL)
     char debug_name[256];
@@ -480,7 +481,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	return error_msg(PROTOCOL_ERROR,
 			 "receiver_create: invalid wire version:\n%s", buf);
 
-    if ((wire_ver >> 8) != version_get_wire_major())
+    if ((wire_ver >> 8) != (unsigned)version_get_wire_major())
 	return error_msg(WRONG_WIRE_VERSION,
 			 "receiver_create: incompatible wire version "
 			 "(%d.%d but expecting %d.%d)",
@@ -491,9 +492,9 @@ static status init(receiver_handle *precv, const char *mmap_file,
     st = sscanf(buf + wire_ver_len,
 		"%u %31s %d %lu %" SCNd64 " %" SCNd64
 		" %lu %lu %" SCNd64 " %" SCNd64 " %n",
-		&data_ver, mcast_address, &mcast_port,
-		&(*precv)->mcast_mtu, &base_id, &max_id, &val_size,
-		&pub_q_capacity, &max_age_usec, &hb_usec, &proto_len);
+		&data_ver, mcast_address, &mcast_port, &mcast_mtu, &base_id,
+		&max_id, &val_size, &pub_q_capacity, &max_age_usec, &hb_usec,
+		&proto_len);
 
     if (st != 10)
 	return error_msg(PROTOCOL_ERROR,
@@ -504,15 +505,16 @@ static status init(receiver_handle *precv, const char *mmap_file,
     if (buf[proto_len] != '\0')
 	buf[proto_len + strlen(buf + proto_len) - 2] = '\0';
 
+    (*precv)->mcast_mtu = (size_t)mcast_mtu;
     (*precv)->base_id = base_id;
-    (*precv)->val_size = val_size;
+    (*precv)->val_size = (size_t)val_size;
     (*precv)->next_seq = 0;
     (*precv)->touched_time = 0;
     (*precv)->touch_period_usec = touch_period_usec;
     (*precv)->timeout_usec = hb_usec * (max_missed_hb + 1) + 100000;
 
     if (q_capacity == SENDER_QUEUE_CAPACITY)
-	q_capacity = pub_q_capacity;
+	q_capacity = (size_t)pub_q_capacity;
 
     (*precv)->in_buf =
 	xmalloc(sizeof(sequence) + sizeof(identifier) + (*precv)->val_size);

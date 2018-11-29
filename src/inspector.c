@@ -52,6 +52,9 @@ static status print_attributes(storage_handle store)
 	q_head = storage_get_queue_head(store);
     unsigned short file_ver = storage_get_file_version(store),
 	data_ver = storage_get_data_version(store);
+    ptrdiff_t qbr = (const char *)storage_get_queue_base_ref(store) - seg_base,
+	qhr = (const char *)storage_get_queue_head_ref(store) - seg_base,
+	abr = (const char *)storage_get_array(store) - seg_base;
 
     if (FAILED(st = storage_get_created_time(store, &when)) ||
 	FAILED(st = clock_get_text(when, 6, created, sizeof(created))) ||
@@ -65,7 +68,7 @@ static status print_attributes(storage_handle store)
 	       "data version:     %d.%d\n"
 	       "base id:          %" PRId64 "\n"
 	       "max id:           %" PRId64 "\n"
-	       "segment size:     %ld\n"
+	       "segment size:     %lu\n"
 	       "record size:      %lu\n"
 	       "value size:       %lu\n"
 	       "property size:    %lu\n"
@@ -87,19 +90,19 @@ static status print_attributes(storage_handle store)
 	       (int)data_ver & 0xFF,
 	       storage_get_base_id(store),
 	       storage_get_max_id(store),
-	       storage_get_segment_size(store),
-	       storage_get_record_size(store),
-	       storage_get_value_size(store),
-	       storage_get_property_size(store),
-	       storage_get_value_offset(store),
-	       storage_get_property_offset(store),
-	       storage_get_timestamp_offset(store),
-	       (const char *)storage_get_queue_base_ref(store) - seg_base,
-	       q_capacity,
-	       (const char *)storage_get_queue_head_ref(store) - seg_base,
-	       q_head,
-	       q_capacity > 0 ? (q_head % q_capacity) : 0,
-	       (const char *)storage_get_array(store) - seg_base,
+	       (unsigned long)storage_get_segment_size(store),
+	       (unsigned long)storage_get_record_size(store),
+	       (unsigned long)storage_get_value_size(store),
+	       (unsigned long)storage_get_property_size(store),
+	       (unsigned long)storage_get_value_offset(store),
+	       (unsigned long)storage_get_property_offset(store),
+	       (unsigned long)storage_get_timestamp_offset(store),
+	       (unsigned long)qbr,
+	       (unsigned long)q_capacity,
+	       (unsigned long)qhr,
+	       (unsigned long)q_head,
+	       (unsigned long)(q_capacity > 0 ? (q_head % q_capacity) : 0),
+	       (unsigned long)abr,
 	       created, touched) < 0)
 	return (feof(stdin) ? error_eof : error_errno)("printf");
 
@@ -177,6 +180,7 @@ static status print_record(storage_handle store, record_handle rec)
     status st;
     identifier id;
     char buf[128], ts_text[64];
+    ptrdiff_t rec_off = (char *)rec - (char *)storage_get_array(store);
     static const char divider[] =
 	"======================================="
 	"=======================================";
@@ -186,8 +190,7 @@ static status print_record(storage_handle store, record_handle rec)
 	return st;
 
     st = sprintf(buf, " #%08" PRId64 " [0x%012lX] rev %08" PRId64 " %s",
-		 id, (char *)rec - (char *)storage_get_array(store),
-		 rev_copy, ts_text);
+		 id, (unsigned long)rec_off, rev_copy, ts_text);
     if (st < 0)
 	error_errno("sprintf");
 

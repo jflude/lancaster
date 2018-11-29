@@ -141,7 +141,6 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 LIBRARIES = $(lib_LIBRARIES)
-AR = ar
 ARFLAGS = cru
 AM_V_AR = $(am__v_AR_@AM_V@)
 am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
@@ -182,16 +181,13 @@ inspector_LDADD = $(LDADD)
 inspector_DEPENDENCIES = liblancaster.a
 am_publisher_OBJECTS = src/publisher.$(OBJEXT)
 publisher_OBJECTS = $(am_publisher_OBJECTS)
-publisher_LDADD = $(LDADD)
-publisher_DEPENDENCIES = liblancaster.a
+publisher_DEPENDENCIES = $(LDADD)
 am_reader_OBJECTS = src/reader.$(OBJEXT)
 reader_OBJECTS = $(am_reader_OBJECTS)
-reader_LDADD = $(LDADD)
-reader_DEPENDENCIES = liblancaster.a
+reader_DEPENDENCIES = $(LDADD)
 am_subscriber_OBJECTS = src/subscriber.$(OBJEXT)
 subscriber_OBJECTS = $(am_subscriber_OBJECTS)
-subscriber_LDADD = $(LDADD)
-subscriber_DEPENDENCIES = liblancaster.a
+subscriber_DEPENDENCIES = $(LDADD)
 am_writer_OBJECTS = src/writer.$(OBJEXT)
 writer_OBJECTS = $(am_writer_OBJECTS)
 writer_LDADD = $(LDADD)
@@ -278,7 +274,7 @@ CTAGS = ctags
 CSCOPE = cscope
 AM_RECURSIVE_TARGETS = cscope
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in AUTHORS \
-	COPYING ChangeLog INSTALL NEWS README TODO compile \
+	COPYING ChangeLog INSTALL NEWS README TODO ar-lib compile \
 	config.guess config.sub depcomp install-sh missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
@@ -301,6 +297,7 @@ ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
+AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
@@ -348,6 +345,7 @@ abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -452,6 +450,9 @@ liblancaster_a_SOURCES = \
 	src/xalloca.h
 
 LDADD = liblancaster.a
+publisher_LDADD = $(LDADD) -lm
+reader_LDADD = $(LDADD) -lm
+subscriber_LDADD = $(LDADD) -lm
 copier_SOURCES = src/copier.c
 deleter_SOURCES = src/deleter.c
 eraser_SOURCES = src/eraser.c

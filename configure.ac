@@ -12,6 +12,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_RANLIB
+AM_PROG_AR
 
 # Checks for libraries.
 AC_CHECK_LIB([m], [sqrt])

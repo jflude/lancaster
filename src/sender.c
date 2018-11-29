@@ -855,11 +855,12 @@ static status init(sender_handle *psndr, const char *mmap_file,
 		 "%d\r\n%d\r\n%s\r\n%d\r\n%lu\r\n%" PRId64 "\r\n"
 		 "%" PRId64 "\r\n%lu\r\n%lu\r\n%" PRId64 "\r\n%" PRId64 "\r\n",
 		 (version_get_wire_major() << 8) | version_get_wire_minor(),
-		 (int)storage_get_data_version((*psndr)->store), mcast_address,
-		 mcast_port, (*psndr)->mcast_mtu, (*psndr)->base_id,
-		 (*psndr)->max_id, storage_get_value_size((*psndr)->store),
-		 storage_get_queue_capacity((*psndr)->store), max_pkt_age_usec,
-		 (*psndr)->heartbeat_usec);
+		 (int)storage_get_data_version((*psndr)->store),
+		 mcast_address, mcast_port, (unsigned long)(*psndr)->mcast_mtu,
+		 (*psndr)->base_id, (*psndr)->max_id,
+		 (unsigned long)storage_get_value_size((*psndr)->store),
+		 (unsigned long)storage_get_queue_capacity((*psndr)->store),
+		 max_pkt_age_usec, (*psndr)->heartbeat_usec);
 
     if (st < 0)
 	return error_errno("sprintf");
