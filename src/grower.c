@@ -14,7 +14,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-typedef int64_t (*attr_func)(storage_handle);
+typedef identifier (*id_attr_func)(storage_handle);
+typedef size_t (*sz_attr_func)(storage_handle);
 
 static storage_handle old_store, new_store;
 
@@ -27,13 +28,25 @@ static void show_syntax(void)
     exit(-SYNTAX_ERROR);
 }
 
-static long parse(const char *text, attr_func fn)
+static identifier parse_id(const char *text, id_attr_func fn)
 {
-    long n;
+    int64_t n;
     if (*text == '=')
 	return fn(old_store);
 
-    if (FAILED(a2i(text, "%ld", &n)))
+    if (FAILED(a2i(text, "%" PRId64, &n)))
+	error_report_fatal();
+
+    return n;
+}
+
+static size_t parse_sz(const char *text, sz_attr_func fn)
+{
+    unsigned long n;
+    if (*text == '=')
+	return fn(old_store);
+
+    if (FAILED(a2i(text, "%lu", &n)))
 	error_report_fatal();
 
     return n;
@@ -66,13 +79,11 @@ int main(int argc, char *argv[])
 	error_report_fatal();
 
     new_file = argv[optind++];
-    new_base_id = parse(argv[optind++], storage_get_base_id);
-    new_max_id = parse(argv[optind++], storage_get_max_id);
-    new_val_size = parse(argv[optind++], (attr_func)storage_get_value_size);
-    new_prop_size =
-	parse(argv[optind++], (attr_func)storage_get_property_size);
-    new_q_capacity =
-	parse(argv[optind++], (attr_func)storage_get_queue_capacity);
+    new_base_id = parse_id(argv[optind++], storage_get_base_id);
+    new_max_id = parse_id(argv[optind++], storage_get_max_id);
+    new_val_size = parse_sz(argv[optind++], storage_get_value_size);
+    new_prop_size = parse_sz(argv[optind++], storage_get_property_size);
+    new_q_capacity = parse_sz(argv[optind++], storage_get_queue_capacity);
 
     if (FAILED(storage_grow(old_store, &new_store, new_file, O_CREAT,
 			    new_base_id, new_max_id, new_val_size,
