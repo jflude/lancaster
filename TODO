@@ -2,6 +2,8 @@
 
 - not yet portable (especially sync.h) - requires gcc or clang
 
+- does not yet build a shared object library
+
 - support DNS lookups on addresses passed as arguments to programs (modify the
   sock.c module to provide an API)
 
@@ -10,4 +12,3 @@
 - integrate the Go interface & utilities into the autoconf build system
 
 - remove proprietary features from the Java & Python interfaces, and integrate
-

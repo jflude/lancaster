@@ -2,8 +2,7 @@
 # Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
 
 The software consists of a C library, liblancaster, provided in both static and
-dynamic forms, together with nine utility programs for use in production and
-development environments.
+dynamic forms, together with various utility programs.
 
 Any questions, bug reports, suggestions for improvements etc. - please email
 the maintainers at bug-lancaster@peak6.com
@@ -72,8 +71,8 @@ suitable for outputing to a log file.
                [-q CHANGE-QUEUE-CAPACITY] [-S STATISTICS-UDP-ADDRESS:PORT] \
                [-T TOUCH-PERIOD] STORAGE-FILE TCP-ADDRESS:PORT
 
-These are production-ready, generic programs to establish a multicast transport
-between a process wanting to publish data and one or more processes on multiple
+These are programs to establish a generic multicast transport between a process
+wanting to send data over the network and one or more processes on multiple
 hosts wanting to receive it.
 
 PUBLISHER looks for a storage to read from (such as one created by WRITER).  It
@@ -191,7 +190,7 @@ identifiers of the records it is operating upon.
 
              ===============================================
 
-Exit statuses: the programs will return a unique value for each kind of error
+Exit status: the programs will return a unique value for each kind of error
 that causes them to quit.  The meaning of the various values is as follows:-
 
         0 - no error
