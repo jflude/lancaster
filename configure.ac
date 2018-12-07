@@ -39,6 +39,7 @@ AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday])
 AC_CHECK_FUNCS([memset msync munmap nanosleep socket sqrt strchr strrchr])
 
 # Checks for the host's type of CPU and operating system.
+AC_C_BIGENDIAN
 AC_CANONICAL_HOST
 AS_CASE([$host],
 [*-*-cygwin*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
