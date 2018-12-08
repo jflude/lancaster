@@ -3,10 +3,11 @@
 
 AC_PREREQ([2.69])
 AC_INIT([lancaster], [1.0], [bug-lancaster@peak6.com])
-AM_INIT_AUTOMAKE([1.14])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 AC_CONFIG_SRCDIR([src/error.c])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_FILES([Makefile])
 
 # Checks for programs.
 AC_PROG_CC
@@ -50,5 +51,4 @@ AS_CASE([$host],
 [mips*], AC_DEFINE([MIPS_CPU], [1], [Host CPU is MIPS]),
 [ppc*], AC_DEFINE([PPC_CPU], [1], [Host CPU is PPC]))
 
-AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

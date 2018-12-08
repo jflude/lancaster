@@ -198,3 +198,23 @@ that causes them to quit.  The meaning of the various values is as follows:-
   128-192 - terminated by a signal (128 + the signal number, given by kill -l)
   200-205 - C library error (error numbers as per errno.h, after subtracting 70)
   220-255 - Lancaster library error (as per status.h, after negating)
+
+             ===============================================
+
+Development: this project uses GNU Autotools.  After cloning its repository,
+or modifying the Autotools configuration files, you should execute this command
+to update the generated configuration files and install any missing components.
+
+    autoreconf -iv -Wall -Werror
+
+The maintainers strongly suggest that when building the project, all compiler
+warnings are enabled and treated as errors.  For example, if using GCC, this
+can be conveniently achieved with this command:-
+
+    ./configure CFLAGS='-Wall -Wextra -Werror'
+
+To produce a tar file suitable for redistributing the project, execute this
+command, which will verify the project builds correctly and create the tar
+file in the top-level directory:-
+
+    make distcheck

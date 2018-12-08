@@ -25,11 +25,21 @@ a.out
 
 # autotools files
 Makefile
+Makefile.in
+ar-lib
 autom4te.cache
+compile
+config.guess
 config.h
+config.h.in
 config.log
 config.status
-src/.deps/
+config.sub
+configure
+depcomp
+install-sh
+missing
+src/.deps
 src/.dirstamp
 stamp-h1
 
