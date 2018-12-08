@@ -26,6 +26,7 @@ a.out
 # autotools files
 Makefile
 Makefile.in
+aclocal.m4
 ar-lib
 autom4te.cache
 compile
