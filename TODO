@@ -1,14 +1,7 @@
-# LANCASTER - things that still need to be done
+# Some things that still need to be done
 
-- not yet portable (especially sync.h) - requires gcc or clang
-
-- does not yet build a shared object library
-
-- support DNS lookups on addresses passed as arguments to programs (modify the
-  sock.c module to provide an API)
-
+- build a shared object library?
+- rewrite pubmux & submux as C programs, and document them
+- support DNS lookups on addresses passed as arguments to programs
 - develop "easy" READER & WRITER example programs using the batch functions
-
-- integrate the Go interface & utilities into the autoconf build system
-
-- remove proprietary features from the Java & Python interfaces, and integrate
+- develop Java, Python and Go interfaces without proprietary code
