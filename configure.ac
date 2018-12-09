@@ -7,6 +7,10 @@ AC_PREREQ([2.69])
 # Information on the package.
 AC_INIT([lancaster], [1.0], [bug-lancaster@peak6.com])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AC_CONFIG_MACRO_DIRS([m4])
+AC_CONFIG_SRCDIR([src/error.c])
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_FILES([Makefile])
 
 # Checks for programs.
 AC_PROG_CC
@@ -35,27 +39,7 @@ AC_CHECK_DECLS([sys_siglist])
 
 # Checks for compiler characteristics.
 AC_C_BIGENDIAN
-AC_CANONICAL_HOST
-AC_CACHE_CHECK([for compiler synchronization intrinsics],
-	       [ac_cv_sync_intrinsics],
-[if test -n "${with_target_subdir}"; then
-     case "$host" in
-     hppa*-*-hpux*) ac_cv_sync_intrinsics=no ;;
-     *) ac_cv_sync_intrinsics=yes ;;
-     esac
- else
-     AC_LINK_IFELSE(
-       [AC_LANG_PROGRAM([int i;],
-                        [__sync_fetch_and_or(&i, i);
-                         __sync_lock_release(&i);
-                         __sync_synchronize();])],
-       [ac_cv_sync_intrinsics=yes],
-       [ac_cv_sync_intrinsics=no])
- fi])
-if test "$ac_cv_sync_intrinsics" = "yes"; then
-    AC_DEFINE([HAVE_SYNC_INTRINSICS], 1,
-	      [Define to 1 if your compiler has synchronization intrinsics])
-fi
+AC_C_SYNC_INTRINSICS
 
 # Checks for library functions.
 AC_FUNC_ALLOCA
@@ -65,16 +49,5 @@ AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday])
 AC_CHECK_FUNCS([memset msync munmap nanosleep socket sqrt strchr strrchr])
 
 # Checks for system services.
-AS_CASE([$host],
-[x86_64*], AC_DEFINE([X86_64_CPU], [1], [Host CPU is x86_64]),
-[arm*], AC_DEFINE([ARM_CPU], [1], [Host CPU is ARM]),
-[mips*], AC_DEFINE([MIPS_CPU], [1], [Host CPU is MIPS]),
-[ppc*], AC_DEFINE([PPC_CPU], [1], [Host CPU is PPC]))
-AS_CASE([$host],
-[*-*-cygwin*], AC_DEFINE([CYGWIN_OS], [1], [Host operating system is Cygwin]),
-[*-*-darwin*], AC_DEFINE([DARWIN_OS], [1], [Host operating system is Darwin]))
-
-AC_CONFIG_SRCDIR([src/error.c])
-AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile])
+AC_SYS_OS_CPU_TYPES
 AC_OUTPUT
