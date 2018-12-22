@@ -115,8 +115,8 @@ than MAX-MISSED-HEARTBEATS are not received, as configurable by the -H option
 
 Both PUBLISHER and SUBSCRIBER have an -j option which causes their normal
 output of statistics to be output in JSON format.  The UDP address and port to
-send statistics to, if any, is specified by the -S option.PUBLISHER also has an
--s option which causes it to output storage latency statistics instead of its
+send statistics to, if any, is specified by the -S option.  PUBLISHER also has
+an -s option which causes it to output storage latency statistics instead of its
 usual output (the -j option also includes the storage latency statistics).
 
 A typical scenario for testing would be to run WRITER and PUBLISHER on one
@@ -140,7 +140,7 @@ be run on host 'dev45' (10.2.2.152):-
 
     deleter [-v] [-f] [-L] STORAGE-FILE [STORAGE-FILE ...]
 
-These are utility programs to show, modify or delete a storage.
+These are utility programs to view, modify or delete a storage.
 
 INSPECTOR, given the -a option, outputs the attribute values of a storage, such
 as the size of a record within it, the capacity of its change queue, the
@@ -179,11 +179,10 @@ then it is not an error if a storage does not exist.
 These are utility programs to modify the contents of storages.
 
 ERASER removes the specified records from the specified storage.  The storage
-is compacted to eliminate the holes left behind if the -c option is given.
-(The compaction is performed by moving the last record in the storage to the
-place where the erased record used to be).
+is compacted to eliminate the holes left behind if the -c option is given (the
+order of records within the storage may not preserved).
 
-COPIER makes a copy of the specified source record in the destination storage.
+COPIER duplicates the specified source record in the destination storage.
 
 Each program, if the -V option is specified ("verbose"), will output the
 identifiers of the records it is operating upon.
@@ -205,7 +204,7 @@ Development: this project uses GNU Autotools.  After cloning its repository,
 or modifying 'Makefile.am' or 'configure.ac', you should execute this command
 to update the generated configuration files and install any missing components.
 
-    dev45$ autoreconf -iv -Wall -Werror
+    dev45$ autoreconf -vis -Wall -Werror
 
 The maintainers strongly suggest that when building the project, all compiler
 warnings are enabled and treated as errors.  For example, if using GCC, this

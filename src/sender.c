@@ -597,7 +597,7 @@ static status tcp_write_in_range(sender_handle sndr, struct tcp_client *clnt)
 	    debug_time(), clnt->peer_name);
 #endif
     return OK;
-}    
+}
 
 static status tcp_on_write(sender_handle sndr, sock_handle sock)
 {
