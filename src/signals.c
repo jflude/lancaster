@@ -9,6 +9,10 @@
 #include <string.h>
 #include <stddef.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef NSIG
 #define NSIG 65
 #endif
@@ -18,6 +22,17 @@ static volatile sig_atomic_t is_raised[NSIG];
 static void on_signal(int sig)
 {
     is_raised[sig] = 1;
+}
+
+static const char *str_sig(int sig)
+{
+#if HAVE_STRSIGNAL
+    return strsignal(sig);
+#elif HAVE_DECL_SYS_SIGLIST
+    return sys_siglist[sig];
+#else
+#error no definitions for strsignal or sys_siglist
+#endif
 }
 
 static status set_action(int sig, void (*handler)(int))
@@ -57,7 +72,7 @@ status signal_is_raised(int sig)
 	return error_invalid_arg("signal_is_raised");
 
     return is_raised[sig]
-	? error_msg(SIG_ERROR_BASE - sig, "%s", sys_siglist[sig]) : OK;
+	? error_msg(SIG_ERROR_BASE - sig, "%s", str_sig(sig)) : OK;
 }
 
 status signal_any_raised(void)
@@ -65,7 +80,7 @@ status signal_any_raised(void)
     int i;
     for (i = 1; i < NSIG; ++i)
 	if (is_raised[i])
-	    return error_msg(SIG_ERROR_BASE - i, "%s", sys_siglist[i]);
+	    return error_msg(SIG_ERROR_BASE - i, "%s", str_sig(i));
 
     return OK;
 }
@@ -89,8 +104,7 @@ status signal_on_eintr(const char *func)
 
     for (i = 1; i < NSIG; ++i)
 	if (is_raised[i])
-	    return error_msg(SIG_ERROR_BASE - i, "%s: %s",
-			     func, sys_siglist[i]);
+	    return error_msg(SIG_ERROR_BASE - i, "%s: %s", func, str_sig(i));
 
     return error_errno(func);
 }
