@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("deleter");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

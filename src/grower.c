@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("grower");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("copier");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

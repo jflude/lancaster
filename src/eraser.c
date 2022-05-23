@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("eraser");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

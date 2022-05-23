@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("reader");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

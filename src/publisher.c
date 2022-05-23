@@ -271,6 +271,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("publisher");
+	    /* fall through */
 	default:
 	    show_syntax();
 	}

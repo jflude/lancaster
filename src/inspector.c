@@ -271,6 +271,7 @@ int main(int argc, char *argv[])
 	    break;
 	case 'v':
 	    show_version("inspector");
+	    /* fall through */
 	case 'V':
 	    show |= SHOW_VALUES | SHOW_RECORDS;
 	    break;
