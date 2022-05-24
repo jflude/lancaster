@@ -103,6 +103,7 @@ status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
     lldiv_t qr;
     struct tm *ptm;
     char fract[32], format[32];
+    int last;
 
     if (!text || text_sz == 0 || precision < 0)
 	return error_invalid_arg("clock_get_text");
@@ -113,12 +114,16 @@ status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
 	return error_errno("localtime");
 
     if (sprintf(fract, "%.*f", precision, qr.rem / 1000000.0) < 0 ||
-	sprintf(format, "%%Y-%%m-%%d %%H:%%M:%%S%s %%z", fract + 1) < 0)
+	sprintf(format, "%%Y-%%m-%%dT%%H:%%M:%%S%s%%z ", fract + 1) < 0)
 	return error_errno("sprintf");
 
     if (!strftime(text, text_sz, format, ptm))
 	return error_msg(BUFFER_TOO_SMALL, "clock_get_text: buffer too small");
 
+    last = strlen(text) - 1;
+    text[last] = text[last - 1];
+    text[last - 1] = text[last - 2];
+    text[last - 2] = ':';
     return OK;
 }
 

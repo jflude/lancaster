@@ -25,9 +25,11 @@ typedef int64_t microsec;
 status clock_sleep(microsec usec);
 status clock_time(microsec *pusec);
 
+/* RFC 3339, Section 5.6, Internet Date/Time Format */
 status clock_get_text(microsec usec, int precision,
 		      char *text, size_t text_sz);
 
+/* HH:MM:SS */
 status clock_get_short_text(microsec usec, int precision,
 			    char *text, size_t text_sz);
 #ifdef __cplusplus
