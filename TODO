@@ -2,6 +2,7 @@
 
 - support building as a shared object library
 - optionally INSPECTOR should output as JSON
+- Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 - support DNS lookups on addresses passed as arguments to programs
 - rewrite pubmux & submux as C programs, and document them
 - develop a Common Lisp foreign function interface

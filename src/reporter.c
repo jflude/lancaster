@@ -9,6 +9,7 @@
 #include <lancaster/xalloc.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 struct reporter {
     sock_handle udp_sock;

@@ -803,8 +803,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
     if (!(*psndr)->record_seqs)
 	return NO_MEMORY;
 
-    if (FAILED(st = sock_create(&(*psndr)->listen_sock,
-				SOCK_STREAM, IPPROTO_TCP)) ||
+    if (FAILED(st = sock_create(&(*psndr)->listen_sock, SOCK_STREAM, 0)) ||
 	FAILED(st = sock_set_reuseaddr((*psndr)->listen_sock, TRUE)) ||
 	FAILED(st = sock_addr_create(&(*psndr)->listen_addr,
 				     tcp_address, tcp_port)) ||
@@ -817,8 +816,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
     if (mcast_port == 0)
 	mcast_port = sock_addr_get_port((*psndr)->listen_addr);
 
-    if (FAILED(st = sock_create(&(*psndr)->mcast_sock,
-				SOCK_DGRAM, IPPROTO_UDP)) ||
+    if (FAILED(st = sock_create(&(*psndr)->mcast_sock, SOCK_DGRAM, 0)) ||
 	FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)))
 	return st;
 

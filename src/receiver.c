@@ -24,6 +24,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include "xalloca.h"
 
 #ifdef HAVE_CONFIG_H
@@ -451,8 +452,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
     spin_create(&(*precv)->stats_lock);
 
     if (FAILED(st = latency_create(&(*precv)->mcast_latency)) ||
-	FAILED(st = sock_create(&(*precv)->tcp_sock,
-				SOCK_STREAM, IPPROTO_TCP)) ||
+	FAILED(st = sock_create(&(*precv)->tcp_sock, SOCK_STREAM, 0)) ||
 	FAILED(st = sock_addr_create(&(*precv)->tcp_addr,
 				     tcp_address, tcp_port)) ||
 	FAILED(st = sock_connect((*precv)->tcp_sock, (*precv)->tcp_addr)) ||
@@ -541,8 +541,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 				    base_id, max_id, val_size, property_size,
 				    q_capacity, buf + proto_len)) &&
 	!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
-	!FAILED(st = sock_create(&(*precv)->mcast_sock,
-				 SOCK_DGRAM, IPPROTO_UDP)) &&
+	!FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, 0)) &&
 	!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
 	!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
 	!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
