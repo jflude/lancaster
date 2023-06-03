@@ -91,7 +91,7 @@ static status make_json_map(advert_handle advert)
 
 static status make_json_notice(sender_handle sender, char **pjson)
 {
-    char buf[512];
+    char buf[1024];
     int n = sprintf(buf, "{\"port\":%d, \"description\":\"%s\"}",
 		    sender_get_listen_port(sender),
 		    escape_quotes(storage_get_description

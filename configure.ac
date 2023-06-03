@@ -15,8 +15,8 @@ AC_CONFIG_FILES([Makefile])
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_PROG_RANLIB
 AM_PROG_AR
+LT_INIT
 
 # Checks for libraries.
 AC_CHECK_LIB([m], [sqrt])

@@ -102,7 +102,7 @@ status clock_get_text(microsec usec, int precision, char *text, size_t text_sz)
     time_t t;
     lldiv_t qr;
     struct tm *ptm;
-    char fract[32], format[32];
+    char fract[32], format[64];
     int last;
 
     if (!text || text_sz == 0 || precision < 0)
@@ -133,7 +133,7 @@ status clock_get_short_text(microsec usec, int precision,
     time_t t;
     lldiv_t qr;
     struct tm *ptm;
-    char fract[32], format[32];
+    char fract[32], format[64];
 
     if (!text || text_sz == 0 || precision < 0)
 	return error_invalid_arg("clock_get_short_text");

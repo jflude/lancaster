@@ -1,10 +1,11 @@
 ## Makefile.am -- Process this file with automake to produce Makefile.in
 AUTOMAKE_OPTIONS = subdir-objects
+ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = copier deleter eraser grower inspector publisher reader \
 	subscriber writer
 
-lib_LIBRARIES = liblancaster.a
+lib_LTLIBRARIES = liblancaster.la
 
 nobase_include_HEADERS = \
 	lancaster/a2i.h \
@@ -38,7 +39,7 @@ nobase_include_HEADERS = \
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
 dist_doc_DATA = COPYING README
 
-liblancaster_a_SOURCES = \
+liblancaster_la_SOURCES = \
 	src/a2i.c \
 	src/advert.c \
 	src/batch.c \
@@ -62,10 +63,7 @@ liblancaster_a_SOURCES = \
 	src/xalloc.c \
 	src/xalloca.h
 
-LDADD = liblancaster.a
-publisher_LDADD = $(LDADD) -lm
-reader_LDADD = $(LDADD) -lm
-subscriber_LDADD = $(LDADD) -lm
+LDADD = liblancaster.la -lm
 
 copier_SOURCES = src/copier.c
 deleter_SOURCES = src/deleter.c

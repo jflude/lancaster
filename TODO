@@ -1,10 +1,22 @@
-# Some things that still need to be done
+# Bugs
 
-- support building as a shared object library
-- optionally INSPECTOR should output as JSON
+- Update copyright notices
+- OpenBSD & NetBSD: setsockopt(2) problems
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
-- support DNS lookups on addresses passed as arguments to programs
-- rewrite pubmux & submux as C programs, and document them
-- develop a Common Lisp foreign function interface
-- develop Java, Python and Go interfaces without proprietary code
-- develop simpler READER & WRITER example programs using the batch functions
+
+# Enhancements
+
+- The INSPECTOR should optionally output as JSON
+- Free store allocation of properties within the segment, growing down
+- Support DNS lookups on addresses passed as arguments to programs
+- Simpler READER & WRITER example programs using the batch functions
+- Document pubmux & submux; maybe modernize Go build/deps tracking?
+- Provide Common Lisp client library (CFFI)
+- Modernize the Go client library (eg. deps/build)
+- Persuade Peak6 to contribute their Java & Python client libraries?
+- Can it support send/receive by point-to-point UDP as well as multicasting?
+
+## Protocol changes
+
+- Receivers may inform senders via TCP if uninterested in a range of records
+- Senders may not multicast updates for records if no receivers are interested
