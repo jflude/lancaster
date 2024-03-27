@@ -1,5 +1,6 @@
 /*
-  Copyright (c)2014-2017 Peak6 Investments, LP.  All rights reserved.
+  Copyright (c)2014-2017 Peak6 Investments, LP.
+  Copyright (c)2018-2024 Justin Flude.
   Use of this source code is governed by the COPYING file.
 */
 
@@ -124,18 +125,15 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
     }
 
     if (open_flags & O_CREAT) {
-	if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
-	    if (errno == EINTR)
-		return error_eintr("ftruncate");
 /*
-  Darwin does not support calling ftruncate on an existing segment.
+  Darwin doesn't support O_TRUNC, or ftruncate(2) on an existing segment.
   See http://lists.squid-cache.org/pipermail/squid-dev/2016-January/004831.html
 */
-#ifdef DARWIN_OS
-	    if (errno != EINVAL)
+#ifndef DARWIN_OS
+        if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
+            return (errno == EINTR ? error_eintr : error_errno)("ftruncate");
+        }
 #endif
-		return error_errno("ftruncate");
-	}
     } else {
 	struct stat file_stat;
 	if (fstat((*pstore)->seg_fd, &file_stat) == -1)

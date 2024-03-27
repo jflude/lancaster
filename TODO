@@ -1,6 +1,5 @@
 # Bugs
 
-- Update copyright notices
 - OpenBSD & NetBSD: setsockopt(2) problems
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 
@@ -11,10 +10,11 @@
 - Support DNS lookups on addresses passed as arguments to programs
 - Simpler READER & WRITER example programs using the batch functions
 - Document pubmux & submux; maybe modernize Go build/deps tracking?
-- Provide Common Lisp client library (CFFI)
-- Modernize the Go client library (eg. deps/build)
+- Provide a Common Lisp client library (CFFI)
+- Modernize the Go client library (fix deps/vendor/build)
 - Persuade Peak6 to contribute their Java & Python client libraries?
-- Can it support send/receive by point-to-point UDP as well as multicasting?
+- Support send/receive by point-to-point UDP as well as multicasting?
+- Portable way for clock to support nanosecond precision?
 
 ## Protocol changes
 
