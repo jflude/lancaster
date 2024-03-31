@@ -1,14 +1,18 @@
 # Bugs
 
 - OpenBSD & NetBSD: setsockopt(2) problems
+- Cygwin: multicast binding/filtering bug
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 
 # Enhancements
 
 - The INSPECTOR should optionally output as JSON
-- Free store allocation of properties within the segment, growing down
-- Support DNS lookups on addresses passed as arguments to programs
+- Change the socket code and program options to support IPv6 addresses
+- README should begin with an overview of the Lancaster system & ideas
 - Simpler READER & WRITER example programs using the batch functions
+- Define DEBUG_ALLOC for a doubly-linked list of allocations; dump at_exit(3)
+- Convert DEBUG_ build options into checks on an environment variable?
+- Free store allocation of properties within the segment, growing down
 - Document pubmux & submux; maybe modernize Go build/deps tracking?
 - Provide a Common Lisp client library (CFFI)
 - Modernize the Go client library (fix deps/vendor/build)

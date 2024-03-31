@@ -164,16 +164,6 @@ static status request_gap(receiver_handle recv, sequence low, sequence high)
     return st;
 }
 
-static status get_sock_addr_text(sock_addr_handle addr, char *text,
-				 size_t text_sz, boolean with_port)
-{
-    status st;
-    if (FAILED(st = sock_addr_get_text(addr, text, text_sz, with_port)))
-	sprintf(text, "sock_addr_get_text failed: error #%d", (int)st);
-
-    return st;
-}
-
 static status mcast_on_read(receiver_handle recv)
 {
     status st, st2;
@@ -197,13 +187,18 @@ static status mcast_on_read(receiver_handle recv)
     tcp_ip = sock_addr_get_ip(recv->tcp_addr);
 
     if (mcast_ip != tcp_ip) {
+/*
+  BUG: on Windows we receive multicast packets from other hosts.
+  See http://lkml.iu.edu/hypermail/linux/net/0211.1/0003.html
+*/
 #if defined(CYGWIN_OS) && !defined(DEBUG_TRAFFIC)
 	return OK;
 #else
 	char pub[256], src[256], tcp[256];
-	get_sock_addr_text(recv->mcast_pub_addr, pub, sizeof(pub), TRUE);
-	get_sock_addr_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
-	get_sock_addr_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
+	pub[0] = src[0] = tcp[0] = '\0';
+	sock_addr_get_text(recv->mcast_pub_addr, pub, sizeof(pub), TRUE);
+	sock_addr_get_text(recv->mcast_src_addr, src, sizeof(src), FALSE);
+	sock_addr_get_text(recv->tcp_addr, tcp, sizeof(tcp), TRUE);
 
 #ifdef CYGWIN_OS
 	fprintf(recv->debug_file,
@@ -549,8 +544,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 				      mcast_port)) &&
 	!FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) &&
 /*
-  Windows does not support binding to a remote multicast address.
-  See http://www.nealc.com/blog/blog/2012/09/11/testing/
+  BUG: Windows does not support binding to non-local (multicast) addresses.
+  See https://issues.apache.org/jira/browse/HBASE-9961
 */
 #ifdef CYGWIN_OS
 	!FAILED(st = sock_addr_create(&bind_addr, NULL, mcast_port)) &&
@@ -584,9 +579,10 @@ static status init(receiver_handle *precv, const char *mmap_file,
 #endif
     }
 
-    st2 = sock_addr_destroy(&iface_addr);
-    if (!FAILED(st))
-	st = st2;
+    if ((FAILED(st2 = sock_addr_destroy(&iface_addr)) ||
+         FAILED(st2 = sock_addr_destroy(&bind_addr))) &&
+        !FAILED(st))
+        st = st2;
 
     return st;
 }
@@ -625,6 +621,7 @@ status receiver_destroy(receiver_handle *precv)
 	FAILED(st = sock_destroy(&(*precv)->tcp_sock)) ||
 	FAILED(st = sock_addr_destroy(&(*precv)->tcp_addr)) ||
 	FAILED(st = sock_addr_destroy(&(*precv)->mcast_src_addr)) ||
+	FAILED(st = sock_addr_destroy(&(*precv)->mcast_pub_addr)) ||
 	FAILED(st = storage_destroy(&(*precv)->store)) ||
 	FAILED(st = latency_destroy(&(*precv)->mcast_latency)))
 	return st;
@@ -661,8 +658,9 @@ status receiver_run(receiver_handle recv)
 		debug_time());
 #endif
 	if (FAILED(st = poller_events(recv->poller, 10)) ||
-	    (st > 0 && FAILED(st = poller_process_events(recv->poller,
-							 event_func, recv))) ||
+	    (st > 0 &&
+             FAILED(st = poller_process_events(recv->poller,
+                                               event_func, recv))) ||
 	    FAILED(st = clock_time(&now)) ||
 	    (recv->touch_period_usec > 0 &&
 	     (now - recv->touched_time) >= recv->touch_period_usec &&

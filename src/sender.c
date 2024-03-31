@@ -248,9 +248,9 @@ static status mcast_on_empty_queue(sender_handle sndr)
 
     if (!FAILED(st = clock_time(&now))) {
 	if (sndr->mcast_insert_time != 0 &&
-	    (now - sndr->mcast_insert_time) >= sndr->max_pkt_age_usec)
+	    (now - sndr->mcast_insert_time) >= sndr->max_pkt_age_usec) {
 	    st = mcast_send_pkt(sndr);
-	else {
+	} else {
 	    if ((now - sndr->mcast_send_time) >= sndr->heartbeat_usec) {
 		if (sndr->pkt_next == sndr->pkt_buf) {
 		    SENDER_SEQ(sndr) = htonll(-sndr->next_seq);
@@ -284,9 +284,9 @@ static status mcast_on_write(sender_handle sndr)
 	qi = 0;
     }
 
-    if (qi == 0)
+    if (qi == 0) {
 	st = mcast_on_empty_queue(sndr);
-    else {
+    } else {
 	size_t q_cap = storage_get_queue_capacity(sndr->store);
 	if ((size_t)qi > q_cap) {
 #if defined(DEBUG_PROTOCOL)
@@ -821,9 +821,9 @@ static status init(sender_handle *psndr, const char *mmap_file,
 	FAILED(st = sock_set_nonblock((*psndr)->mcast_sock)))
 	return st;
 
-    if (!mcast_interface)
+    if (!mcast_interface) {
 	(*psndr)->mcast_mtu = DEFAULT_MTU;
-    else {
+    } else {
 	sock_addr_handle if_addr;
 	if (FAILED(st = sock_get_mtu((*psndr)->mcast_sock, mcast_interface,
 				     &(*psndr)->mcast_mtu)) ||
@@ -924,9 +924,10 @@ status sender_destroy(sender_handle *psndr)
 {
     status st = OK;
     if (!psndr || !*psndr ||
-	((*psndr)->poller && FAILED(st = poller_process((*psndr)->poller,
-							close_sock_func,
-							*psndr))) ||
+	((*psndr)->poller &&
+         FAILED(st = poller_process((*psndr)->poller,
+                                    close_sock_func,
+                                    *psndr))) ||
 	FAILED(st = poller_destroy(&(*psndr)->poller)) ||
 	FAILED(st = storage_destroy(&(*psndr)->store)) ||
 	FAILED(st = sock_addr_destroy(&(*psndr)->sendto_addr)) ||
@@ -970,8 +971,9 @@ status sender_run(sender_handle sndr)
 		debug_time());
 #endif
 	if (FAILED(st = poller_events(sndr->poller, 0)) ||
-	    (st > 0 && FAILED(st = poller_process_events(sndr->poller,
-							 event_func, sndr))) ||
+	    (st > 0 &&
+             FAILED(st = poller_process_events(sndr->poller, event_func,
+                                               sndr))) ||
 	    FAILED(st = storage_get_touched_time(sndr->store, &when)) ||
 	    FAILED(st = clock_time(&now)))
 	    break;

@@ -109,6 +109,7 @@ status storage_copy_record(storage_handle from_store, record_handle from_rec,
 			   microsec to_ts, boolean with_prop);
 
 void *storage_get_property_ref(storage_handle store, record_handle rec);
+
 void *record_get_value_ref(record_handle rec);
 
 microsec record_get_timestamp(record_handle rec);

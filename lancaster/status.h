@@ -22,7 +22,7 @@ typedef int status;
 #define SIG_ERROR_BASE -128
 #define ERRNO_ERROR_BASE_1 0
 #define ERRNO_ERROR_BASE_2 70
-#define LANCASTER_ERROR_BASE -220
+#define LANCASTER_ERROR_BASE -220 /* exit(3) allows for 35 codes */
 
 /* #define EOF (LANCASTER_ERROR_BASE - 1) */
 #define SYNTAX_ERROR (LANCASTER_ERROR_BASE - 2)

@@ -120,9 +120,9 @@ static void *stats_func(thread_handle thr)
 
     if (as_json) {
 	const char *delim_pos = strchr(storage_desc, '.');
-	if (!delim_pos)
+	if (!delim_pos) {
 	    strncpy(alias, "unknown", sizeof(alias));
-	else {
+	} else {
 	    size_t sz = delim_pos - storage_desc;
 	    if (sz >= sizeof(alias))
 		sz = sizeof(alias) - 1;

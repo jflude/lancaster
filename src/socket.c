@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/ioctl.h>
@@ -42,119 +43,6 @@ struct sock {
 struct sock_addr {
     struct sockaddr_in sa;
 };
-
-status sock_addr_create(sock_addr_handle *paddr, const char *address,
-			unsigned short port)
-{
-    if (!paddr)
-	return error_invalid_arg("sock_addr_create");
-
-    *paddr = XMALLOC(struct sock_addr);
-    if (!*paddr)
-	return NO_MEMORY;
-
-    BZERO(*paddr);
-
-    (*paddr)->sa.sin_family = AF_INET;
-    (*paddr)->sa.sin_port = htons(port);
-
-    if (!address)
-	(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
-    else if (!inet_aton(address, &(*paddr)->sa.sin_addr)) {
-	sock_addr_destroy(paddr);
-	return error_msg(INVALID_ADDRESS,
-			 "inet_aton: invalid address: \"%s:%d\"",
-			 address, (int)port);
-    }
-
-    return OK;
-}
-
-status sock_addr_destroy(sock_addr_handle *paddr)
-{
-    if (paddr && *paddr)
-	XFREE(*paddr);
-
-    return OK;
-}
-
-unsigned long sock_addr_get_ip(sock_addr_handle addr)
-{
-    return ntohl(addr->sa.sin_addr.s_addr);
-}
-
-unsigned short sock_addr_get_port(sock_addr_handle addr)
-{
-    return ntohs(addr->sa.sin_port);
-}
-
-status sock_addr_get_text(sock_addr_handle addr, char *text,
-			  size_t text_sz, boolean with_port)
-{
-    char a_buf[256], p_buf[16];
-    if (!text || text_sz < INET_ADDRSTRLEN)
-	return error_invalid_arg("sock_addr_get_text");
-
-    if (!inet_ntop(addr->sa.sin_family, &addr->sa.sin_addr,
-		   a_buf, sizeof(a_buf)))
-	return error_errno("inet_ntop");
-
-    if (!with_port)
-	p_buf[0] = '\0';
-    else if (sprintf(p_buf, ":%d", (int)ntohs(addr->sa.sin_port)) < 0)
-	return error_errno("sock_addr_get_text");
-
-    if (strlen(a_buf) + strlen(p_buf) >= text_sz)
-	return error_msg(BUFFER_TOO_SMALL,
-			 "sock_addr_get_text: buffer too small");
-
-    strcpy(text, a_buf);
-    strcat(text, p_buf);
-    return OK;
-}
-
-status sock_addr_split(const char *addr_and_port, char *paddr,
-		       size_t addr_sz, unsigned short *pport)
-{
-    size_t sz;
-    const char *colon;
-    if (!addr_and_port || !paddr || addr_sz == 0 || !pport)
-	return error_invalid_arg("sock_addr_split");
-
-    colon = strchr(addr_and_port, ':');
-    if (!colon)
-	return error_msg(INVALID_ADDRESS,
-			 "sock_addr_split: invalid address: \"%s\"",
-			 addr_and_port);
-
-    sz = colon - addr_and_port;
-    if (sz >= addr_sz)
-	return error_msg(BUFFER_TOO_SMALL,
-			 "sock_addr_split: buffer too small");
-
-    strncpy(paddr, addr_and_port, sz);
-    paddr[sz] = '\0';
-
-    return a2i(colon + 1, "%hu", pport);
-}
-
-boolean sock_addr_is_equal(sock_addr_handle lhs, sock_addr_handle rhs)
-{
-    return lhs && rhs &&
-	lhs->sa.sin_addr.s_addr == rhs->sa.sin_addr.s_addr &&
-	lhs->sa.sin_port == rhs->sa.sin_port;
-}
-
-void sock_addr_set_none(sock_addr_handle addr)
-{
-    addr->sa.sin_addr.s_addr = htonl(INADDR_NONE);
-    addr->sa.sin_port = 0;
-}
-
-void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
-{
-    dest->sa = src->sa;
-}
 
 status sock_create(sock_handle *psock, int type, int protocol)
 {
@@ -587,4 +475,122 @@ status sock_close(sock_handle sock)
     }
 
     return OK;
+}
+
+status sock_addr_create(sock_addr_handle *paddr, const char *address,
+			unsigned short port)
+{
+    status st = OK;
+    if (!paddr)
+	return error_invalid_arg("sock_addr_create");
+
+    *paddr = XMALLOC(struct sock_addr);
+    if (!*paddr)
+	return NO_MEMORY;
+
+    BZERO(*paddr);
+
+    (*paddr)->sa.sin_family = AF_INET;
+    (*paddr)->sa.sin_port = htons(port);
+
+    if (!address || !*address) {
+	(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
+    } else {
+        struct hostent *he = gethostbyname(address);
+        if (!he)
+            st = error_msg(INVALID_ADDRESS,
+                           "gethostbyname: \"%s\": %s",
+                           address, hstrerror(h_errno));
+        else
+            switch (he->h_addrtype) {
+            case AF_INET:
+                (*paddr)->sa.sin_addr = *(struct in_addr *)he->h_addr_list[0];
+                break;
+            default:
+                st = error_msg(INVALID_ADDRESS,
+                               "unsupported address type %d: \"%s\"",
+                               he->h_addrtype, address);
+            }
+    }
+
+    return FAILED(st) ? sock_addr_destroy(paddr) : st;
+}
+
+status sock_addr_destroy(sock_addr_handle *paddr)
+{
+    if (paddr && *paddr)
+	XFREE(*paddr);
+
+    return OK;
+}
+
+unsigned long sock_addr_get_ip(sock_addr_handle addr)
+{
+    return ntohl(addr->sa.sin_addr.s_addr);
+}
+
+unsigned short sock_addr_get_port(sock_addr_handle addr)
+{
+    return ntohs(addr->sa.sin_port);
+}
+
+status sock_addr_get_text(sock_addr_handle addr, char *text,
+			  size_t text_sz, boolean with_port)
+{
+    char a_buf[256], p_buf[16];
+    if (!text || text_sz < INET_ADDRSTRLEN)
+	return error_invalid_arg("sock_addr_get_text");
+
+    if (!inet_ntop(addr->sa.sin_family, &addr->sa.sin_addr,
+		   a_buf, sizeof(a_buf)))
+	return error_errno("inet_ntop");
+
+    if (!with_port)
+	p_buf[0] = '\0';
+    else if (sprintf(p_buf, ":%hu", ntohs(addr->sa.sin_port)) < 0)
+	return error_errno("sock_addr_get_text");
+
+    if (strlen(a_buf) + strlen(p_buf) >= text_sz)
+	return error_msg(BUFFER_TOO_SMALL,
+			 "sock_addr_get_text: buffer too small");
+
+    strcpy(text, a_buf);
+    strcat(text, p_buf);
+    return OK;
+}
+
+status sock_addr_split(const char *addr_and_port, char *paddr,
+		       size_t addr_sz, unsigned short *pport)
+{
+    size_t sz;
+    const char *colon;
+    if (!addr_and_port || !paddr || addr_sz == 0 || !pport)
+	return error_invalid_arg("sock_addr_split");
+
+    colon = strchr(addr_and_port, ':');
+    if (!colon)
+	return error_msg(INVALID_ADDRESS,
+			 "sock_addr_split: invalid address: \"%s\"",
+			 addr_and_port);
+
+    sz = colon - addr_and_port;
+    if (sz >= addr_sz)
+	return error_msg(BUFFER_TOO_SMALL,
+			 "sock_addr_split: buffer too small");
+
+    strncpy(paddr, addr_and_port, sz);
+    paddr[sz] = '\0';
+
+    return a2i(colon + 1, "%hu", pport);
+}
+
+void sock_addr_set_none(sock_addr_handle addr)
+{
+    addr->sa.sin_addr.s_addr = htonl(INADDR_NONE);
+    addr->sa.sin_port = 0;
+}
+
+void sock_addr_copy(sock_addr_handle dest, sock_addr_handle src)
+{
+    dest->sa = src->sa;
 }

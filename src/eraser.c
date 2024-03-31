@@ -105,9 +105,9 @@ int main(int argc, char *argv[])
 	    if (!st)
 		break;
 
-	    if (parg->rec >= last_rec)
+	    if (parg->rec >= last_rec) {
 		record_set_revision(last_rec, last_rev);
-	    else {
+	    } else {
 		if (verbose)
 		    printf("compacting #%08" PRId64 " [%s]\n",
 			   parg->id, stg_file);

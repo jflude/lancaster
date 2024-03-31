@@ -24,9 +24,9 @@ status spin_read_lock(volatile spin_lock *lock, spin_lock *old_rev)
     int spins = 0, sleeps = 0;
 
     while ((rev = *lock) < 0)
-	if (++spins <= MAX_SPINS)
+	if (++spins <= MAX_SPINS) {
 	    CPU_RELAX();
-	else {
+	} else {
 	    status st;
 	    if (++sleeps > (MAX_WAIT_USEC / SLEEP_USEC))
 		return error_msg(DEADLOCK_DETECTED,
@@ -48,9 +48,9 @@ status spin_write_lock(volatile spin_lock *lock, spin_lock *old_rev)
     int spins = 0, sleeps = 0;
 
     while ((rev = SYNC_FETCH_AND_OR(lock, SPIN_MASK)) < 0)
-	if (++spins <= MAX_SPINS)
+	if (++spins <= MAX_SPINS) {
 	    CPU_RELAX();
-	else {
+	} else {
 	    status st;
 	    if (++sleeps > (MAX_WAIT_USEC / SLEEP_USEC))
 		return error_msg(DEADLOCK_DETECTED,
