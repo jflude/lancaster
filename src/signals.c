@@ -43,10 +43,10 @@ static status set_action(int sig, void (*handler)(int))
     sa.sa_handler = handler;
 
     if (sigemptyset(&sa.sa_mask) == -1)
-	return error_errno("sigemptyset");
+	return error_errno("set_action: sigemptyset");
 
     if (sigaction(sig, &sa, NULL) == -1)
-	return error_errno("sigaction");
+	return error_errno("set_action: sigaction");
 
     return OK;
 }
@@ -73,7 +73,8 @@ status signal_is_raised(int sig)
 	return error_invalid_arg("signal_is_raised");
 
     return is_raised[sig]
-	? error_msg(SIG_ERROR_BASE - sig, "%s", str_sig(sig)) : OK;
+        ? error_msg(SIG_ERROR_BASE - sig, "%s", str_sig(sig))
+        : OK;
 }
 
 status signal_any_raised(void)

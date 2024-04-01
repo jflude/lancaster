@@ -76,13 +76,13 @@ static status output_json(double secs, microsec now, const char *alias)
 		receiver_get_mcast_mean_latency(rcvr),
 		receiver_get_mcast_max_latency(rcvr),
 		receiver_get_mcast_stddev_latency(rcvr)) < 0)
-	return error_errno("sprintf");
+	return error_errno("output_json: sprintf");
 
     if (reporter) {
 	if (FAILED(st = reporter_send(reporter, buf)))
 	    return st;
     } else if (puts(buf) == EOF)
-	return error_errno("puts");
+	return error_errno("output_json: puts");
 
     return OK;
 }
@@ -104,7 +104,7 @@ static status output_std(double secs)
 	       receiver_get_mcast_max_latency(rcvr),
 	       receiver_get_mcast_stddev_latency(rcvr),
 	       (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
-	st = error_errno("printf");
+	st = error_errno("output_std: printf");
 
     return st;
 }
@@ -158,7 +158,7 @@ static void *stats_func(thread_handle thr)
 	last_print = now;
 
 	if (!reporter && fflush(stdout) == -1) {
-	    st = error_errno("fflush");
+	    st = error_errno("stats_func: fflush");
 	    break;
 	}
     }

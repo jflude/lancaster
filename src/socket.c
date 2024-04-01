@@ -60,7 +60,7 @@ status sock_create(sock_handle *psock, int type, int protocol)
 	error_save_last();
 	sock_destroy(psock);
 	error_restore_last();
-	return error_errno("socket");
+	return error_errno("sock_create: socket");
     }
 
     return OK;
@@ -84,7 +84,7 @@ status sock_get_hostname(char *name, size_t name_sz)
 	return error_invalid_arg("sock_get_hostname");
 
     if (gethostname(name, name_sz) == -1)
-	return error_errno("sock_get_hostname");
+	return error_errno("sock_get_hostname: gethostname");
 
     name[name_sz - 1] = '\0';
     return OK;
@@ -113,7 +113,7 @@ status sock_get_local_address(sock_handle sock, sock_addr_handle addr)
 
     len = sizeof(addr->sa);
     if (getsockname(sock->fd, (struct sockaddr *)&addr->sa, &len) == -1)
-	return error_errno("getsockname");
+	return error_errno("sock_get_local_address: getsockname");
 
     return OK;
 }
@@ -126,7 +126,7 @@ status sock_get_remote_address(sock_handle sock, sock_addr_handle addr)
 
     len = sizeof(addr->sa);
     if (getpeername(sock->fd, (struct sockaddr *)&addr->sa, &len) == -1)
-	return error_errno("getpeername");
+	return error_errno("sock_get_remote_address: getpeername");
 
     return OK;
 }
@@ -142,7 +142,7 @@ status sock_get_interface_address(sock_handle sock, const char *device,
     strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
     if (ioctl(sock->fd, (int)SIOCGIFADDR, &ifr) == -1)
-	return error_errno("ioctl");
+	return error_errno("sock_get_remote_address: ioctl");
 
     addr->sa.sin_addr = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
     return OK;
@@ -158,7 +158,7 @@ status sock_get_mtu(sock_handle sock, const char *device, size_t *pmtu)
     strncpy(ifr.ifr_name, device, IFNAMSIZ);
 
     if (ioctl(sock->fd, (int)SIOCGIFMTU, &ifr) == -1)
-	return error_errno("ioctl");
+	return error_errno("sock_get_mtu: ioctl");
 
     *pmtu = ifr.ifr_mtu;
     return OK;
@@ -170,14 +170,14 @@ status sock_set_nonblock(sock_handle sock)
 #ifdef O_NONBLOCK
     flags = fcntl(sock->fd, F_GETFL, 0);
     if (flags == -1)
-	return error_errno("fcntl");
+	return error_errno("sock_set_nonblock: fcntl");
 
     if (fcntl(sock->fd, F_SETFL, flags | O_NONBLOCK) == -1)
-	return error_errno("fcntl");
+	return error_errno("sock_set_nonblock: fcntl");
 #else
     flags = 1;
     if (ioctl(sock->fd, (int)FIOBIO, &flags) == -1)
-	return error_errno("ioctl");
+	return error_errno("sock_set_nonblock: ioctl");
 #endif
     return OK;
 }
@@ -187,7 +187,7 @@ status sock_set_reuseaddr(sock_handle sock, boolean reuse)
     int val = !!reuse;
     if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR,
 		   &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_reuseaddr: setsockopt");
 
     return OK;
 }
@@ -196,7 +196,7 @@ status sock_set_rx_buf(sock_handle sock, size_t buf_sz)
 {
     int val = buf_sz;
     if (setsockopt(sock->fd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_rx_buf: setsockopt");
 
     return OK;
 }
@@ -205,7 +205,7 @@ status sock_set_tx_buf(sock_handle sock, size_t buf_sz)
 {
     int val = buf_sz;
     if (setsockopt(sock->fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_tx_buf: setsockopt");
 
     return OK;
 }
@@ -215,7 +215,7 @@ status sock_set_tcp_nodelay(sock_handle sock, boolean disable_delay)
     int val = !!disable_delay;
     if (setsockopt(sock->fd, IPPROTO_TCP, TCP_NODELAY,
 		   &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_tcp_nodelay: setsockopt");
 
     return OK;
 }
@@ -225,7 +225,7 @@ status sock_set_mcast_ttl(sock_handle sock, short ttl)
     unsigned char val = ttl;
     if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_TTL,
 		   &val, sizeof(val)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_mcast_ttl: setsockopt");
 
     return OK;
 }
@@ -234,7 +234,7 @@ status sock_set_mcast_loopback(sock_handle sock, boolean allow_loop)
 {
     if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 		   &allow_loop, sizeof(allow_loop)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_mcast_loopback: setsockopt");
 
     return OK;
 }
@@ -246,7 +246,7 @@ status sock_set_mcast_interface(sock_handle sock, sock_addr_handle addr)
 
     if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_IF,
 		   &addr->sa.sin_addr, sizeof(addr->sa.sin_addr)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_set_mcast_interface: setsockopt");
 
     return OK;
 }
@@ -257,7 +257,7 @@ status sock_bind(sock_handle sock, sock_addr_handle addr)
 	return error_invalid_arg("sock_bind");
 
     if (bind(sock->fd, (struct sockaddr *)&addr->sa, sizeof(addr->sa)) == -1)
-	return error_errno("bind");
+	return error_errno("sock_bind: bind");
 
     return OK;
 }
@@ -265,7 +265,7 @@ status sock_bind(sock_handle sock, sock_addr_handle addr)
 status sock_listen(sock_handle sock, int backlog)
 {
     if (listen(sock->fd, backlog) == -1)
-	return error_errno("listen");
+	return error_errno("sock_listen: listen");
 
     return OK;
 }
@@ -288,12 +288,14 @@ status sock_accept(sock_handle sock, sock_handle *new_sock)
 	if (errno == EWOULDBLOCK)
 	    return BLOCKED;
 #endif
-	return error_eintr("accept");
+	return error_eintr("sock_accept: accept");
     }
 
     *new_sock = XMALLOC(struct sock);
     if (!*new_sock)
-	return close(accpt.fd) == -1 ? error_eintr("close") : NO_MEMORY;
+	return close(accpt.fd) == -1
+            ? error_eintr("sock_accept: close")
+            : NO_MEMORY;
 
     **new_sock = accpt;
     return OK;
@@ -306,7 +308,7 @@ status sock_connect(sock_handle sock, sock_addr_handle addr)
 
     if (connect(sock->fd, (const struct sockaddr *)&addr->sa,
 		sizeof(addr->sa)) == -1)
-	return error_errno("connect");
+	return error_errno("sock_connect: connect");
 
     return OK;
 }
@@ -323,7 +325,7 @@ status sock_mcast_add(sock_handle sock, sock_addr_handle multi_addr,
 
     if (setsockopt(sock->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 		   &mreq, sizeof(mreq)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_mcast_add: setsockopt");
 
     return OK;
 }
@@ -340,7 +342,7 @@ status sock_mcast_drop(sock_handle sock, sock_addr_handle multi_addr,
 
     if (setsockopt(sock->fd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 		   &mreq, sizeof(mreq)) == -1)
-	return error_errno("setsockopt");
+	return error_errno("sock_mcast_drop: setsockopt");
 
     return OK;
 }
@@ -361,10 +363,8 @@ status sock_write(sock_handle sock, const void *data, size_t data_sz)
 	if (errno == EWOULDBLOCK)
 	    return BLOCKED;
 #endif
-	if (errno == EPIPE || errno == ECONNRESET)
-	    return error_eof("write");
-
-	return error_eintr("write");
+        return (errno == EPIPE || errno == ECONNRESET ? error_eof : error_eintr)
+            ("sock_write: write");
     }
 
     return count;
@@ -386,14 +386,12 @@ status sock_read(sock_handle sock, void *data, size_t data_sz)
 	if (errno == EWOULDBLOCK)
 	    return BLOCKED;
 #endif
-	if (errno == ECONNRESET)
-	    return error_eof("read");
-
-	return error_eintr("read");
+	return (errno == ECONNRESET ? error_eof : error_eintr)
+            ("sock_read: read");
     }
 
     if (count == 0)
-	return error_eof("read");
+	return error_eof("sock_read: read");
 
     return count;
 }
@@ -416,10 +414,8 @@ status sock_sendto(sock_handle sock, sock_addr_handle addr,
 	if (errno == EWOULDBLOCK)
 	    return BLOCKED;
 #endif
-	if (errno == EPIPE || errno == ECONNRESET)
-	    return error_eof("sendto");
-
-	return error_eintr("sendto");
+	return (errno == EPIPE || errno == ECONNRESET ? error_eof : error_eintr)
+            ("sock_sendto: sendto");
     }
 
     return count;
@@ -445,14 +441,12 @@ status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
 	if (errno == EWOULDBLOCK)
 	    return BLOCKED;
 #endif
-	if (errno == ECONNRESET)
-	    return error_eof("recvfrom");
-
-	return error_eintr("recvfrom");
+	return (errno == ECONNRESET ? error_eof : error_eintr)
+            ("sock_recvfrom: recvfrom");
     }
 
     if (count == 0)
-	return error_eof("recvfrom");
+	return error_eof("sock_recvfrom: recvfrom");
 
     return count;
 }
@@ -460,7 +454,7 @@ status sock_recvfrom(sock_handle sock, sock_addr_handle addr,
 status sock_shutdown(sock_handle sock, int how)
 {
     if (shutdown(sock->fd, how) == -1)
-	return error_errno("shutdown");
+	return error_errno("sock_shutdown: shutdown");
 
     return OK;
 }
@@ -469,7 +463,7 @@ status sock_close(sock_handle sock)
 {
     if (sock->fd != -1) {
 	if (close(sock->fd) == -1)
-	    return error_eintr("close");
+	    return error_eintr("sock_close: close");
 
 	sock->fd = -1;
     }
@@ -499,7 +493,7 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
         struct hostent *he = gethostbyname(address);
         if (!he)
             st = error_msg(INVALID_ADDRESS,
-                           "gethostbyname: \"%s\": %s",
+                           "sock_addr_create: gethostbyname: \"%s\": %s",
                            address, hstrerror(h_errno));
         else
             switch (he->h_addrtype) {
@@ -508,6 +502,7 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
                 break;
             default:
                 st = error_msg(INVALID_ADDRESS,
+                               "sock_addr_create: "
                                "unsupported address type %d: \"%s\"",
                                he->h_addrtype, address);
             }
@@ -543,12 +538,12 @@ status sock_addr_get_text(sock_addr_handle addr, char *text,
 
     if (!inet_ntop(addr->sa.sin_family, &addr->sa.sin_addr,
 		   a_buf, sizeof(a_buf)))
-	return error_errno("inet_ntop");
+	return error_errno("sock_addr_get_text: inet_ntop");
 
     if (!with_port)
 	p_buf[0] = '\0';
     else if (sprintf(p_buf, ":%hu", ntohs(addr->sa.sin_port)) < 0)
-	return error_errno("sock_addr_get_text");
+	return error_errno("sock_addr_get_text: sock_addr_get_text");
 
     if (strlen(a_buf) + strlen(p_buf) >= text_sz)
 	return error_msg(BUFFER_TOO_SMALL,

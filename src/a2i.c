@@ -18,6 +18,7 @@ status a2i(const char *text, const char *format, void *pnum)
     if (sscanf(text, format, pnum) != EOF)
 	return OK;
 
-    return errno != 0 ? error_errno("sscanf")
-	: error_msg(INVALID_NUMBER, "invalid number: \"%s\"", text);
+    return errno != 0
+        ? error_errno("a2i: sscanf")
+        : error_msg(INVALID_NUMBER, "a2i: invalid number: \"%s\"", text);
 }

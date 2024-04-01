@@ -58,7 +58,7 @@ static status output_stg(double secs)
 	       sender_get_storage_max_latency(sndr),
 	       sender_get_storage_stddev_latency(sndr),
 	       (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
-	return error_errno("printf");
+	return error_errno("output_stg: printf");
 
     return OK;
 }
@@ -100,13 +100,13 @@ static status output_json(double secs, microsec now)
 		sender_get_storage_mean_latency(sndr),
 		sender_get_storage_max_latency(sndr),
 		sender_get_storage_stddev_latency(sndr)) < 0)
-	return error_errno("sprintf");
+	return error_errno("output_json: sprintf");
 
     if (reporter) {
 	if (FAILED(st = reporter_send(reporter, buf)))
 	    return st;
     } else if (puts(buf) == EOF)
-	return error_errno("puts");
+	return error_errno("output_json: puts");
 
     return OK;
 }
@@ -122,7 +122,7 @@ static status output_std(double secs)
 	       sender_get_tcp_bytes_sent(sndr) / secs / 1024,
 	       sender_get_mcast_bytes_sent(sndr) / secs / 1024,
 	       (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
-	return error_errno("printf");
+	return error_errno("output_std: printf");
 
     return OK;
 }
@@ -160,7 +160,7 @@ static void *stats_func(thread_handle thr)
 	last_print = now;
 
 	if (!reporter && fflush(stdout) == -1) {
-	    st = error_errno("fflush");
+	    st = error_errno("stats_func: fflush");
 	    break;
 	}
     }

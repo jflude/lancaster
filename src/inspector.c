@@ -105,7 +105,8 @@ static status print_attributes(storage_handle store)
 	       (unsigned long)(q_capacity > 0 ? (q_head % q_capacity) : 0),
 	       (unsigned long)abr,
 	       created, touched) < 0)
-	return (feof(stdin) ? error_eof : error_errno)("printf");
+	return (feof(stdin) ? error_eof : error_errno)
+            ("print_attributes: printf");
 
     return OK;
 }
@@ -113,7 +114,7 @@ static status print_attributes(storage_handle store)
 static status print_div1(void)
 {
     if (puts("--------------------------------------------------") < 0)
-	return (feof(stdin) ? error_eof : error_errno)("puts");
+	return (feof(stdin) ? error_eof : error_errno)("print_div1: puts");
 
     return OK;
 }
@@ -133,7 +134,8 @@ static status print_queue(storage_handle store)
 
 	if (printf("%08ld #%08" PRId64 "%s\n",
 		   i, id, (q_head == i ? head : "")) < 0)
-	    return (feof(stdin) ? error_eof : error_errno)("printf");
+	    return (feof(stdin) ? error_eof : error_errno)
+                ("print_queue: printf");
     }
 
     return OK;
@@ -193,10 +195,10 @@ static status print_record(storage_handle store, record_handle rec)
     st = sprintf(buf, " #%08" PRId64 " [0x%012lX] rev %08" PRId64 " %s",
 		 id, (unsigned long)rec_off, rev_copy, ts_text);
     if (st < 0)
-	error_errno("sprintf");
+	error_errno("print_record: sprintf");
 
     if (printf("%s%s\n", divider + st + 1, buf) < 0)
-	return (feof(stdin) ? error_eof : error_errno)("printf");
+	return (feof(stdin) ? error_eof : error_errno)("print_record: printf");
 
     return OK;
 }
@@ -213,7 +215,7 @@ static status print_value(storage_handle store)
 static status print_div2(void)
 {
     if (puts("*") == EOF)
-	return (feof(stdin) ? error_eof : error_errno)("puts");
+	return (feof(stdin) ? error_eof : error_errno)("print_div2: puts");
 
     return OK;
 }

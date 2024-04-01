@@ -49,7 +49,7 @@ status thread_create(thread_handle *pthr, thread_func fn, void *param)
 	error_restore_last();
 
 	errno = e;
-	return error_errno("pthread_create");
+	return error_errno("thread_create: pthread_create");
     }
 
     (*pthr)->running = TRUE;
@@ -93,7 +93,7 @@ status thread_stop(thread_handle thr, void **presult)
 	e = pthread_join(thr->sys_thr, presult);
 	if (e && e != ESRCH) {
 	    errno = e;
-	    return error_errno("pthread_join");
+	    return error_errno("thread_stop: pthread_join");
 	}
     }
 

@@ -117,22 +117,23 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
     if (strncmp(mmap_file, "shm:", 4) == 0) {
 	(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, mode_flags);
 	if ((*pstore)->seg_fd == -1)
-	    return error_eintr("shm_open");
+	    return error_eintr("storage_create: shm_open");
     } else {
 	(*pstore)->seg_fd = open(mmap_file, open_flags, mode_flags);
 	if ((*pstore)->seg_fd == -1)
-	    return error_eintr("open");
+	    return error_eintr("storage_create: open");
     }
 
     if (open_flags & O_CREAT) {
         /* NB. Darwin allows a segment to be truncated only once */
         if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
-            return (errno == EINTR ? error_eintr : error_errno)("ftruncate");
+            return (errno == EINTR ? error_eintr : error_errno)
+                ("storage_create: ftruncate");
         }
     } else {
 	struct stat file_stat;
 	if (fstat((*pstore)->seg_fd, &file_stat) == -1)
-	    return error_errno("fstat");
+	    return error_errno("storage_create: fstat");
 
 	if ((size_t)file_stat.st_size != seg_sz)
 	    return error_msg(STORAGE_UNEQUAL,
@@ -144,7 +145,7 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
 
     if ((*pstore)->seg == MAP_FAILED) {
 	(*pstore)->seg = NULL;
-	return error_errno("mmap");
+	return error_errno("storage_create: mmap");
     }
 
     (*pstore)->mmap_size = seg_sz;
@@ -231,15 +232,15 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
     if (strncmp(mmap_file, "shm:", 4) == 0) {
 	(*pstore)->seg_fd = shm_open(mmap_file + 4, open_flags, 0);
 	if ((*pstore)->seg_fd == -1)
-	    return error_eintr("shm_open");
+	    return error_eintr("storage_open: shm_open");
     } else {
 	(*pstore)->seg_fd = open(mmap_file, open_flags);
 	if ((*pstore)->seg_fd == -1)
-	    return error_eintr("open");
+	    return error_eintr("storage_open: open");
     }
 
     if (fstat((*pstore)->seg_fd, &file_stat) == -1)
-	return error_errno("fstat");
+	return error_errno("storage_open: fstat");
 
     if ((size_t)file_stat.st_size < sizeof(struct segment))
 	return error_msg(STORAGE_CORRUPTED,
@@ -250,7 +251,7 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
 
     if ((*pstore)->seg == MAP_FAILED) {
 	(*pstore)->seg = NULL;
-	return error_errno("mmap");
+	return error_errno("storage_open: mmap");
     }
 
     (*pstore)->mmap_size = sizeof(struct segment);
@@ -265,14 +266,14 @@ static status init_open(storage_handle *pstore, const char *mmap_file,
     seg_sz = (*pstore)->seg->seg_size;
 
     if (munmap((*pstore)->seg, (*pstore)->mmap_size) == -1)
-	return error_errno("munmap");
+	return error_errno("storage_open: munmap");
 
     (*pstore)->seg =
 	mmap(NULL, seg_sz, mmap_flags, MAP_SHARED, (*pstore)->seg_fd, 0);
 
     if ((*pstore)->seg == MAP_FAILED) {
 	(*pstore)->seg = NULL;
-	return error_errno("mmap");
+	return error_errno("storage_open: mmap");
     }
 
     (*pstore)->mmap_size = seg_sz;
@@ -360,14 +361,14 @@ status storage_destroy(storage_handle *pstore)
 
     if ((*pstore)->seg_fd != -1) {
 	if (close((*pstore)->seg_fd) == -1)
-	    return error_eintr("close");
+	    return error_eintr("storage_destroy: close");
 
 	(*pstore)->seg_fd = -1;
     }
 
     if ((*pstore)->seg) {
 	if (munmap((*pstore)->seg, (*pstore)->mmap_size) == -1)
-	    return error_errno("munmap");
+	    return error_errno("storage_destroy: munmap");
 
 	(*pstore)->seg = NULL;
 
@@ -412,7 +413,7 @@ status storage_set_data_version(storage_handle store, unsigned short data_ver)
 {
     if (store->is_read_only)
 	return error_msg(STORAGE_READ_ONLY,
-			 "storage_set_app_version: storage is read-only");
+			 "storage_set_data_version: storage is read-only");
 
     store->seg->data_version = data_ver;
     return OK;
@@ -732,7 +733,7 @@ status storage_sync(storage_handle store)
 
     if (store->seg->seg_size > 0 &&
 	msync(store->seg, store->seg->seg_size, MS_SYNC) == -1)
-	return error_errno("msync");
+	return error_errno("storage_sync: msync");
 
     return OK;
 }
@@ -758,10 +759,10 @@ status storage_delete(const char *mmap_file, boolean force)
 {
     if (strncmp(mmap_file, "shm:", 4) == 0) {
 	if (shm_unlink(mmap_file + 4) == -1 && (errno != ENOENT || !force))
-	    return error_errno("shm_unlink");
+	    return error_errno("storage_delete: shm_unlink");
     } else {
 	if (unlink(mmap_file) == -1 && (errno != ENOENT || !force))
-	    return error_errno("unlink");
+	    return error_errno("storage_delete: unlink");
     }
 
     return OK;
@@ -790,7 +791,7 @@ status storage_grow(storage_handle store, storage_handle *pnewstore,
 			 (unsigned)open_flags);
 
     if (fstat(store->seg_fd, &file_stat) == -1)
-	return error_errno("fstat");
+	return error_errno("storage_grow: fstat");
 
     if (FAILED(st = storage_create(pnewstore, new_mmap_file,
 				   O_RDWR | open_flags,

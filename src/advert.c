@@ -98,7 +98,7 @@ static status make_json_notice(sender_handle sender, char **pjson)
 		    escape_quotes(storage_get_description
 				  (sender_get_storage(sender))));
     if (n < 0)
-	return error_errno("sprintf");
+	return error_errno("make_json_notice: sprintf");
 
     *pjson = xstrdup(buf);
     return *pjson ? OK : NO_MEMORY;
@@ -150,14 +150,14 @@ static status init(advert_handle *padvert, const char *mcast_address,
 	return st;
 
     if (mcast_interface) {
-	sock_addr_handle if_addr;
-	if (FAILED(st = sock_addr_create(&if_addr, NULL, 0)) ||
+	sock_addr_handle iface_addr;
+	if (FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) ||
 	    FAILED(st = sock_get_interface_address((*padvert)->mcast_sock,
 						   mcast_interface,
-						   if_addr)) ||
+						   iface_addr)) ||
 	    FAILED(st = sock_set_mcast_interface((*padvert)->mcast_sock,
-						 if_addr)) ||
-	    FAILED(st = sock_addr_destroy(&if_addr)))
+						 iface_addr)) ||
+	    FAILED(st = sock_addr_destroy(&iface_addr)))
 	    return st;
     }
 

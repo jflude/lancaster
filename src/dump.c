@@ -11,7 +11,7 @@
 
 #define OCTET_PER_LINE 16
 
-status io_error(const char *func, FILE *f)
+static status error_io(const char *func, FILE *f)
 {
     return (feof(f) ? error_eof : error_errno)(func);
 }
@@ -28,31 +28,31 @@ status fdump(const void *p, const void *base, size_t sz, FILE *f)
     while (n < sz) {
 	ptrdiff_t offset = (const char *)q - (const char *)base + n;
 	if (fprintf(f, "%012lX|", (long)offset) < 0)
-	    return io_error("fprintf", f);
+	    return error_io("fdump: fprintf", f);
 
 	for (i = 0; i < OCTET_PER_LINE; ++i) {
 	    if ((n + i) < sz) {
 		unsigned val = (unsigned char)q[n + i];
 		if (fprintf(f, "%02X", val) < 0)
-		    return io_error("fprintf", f);
+		    return error_io("fdump: fprintf", f);
 	    } else if (putc(' ', f) == EOF || putc(' ', f) == EOF)
-		return io_error("putc", f);
+		return error_io("fdump: putc", f);
 
 	    if (i < (OCTET_PER_LINE - 1) && putc(' ', f) == EOF)
-		return io_error("putc", f);
+		return error_io("fdump: putc", f);
 	}
 
 	if (putc('|', f) == EOF)
-	    return io_error("putc", f);
+	    return error_io("fdump: putc", f);
 
 	for (i = 0; i < OCTET_PER_LINE && (n + i) < sz; ++i) {
 	    char c = isprint((int)q[n + i]) ? q[n + i] : '.';
 	    if (putc(c, f) == EOF)
-		return io_error("putc", f);
+		return error_io("fdump: putc", f);
 	}
 
 	if (putc('\n', f) == EOF)
-	    return io_error("putc", f);
+	    return error_io("fdump: putc", f);
 
 	n += OCTET_PER_LINE;
     }

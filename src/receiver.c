@@ -573,7 +573,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 
 	(*precv)->debug_file = fopen(debug_name, "w");
 	if (!(*precv)->debug_file)
-	    st = error_errno("fopen");
+	    st = error_errno("receiver_create: fopen");
 
 	setvbuf((*precv)->debug_file, NULL, _IOLBF, 0);
 #endif
@@ -634,7 +634,7 @@ status receiver_destroy(receiver_handle *precv)
 
 #if defined(DEBUG_PROTOCOL)
     if ((*precv)->debug_file && fclose((*precv)->debug_file) == EOF)
-	st = error_errno("fclose");
+	st = error_errno("receiver_destroy: fclose");
 #endif
 
     XFREE(*precv);

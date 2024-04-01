@@ -19,7 +19,7 @@ void *xmalloc(size_t sz)
 
     if (!p) {
 	errno = ENOMEM;
-	error_errno("malloc");
+	error_errno("xmalloc: malloc");
     }
 
     return p;
@@ -35,7 +35,7 @@ void *xcalloc(size_t n, size_t sz)
 
     if (!p) {
 	errno = ENOMEM;
-	error_errno("calloc");
+	error_errno("xcalloc: calloc");
     }
 
     return p;
@@ -50,7 +50,7 @@ void *xrealloc(void *p, size_t sz)
 
     if (!p && sz > 0) {
 	errno = ENOMEM;
-	error_errno("realloc");
+	error_errno("xrealloc: realloc");
     }
 
     return p;

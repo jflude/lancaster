@@ -824,16 +824,16 @@ static status init(sender_handle *psndr, const char *mmap_file,
     if (!mcast_interface) {
 	(*psndr)->mcast_mtu = DEFAULT_MTU;
     } else {
-	sock_addr_handle if_addr;
+	sock_addr_handle iface_addr;
 	if (FAILED(st = sock_get_mtu((*psndr)->mcast_sock, mcast_interface,
 				     &(*psndr)->mcast_mtu)) ||
-	    FAILED(st = sock_addr_create(&if_addr, NULL, 0)) ||
+	    FAILED(st = sock_addr_create(&iface_addr, NULL, 0)) ||
 	    FAILED(st = sock_get_interface_address((*psndr)->mcast_sock,
 						   mcast_interface,
-						   if_addr)) ||
+						   iface_addr)) ||
 	    FAILED(st = sock_set_mcast_interface((*psndr)->mcast_sock,
-						 if_addr)) ||
-	    FAILED(st = sock_addr_destroy(&if_addr)))
+						 iface_addr)) ||
+	    FAILED(st = sock_addr_destroy(&iface_addr)))
 	    return st;
     }
 
@@ -862,7 +862,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 		 max_pkt_age_usec, (*psndr)->heartbeat_usec);
 
     if (st < 0)
-	return error_errno("sprintf");
+	return error_errno("sender_create: sprintf");
 
     if (FAILED(st = sock_set_tx_buf((*psndr)->mcast_sock, SEND_BUFSIZ)) ||
 	FAILED(st = sock_set_reuseaddr((*psndr)->mcast_sock, TRUE)) ||
@@ -883,7 +883,7 @@ static status init(sender_handle *psndr, const char *mmap_file,
 
     (*psndr)->debug_file = fopen(debug_name, "w");
     if (!(*psndr)->debug_file)
-	st = error_errno("fopen");
+	st = error_errno("sender_create: fopen");
 
     setvbuf((*psndr)->debug_file, NULL, _IOLBF, 0);
 #endif
@@ -943,7 +943,7 @@ status sender_destroy(sender_handle *psndr)
 
 #if defined(DEBUG_PROTOCOL) || defined(DEBUG_GAPS)
     if ((*psndr)->debug_file && fclose((*psndr)->debug_file) == EOF)
-	st = error_errno("fclose");
+	st = error_errno("sender_destroy: fclose");
 #endif
 
     XFREE(*psndr);

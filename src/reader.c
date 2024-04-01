@@ -55,7 +55,7 @@ static status output_stg(double secs)
 	       latency_get_stddev(stg_latency),
 	       event + (event > 9 ? 'A' - 10 : '0'),
 	       (isatty(STDOUT_FILENO) ? "\033[K\r" : "\n")) < 0)
-	return error_errno("printf");
+	return error_errno("output_stg: printf");
 
     return OK;
 }

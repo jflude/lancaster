@@ -18,7 +18,6 @@ extern "C" {
 
 status dump(const void *p, const void *base, size_t sz);
 status fdump(const void *p, const void *base, size_t sz, FILE *f);
-status io_error(const char *func, FILE *f);
 
 #ifdef __cplusplus
 }
