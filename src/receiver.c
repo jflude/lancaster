@@ -34,7 +34,7 @@
 
 #define INITIAL_MC_HB_USEC (10 * 1000000)
 #define CONNECT_READ_TIMEOUT_SEC 10
-#define RECV_BUFSIZ (1024 * 1024)
+#define UDP_RX_BUFSIZ (192 * 1024)
 
 #if defined(DEBUG_PROTOCOL)
 #include <unistd.h>
@@ -451,6 +451,8 @@ static status init(receiver_handle *precv, const char *mmap_file,
 	FAILED(st = sock_create(&(*precv)->tcp_sock, SOCK_STREAM, 0)) ||
 	FAILED(st = sock_addr_create(&(*precv)->tcp_addr,
 				     tcp_address, tcp_port)) ||
+        /*FAILED(st = sock_set_rx_buf((*precv)->tcp_sock, TCP_RX_BUFSIZ)) ||
+        FAILED(st = sock_set_tx_buf((*precv)->tcp_sock, TCP_TX_BUFSIZ)) ||*/
 	FAILED(st = sock_connect((*precv)->tcp_sock, (*precv)->tcp_addr)) ||
 	FAILED(st = signal_add_handler(SIGALRM)))
 	return st;
@@ -538,7 +540,7 @@ static status init(receiver_handle *precv, const char *mmap_file,
 				    q_capacity, buf + proto_len)) &&
 	!FAILED(st = storage_set_data_version((*precv)->store, data_ver)) &&
 	!FAILED(st = sock_create(&(*precv)->mcast_sock, SOCK_DGRAM, 0)) &&
-	!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, RECV_BUFSIZ)) &&
+	!FAILED(st = sock_set_rx_buf((*precv)->mcast_sock, UDP_RX_BUFSIZ)) &&
 	!FAILED(st = sock_set_reuseaddr((*precv)->mcast_sock, TRUE)) &&
 	!FAILED(st = sock_addr_create(&(*precv)->mcast_pub_addr, mcast_address,
 				      mcast_port)) &&

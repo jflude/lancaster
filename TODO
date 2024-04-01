@@ -1,26 +1,23 @@
 # Bugs
 
-- OpenBSD & NetBSD: setsockopt(2) problems
-- Cygwin: multicast binding/filtering bug
+- Cygwin: multicast binding/filtering bug; set up testing system
+- Darwin/*BSD problems: PUBLISHER and/or SUBSCRIBER setsockopt(2) errors
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 
 # Enhancements
 
 - The INSPECTOR should optionally output as JSON
-- Change the socket code and program options to support IPv6 addresses
 - README should begin with an overview of the Lancaster system & ideas
-- Simpler READER & WRITER example programs using the batch functions
 - Define DEBUG_ALLOC for a doubly-linked list of allocations; dump at_exit(3)
 - Convert DEBUG_ build options into checks on an environment variable?
 - Free store allocation of properties within the segment, growing down
-- Document pubmux & submux; maybe modernize Go build/deps tracking?
+- Simple example program that illustrates use of the batch functions?
 - Provide a Common Lisp client library (CFFI)
 - Modernize the Go client library (fix deps/vendor/build)
-- Persuade Peak6 to contribute their Java & Python client libraries?
+- Persuade Peak6 to contribute their Java and Python client libraries?
+- Document PUBMUX and SUBMUX and the client libraries
+- Change the socket code and program options to support IPv6 addresses
 - Support send/receive by point-to-point UDP as well as multicasting?
-- Portable way for clock to support nanosecond precision?
-
-## Protocol changes
-
+- Portable way for the clock to support nanosecond precision?
 - Receivers may inform senders via TCP if uninterested in a range of records
 - Senders may not multicast updates for records if no receivers are interested
