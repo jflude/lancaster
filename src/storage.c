@@ -125,15 +125,10 @@ static status init_create(storage_handle *pstore, const char *mmap_file,
     }
 
     if (open_flags & O_CREAT) {
-/*
-  Darwin doesn't support O_TRUNC, or ftruncate(2) on an existing segment.
-  See http://lists.squid-cache.org/pipermail/squid-dev/2016-January/004831.html
-*/
-#ifndef DARWIN_OS
+        /* NB. Darwin allows a segment to be truncated only once */
         if (ftruncate((*pstore)->seg_fd, seg_sz) == -1) {
             return (errno == EINTR ? error_eintr : error_errno)("ftruncate");
         }
-#endif
     } else {
 	struct stat file_stat;
 	if (fstat((*pstore)->seg_fd, &file_stat) == -1)
