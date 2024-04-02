@@ -1,7 +1,6 @@
 # Bugs
 
 - Cygwin: multicast binding/filtering bug; set up testing system
-- Darwin/*BSD problems: PUBLISHER and/or SUBSCRIBER setsockopt(2) errors
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 
 # Enhancements

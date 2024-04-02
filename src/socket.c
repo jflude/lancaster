@@ -232,8 +232,9 @@ status sock_set_mcast_ttl(sock_handle sock, short ttl)
 
 status sock_set_mcast_loopback(sock_handle sock, boolean allow_loop)
 {
+    unsigned char val = allow_loop;
     if (setsockopt(sock->fd, IPPROTO_IP, IP_MULTICAST_LOOP,
-		   &allow_loop, sizeof(allow_loop)) == -1)
+                   &val, sizeof(val)) == -1)
 	return error_errno("sock_set_mcast_loopback: setsockopt");
 
     return OK;
