@@ -491,24 +491,36 @@ status sock_addr_create(sock_addr_handle *paddr, const char *address,
 	(*paddr)->sa.sin_addr.s_addr = htonl(INADDR_ANY);
     } else {
         struct hostent *he = gethostbyname(address);
-        if (!he)
+        if (!he) {
             st = error_msg(INVALID_ADDRESS,
                            "sock_addr_create: gethostbyname: \"%s\": %s",
                            address, hstrerror(h_errno));
-        else
+        } else {
+            struct in_addr *ia;
             switch (he->h_addrtype) {
             case AF_INET:
-                (*paddr)->sa.sin_addr = *(struct in_addr *)he->h_addr_list[0];
+                ia = (struct in_addr *)he->h_addr_list[0];
+                if (ia)
+                    (*paddr)->sa.sin_addr = *ia;
+                else
+                    st = error_msg(INVALID_ADDRESS,
+                                   "sock_addr_create: gethostbyname: \"%s\": "
+                                   "no associated addresses",
+                                   address);
                 break;
             default:
                 st = error_msg(INVALID_ADDRESS,
-                               "sock_addr_create: "
-                               "unsupported address type %d: \"%s\"",
-                               he->h_addrtype, address);
+                               "sock_addr_create: gethostbyname: \"%s\": "
+                               "unsupported address type %d",
+                               address, he->h_addrtype);
             }
+        }
     }
 
-    return FAILED(st) ? sock_addr_destroy(paddr) : st;
+    if (FAILED(st))
+        sock_addr_destroy(paddr);
+
+    return st;
 }
 
 status sock_addr_destroy(sock_addr_handle *paddr)
