@@ -23,10 +23,10 @@ void xfree(void *p);
 
 char *xstrdup(const char *p);
 
-#define BZERO(p) (memset((p), 0, sizeof(*(p))))
+#define BZERO(p) memset((p), 0, sizeof(*(p)))
 #define COUNTOF(a) (sizeof(a) / sizeof((a)[0]))
 
-#define XMALLOC(t) (xmalloc(sizeof(t)))
+#define XMALLOC(t) xmalloc(sizeof(t))
 #define XFREE(p)				\
     do {					\
 	xfree(p);				\

@@ -21,12 +21,10 @@
 #error no definitions for synchronization intrinsics
 #endif
 
-#if defined(X86_64_CPU)
+#if defined(X86_64_CPU) || defined(MIPS_CPU)
 #define CPU_RELAX(x) __asm__ __volatile__("pause" ::: "memory")
 #elif defined(ARM_CPU)
 #define CPU_RELAX(x) __asm__ __volatile__("nop" ::: "memory")
-#elif defined(MIPS_CPU)
-#define CPU_RELAX(x) __asm__ __volatile__("pause" ::: "memory")
 #elif defined(PPC_CPU)
 #define CPU_RELAX(x) __asm__ __volatile__("or 27, 27, 27" ::: "memory")
 #else

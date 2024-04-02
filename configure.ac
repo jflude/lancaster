@@ -45,9 +45,9 @@ AC_C_SYNC_INTRINSICS
 AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostname gettimeofday])
-AC_CHECK_FUNCS([memset msync munmap nanosleep socket sqrt strchr strrchr])
-AC_CHECK_FUNCS([strsignal])
+AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostbyname gethostname])
+AC_CHECK_FUNCS([gettimeofday lldiv memset msync munmap nanosleep socket])
+AC_CHECK_FUNCS([sqrt strchr strrchr strsignal])
 
 # Checks for system services.
 AC_SYS_OS_CPU_TYPES
