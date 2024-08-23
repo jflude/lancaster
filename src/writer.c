@@ -25,7 +25,6 @@
 
 #define DEFAULT_QUEUE_CAPACITY 256
 #define DEFAULT_TOUCH_USEC (1 * 1000000)
-#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static storage_handle store;
 static microsec delay;
@@ -122,7 +121,7 @@ int main(int argc, char *argv[])
 	FAILED(signal_add_handler(SIGHUP)) ||
 	FAILED(signal_add_handler(SIGINT)) ||
 	FAILED(signal_add_handler(SIGTERM)) ||
-	FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT, STORAGE_PERM,
+	FAILED(storage_create(&store, mmap_file, O_RDWR | O_CREAT, 0,
 			      FALSE, 0, MAX_ID, sizeof(struct datum), 0,
 			      q_capacity, "TEST")) ||
 	FAILED(storage_reset(store)) ||

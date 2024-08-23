@@ -311,6 +311,9 @@ status storage_create(storage_handle *pstore, const char *mmap_file,
 			 "storage_create: invalid open flags: 0%07o",
 			 (unsigned)open_flags);
 
+    if (mode_flags == 0)
+        mode_flags = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
     *pstore = XMALLOC(struct storage);
     if (!*pstore)
 	return NO_MEMORY;

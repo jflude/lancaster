@@ -24,7 +24,6 @@
 
 #define DEFAULT_TOUCH_USEC (1 * 1000000)
 #define DISPLAY_DELAY_USEC (1 * 1000000)
-#define STORAGE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 static receiver_handle rcvr;
 static reporter_handle reporter;
@@ -237,9 +236,9 @@ int main(int argc, char *argv[])
 	FAILED(signal_add_handler(SIGHUP)) ||
 	FAILED(signal_add_handler(SIGINT)) ||
 	FAILED(signal_add_handler(SIGTERM)) ||
-	FAILED(receiver_create(&rcvr, mmap_file, STORAGE_PERM, 0,
-			       q_capacity, touch_period, max_missed_hb,
-			       tcp_addr, tcp_port)) ||
+	FAILED(receiver_create(&rcvr, mmap_file, 0, 0, q_capacity,
+                               touch_period, max_missed_hb,
+                               tcp_addr, tcp_port)) ||
 	FAILED(thread_create(&stats_thread, stats_func, NULL)) ||
 	FAILED(receiver_run(rcvr)) ||
 	FAILED(thread_stop(stats_thread, &stats_result)) ||
