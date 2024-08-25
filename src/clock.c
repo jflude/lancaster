@@ -22,21 +22,20 @@
 
 status clock_sleep(microsec usec)
 {
-    struct timespec req, rem;
+    struct timespec req;
     if (usec < 0)
 	return error_invalid_arg("clock_sleep");
 
     if (usec < 1000000) {
 	req.tv_sec = 0;
-	req.tv_nsec = usec;
+	req.tv_nsec = usec * 1000;
     } else {
 	lldiv_t qr = lldiv(usec, 1000000);
 	req.tv_sec = qr.quot;
-	req.tv_nsec = qr.rem;
+	req.tv_nsec = qr.rem * 1000;
     }
 
-    req.tv_nsec *= 1000;
-    return nanosleep(&req, &rem) == -1
+    return nanosleep(&req, NULL) == -1
         ? error_eintr("clock_sleep: nanosleep")
         : OK;
 }

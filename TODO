@@ -1,17 +1,18 @@
-# Bugs
+* Bugs
 
+- Darwin: WRITER cannot open a storage twice due to the ftruncate(2) issue
 - Cygwin: multicast binding/filtering bug; set up testing system
 - Solaris 11 support: get address & MTU ioctls; byte swap; sync; SPIN_MASK
 
-# Enhancements
+* Enhancements
 
+- Refactor the setup/teardown and main loops of WRITER and READER into funcs
 - The INSPECTOR should optionally output as JSON
 - README should begin with an overview of the Lancaster system & ideas
 - Define DEBUG_ALLOC for a doubly-linked list of allocations; dump at_exit(3)
 - Convert DEBUG_ build options into checks on an environment variable?
 - Free store allocation of properties within the segment, growing down
 - Simple example program that illustrates use of the batch functions?
-- Provide a Common Lisp client library (CFFI)
 - Modernize the Go client library (fix deps/vendor/build)
 - Persuade Peak6 to contribute their Java and Python client libraries?
 - Document PUBMUX and SUBMUX and the client libraries
