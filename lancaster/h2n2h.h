@@ -9,9 +9,7 @@
 #ifndef H2N2H_H
 #define H2N2H_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <lancaster/config.h>
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -19,7 +17,7 @@
 #undef htonll
 #undef ntohll
 
-#ifdef WORDS_BIGENDIAN
+#ifdef LANCASTER_WORDS_BIGENDIAN
 
 #define htonll(x) (x)
 #define ntohll(x) (x)

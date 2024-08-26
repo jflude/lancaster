@@ -72,3 +72,4 @@ writer
 
 # distribution files
 lancaster-*.*.tar.gz
+lancaster/config.h

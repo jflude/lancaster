@@ -37,9 +37,10 @@ AC_CHECK_DECLS([sys_siglist])
 
 # Checks for structures.
 
-# Checks for compiler characteristics.
+# Checks for compiler and system characteristics.
 AC_C_BIGENDIAN
 AC_C_SYNC_INTRINSICS
+AC_SYS_OS_CPU_TYPES
 
 # Checks for library functions.
 AC_FUNC_ALLOCA
@@ -49,6 +50,6 @@ AC_CHECK_FUNCS([alarm clock_gettime ftruncate gethostbyname gethostname])
 AC_CHECK_FUNCS([gettimeofday lldiv memset msync munmap nanosleep socket])
 AC_CHECK_FUNCS([sqrt strchr strrchr strsignal])
 
-# Checks for system services.
-AC_SYS_OS_CPU_TYPES
+# Create the configuration file for the installable headers.
+AC_INSTALL_HEADER_CONFIG([lancaster], [LANCASTER])
 AC_OUTPUT

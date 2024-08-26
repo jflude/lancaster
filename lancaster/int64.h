@@ -9,11 +9,9 @@
 #ifndef INT64_H
 #define INT64_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <lancaster/config.h>
 
-#ifdef HAVE_INTTYPES_H
+#ifdef LANCASTER_HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
 

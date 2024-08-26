@@ -12,6 +12,7 @@ nobase_include_HEADERS = \
 	lancaster/advert.h \
 	lancaster/batch.h \
 	lancaster/clock.h \
+	lancaster/config.h \
 	lancaster/datum.h \
 	lancaster/dict.h \
 	lancaster/dump.h \
