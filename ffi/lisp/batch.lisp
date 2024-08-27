@@ -27,5 +27,22 @@
   (revs :pointer revision)
   (times :pointer microsec)
   (count :size)
-  (timeout microsec)
+  (read-timeout microsec)
   (head :pointer q-index))
+
+(defctype batch-context-handle :pointer)
+
+(defcfun "batch_read_changed_records2" status
+  (store storage-handle)
+  (copy-size :size)
+  (ids :pointer identifier)
+  (values :pointer)
+  (revs :pointer revision)
+  (times :pointer microsec)
+  (count :size)
+  (read-timeout microsec)
+  (orphan-timeout microsec)
+  (pctx :pointer batch-context-handle))
+
+(defcfun "batch_context_destroy" status
+  (pctx :pointer batch-context-handle))

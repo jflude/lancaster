@@ -6,13 +6,13 @@
 
 * Enhancements
 
-- Refactor the setup/teardown and main loops of WRITER and READER into funcs
-- The INSPECTOR should optionally output as JSON
 - README should begin with an overview of the Lancaster system & ideas
 - Define DEBUG_ALLOC for a doubly-linked list of allocations; dump at_exit(3)
 - Convert DEBUG_ build options into checks on an environment variable?
 - Free store allocation of properties within the segment, growing down?
 - Simple example program that illustrates use of the batch functions?
+- Refactor the setup/teardown and main loops of WRITER and READER into funcs?
+- The INSPECTOR should optionally output as JSON
 - Document PUBMUX and SUBMUX and the FFI libraries
 - Persuade Peak6 to contribute their Java and Python FFI libraries?
 - Change the socket code and program options to support IPv6 addresses

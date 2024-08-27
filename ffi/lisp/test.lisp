@@ -5,7 +5,8 @@
 
 (defparameter *mmap-file* "shm:/test")
 (defparameter *persist* t)
-(defparameter *timeout* 1000000)
+(defparameter *rdwr-timeout* 1000000)
+(defparameter *orphan-timeout* 3000000)
 (defparameter *touch-period* 1000000)
 (defparameter *max-id* 1000)
 (defparameter *at-random* nil)
@@ -13,7 +14,7 @@
 
 (defvar *stop-now* nil)
 (defvar *pstore* nil)
-(defvar *head* nil)
+(defvar *ctx* nil)
 (defvar *xyz* 0)
 
 (defun test-create ()
@@ -57,32 +58,33 @@
   (multiple-value-bind (sec min hour day mon year)
       (decode-universal-time (get-universal-from-microsec timestamp))
     (format t "#~8,'0D rev ~8,'0D ~2,'0D-~2,'0D-~D ~
-               ~2,'0D:~2,'0D:~2,'0D.~8,'0D ~S~%"
+               ~2,'0D:~2,'0D:~2,'0D.~6,'0D ~S~%"
             id rev day mon year hour min sec (mod timestamp 1000000) val)))
 
 (defun test-reset ()
-  (when *head*
-    (foreign-free *head*)
-    (setf *head* nil)))
+  (when *ctx*
+    (try #'batch-context-destroy *ctx*)
+    (foreign-free *ctx*)
+    (setf *ctx* nil)))
 
 (defun test-read (&optional (count 1))
-  (unless *head*
-    (setf *head* (foreign-alloc 'q-index)
-          (mem-ref *head* 'q-index) -1))
   (with-open-storage (store *mmap-file*)
     (with-foreign-objects ((ids 'identifier *batch-size*)
                            (values '(:struct datum) *batch-size*)
                            (revs 'revision *batch-size*)
                            (times 'microsec *batch-size*))
+      (unless *ctx*
+        (setf *ctx* (foreign-alloc 'batch-context-handle)
+              (mem-ref *ctx* 'batch-context-handle) (null-pointer)))
       (dotimes (i count)
         (when *stop-now*
           (setf *stop-now* nil)
           (test-reset)
           (return-from test-read))
-        (let ((n (try #'batch-read-changed-records
+        (let ((n (try #'batch-read-changed-records2
                       store (storage-get-value-size store)
                       ids values revs times *batch-size*
-                      *timeout* *head*)))
+                      *rdwr-timeout* *orphan-timeout* *ctx*)))
           (when (> n 0)
             (dotimes (j n)
               (test-examine (mem-aref ids 'identifier j)
@@ -113,6 +115,6 @@
           (try #'batch-write-records store (storage-get-value-size store)
                ids values *batch-size*)
           #+darwin
-          (sleep (/ *timeout* 1000000)) ; TODO Darwin CFFI is slightly broken
+          (sleep (/ *rdwr-timeout* 1000000)) ; TODO Darwin CFFI is a bit broken
           #-darwin
-          (try #'clock-sleep *timeout*))))))
+          (try #'clock-sleep *rdwr-timeout*))))))

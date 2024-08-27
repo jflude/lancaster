@@ -1,12 +1,3 @@
-# editor files
-*~
-*.bak
-*.swo
-*.swp
-\#*#
-.#*
-TAGS
-
 # object files
 *.o
 *.lo
