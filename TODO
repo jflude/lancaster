@@ -11,13 +11,12 @@
 - README should begin with an overview of the Lancaster system & ideas
 - Define DEBUG_ALLOC for a doubly-linked list of allocations; dump at_exit(3)
 - Convert DEBUG_ build options into checks on an environment variable?
-- Free store allocation of properties within the segment, growing down
+- Free store allocation of properties within the segment, growing down?
 - Simple example program that illustrates use of the batch functions?
-- Modernize the Go client library (fix deps/vendor/build)
-- Persuade Peak6 to contribute their Java and Python client libraries?
-- Document PUBMUX and SUBMUX and the client libraries
+- Document PUBMUX and SUBMUX and the FFI libraries
+- Persuade Peak6 to contribute their Java and Python FFI libraries?
 - Change the socket code and program options to support IPv6 addresses
 - Support send/receive by point-to-point UDP as well as multicasting?
 - Portable way for the clock to support nanosecond precision?
-- Receivers may inform senders via TCP if uninterested in a range of records
-- Senders may not multicast updates for records if no receivers are interested
+- Receivers may inform senders via TCP if uninterested in a range of records?
+- Senders may not multicast updates for records if no receivers are interested?

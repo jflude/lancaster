@@ -40,6 +40,9 @@ nobase_include_HEADERS = \
 dist_bin_SCRIPTS = scripts/pubctl scripts/subctl
 dist_doc_DATA = COPYING README
 
+EXTRA_DIST = ffi
+DISTCLEANFILES = lancaster/config.h
+
 liblancaster_la_SOURCES = \
 	src/a2i.c \
 	src/advert.c \

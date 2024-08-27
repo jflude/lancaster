@@ -8,7 +8,7 @@ package lancaster
 /*
 #cgo CFLAGS: -I../../..
 #cgo LDFLAGS: -L../../../.libs -llancaster
-#cgo linux LDFLAGS: -lrt
+#cgo linux LDFLAGS: -lrt -lm
 
 #include <lancaster/batch.h>
 #include <lancaster/error.h>

@@ -3,7 +3,8 @@
 # Copyright (c)2018-2024 Justin Flude.
 
 The software consists of a C90 library, liblancaster, provided in both static
-and dynamic forms, together with various utility programs.
+and dynamic forms, together with various utility programs.  Foreign function
+interfaces for Go and Common Lisp are also provided.
 
 Any questions, bug reports, suggestions for improvements etc. - please email
 the maintainers at bug-lancaster@peak6.com
