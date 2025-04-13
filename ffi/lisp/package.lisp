@@ -1,8 +1,8 @@
 ;;;; Copyright (c)2018-2024 Justin Flude.
 ;;;; Use of this source code is governed by the COPYING file.
 
-(defpackage #:lancaster
-  (:use #:cl :cffi)
+(cl:defpackage #:lancaster
+  (:use #:cl)
   (:export #:status #:failed #:error-last-msg #:try #:microsec
            #:clock-sleep #:clock-time #:+unix-epoch-as-universal+
            #:get-universal-from-microsec #:get-microsec-from-universal
@@ -20,9 +20,9 @@
            #:toucher-add-storage #:with-toucher #:batch-read-records
            #:batch-write-records #:batch-read-changed-records))
 
-(in-package #:lancaster)
+(cl:in-package #:lancaster)
 
-(define-foreign-library liblancaster
+(cffi:define-foreign-library liblancaster
   (t (:default "liblancaster")))
 
-(use-foreign-library liblancaster)
+(cffi:use-foreign-library liblancaster)

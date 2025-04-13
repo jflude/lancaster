@@ -1,14 +1,14 @@
 ;;;; Copyright (c)2018-2024 Justin Flude.
 ;;;; Use of this source code is governed by the COPYING file.
 
-(in-package #:lancaster)
+(cl:in-package #:lancaster)
 
-(defctype microsec :int64)
+(cffi:defctype microsec :int64)
 
-(defcfun "clock_sleep" status
+(cffi:defcfun "clock_sleep" status
   (usec microsec))
 
-(defcfun "clock_time" status
+(cffi:defcfun "clock_time" status
   (pusec :pointer microsec))
 
 (defconstant +unix-epoch-as-universal+ 2208988800)

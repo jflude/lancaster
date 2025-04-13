@@ -1,24 +1,24 @@
 ;;;; Copyright (c)2018-2024 Justin Flude.
 ;;;; Use of this source code is governed by the COPYING file.
 
-(in-package #:lancaster)
+(cl:in-package #:lancaster)
 
-(defctype toucher-handle :pointer)
+(cffi:defctype toucher-handle :pointer)
 
-(defcfun "toucher_create" status
+(cffi:defcfun "toucher_create" status
   (ptouch :pointer toucher-handle)
   (touch-period-usec microsec))
 
-(defcfun "toucher_destroy" status
+(cffi:defcfun "toucher_destroy" status
   (ptouch :pointer toucher-handle))
 
-(defcfun "toucher_add_storage" status
+(cffi:defcfun "toucher_add_storage" status
   (touch toucher-handle)
   (store storage-handle))
 
 (defmacro with-toucher ((toucher-var touch-period-usec) &body body)
   (let ((ptouch (gensym)))
-    `(let ((,ptouch (foreign-alloc 'toucher-handle)))
+    `(let ((,ptouch (cffi:foreign-alloc 'toucher-handle)))
        (unwind-protect
             (progn
               (try #'toucher-create ,ptouch ,touch-period-usec)
@@ -26,4 +26,4 @@
                    (let ((,toucher-var (mem-ref ,ptouch 'toucher-handle)))
                      ,@body)
                 (try #'toucher-destroy ,ptouch)))
-         (foreign-free ,ptouch)))))
+         (cffi:foreign-free ,ptouch)))))

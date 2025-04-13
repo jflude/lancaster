@@ -1,7 +1,7 @@
 ;;;; Copyright (c)2018-2024 Justin Flude.
 ;;;; Use of this source code is governed by the COPYING file.
 
-(in-package #:lancaster)
+(cl:in-package #:lancaster)
 
 (defparameter *mmap-file* "shm:/test")
 (defparameter *persist* t)
@@ -18,7 +18,7 @@
 (defvar *xyz* 0)
 
 (defun test-create ()
-  (setf *pstore* (foreign-alloc 'storage-handle))
+  (setf *pstore* (cffi:foreign-alloc 'storage-handle))
   (try #'storage-create *pstore* *mmap-file*
        (logior o-rdwr o-creat o-excl) #o600
        *persist* 0 2000 8 0 512 "TEST"))
@@ -48,7 +48,7 @@
 
 (defun test-destroy ()
   (prog1 (try #'storage-destroy *pstore*)
-    (foreign-free *pstore*)
+    (cffi:foreign-free *pstore*)
     (setf *pstore* nil)))
 
 (defun test-delete ()
@@ -64,17 +64,17 @@
 (defun test-reset ()
   (when *ctx*
     (try #'batch-context-destroy *ctx*)
-    (foreign-free *ctx*)
+    (cffi:foreign-free *ctx*)
     (setf *ctx* nil)))
 
 (defun test-read (&optional (count 1))
   (with-open-storage (store *mmap-file*)
-    (with-foreign-objects ((ids 'identifier *batch-size*)
-                           (values '(:struct datum) *batch-size*)
-                           (revs 'revision *batch-size*)
-                           (times 'microsec *batch-size*))
+    (cffi:with-foreign-objects ((ids 'identifier *batch-size*)
+                                (values '(:struct datum) *batch-size*)
+                                (revs 'revision *batch-size*)
+                                (times 'microsec *batch-size*))
       (unless *ctx*
-        (setf *ctx* (foreign-alloc 'batch-context-handle)
+        (setf *ctx* (cffi:foreign-alloc 'batch-context-handle)
               (mem-ref *ctx* 'batch-context-handle) (null-pointer)))
       (dotimes (i count)
         (when *stop-now*
@@ -105,8 +105,8 @@
                                           :desc "TEST")
     (with-toucher (touch *touch-period*)
       (try #'toucher-add-storage touch store)
-      (with-foreign-objects ((ids 'identifier *batch-size*)
-                             (values '(:struct datum) *batch-size*))
+      (cffi:with-foreign-objects ((ids 'identifier *batch-size*)
+                                  (values '(:struct datum) *batch-size*))
         (dotimes (i count)
           (when *stop-now*
             (setf *stop-now* nil *xyz* 0)
