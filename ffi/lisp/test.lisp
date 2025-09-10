@@ -41,10 +41,10 @@
     (do ((id (storage-get-base-id store) (incf id)))
         ((>= id (storage-get-max-id store)))
       (with-record (rec store id)
-        (let ((val (mem-ref (record-get-value-ref rec) '(:struct datum)))
+        (let ((val (cffi:mem-ref (record-get-value-ref rec) '(:struct datum)))
               (prop (storage-get-property-ref store rec)))
           (format t "~5,'0D Rec: ~S~@[ (Prop: ~S)~]~%"
-                  id val (if (null-pointer-p prop) nil prop)))))))
+                  id val (if (cffi:null-pointer-p prop) nil prop)))))))
 
 (defun test-destroy ()
   (prog1 (try #'storage-destroy *pstore*)
@@ -75,42 +75,40 @@
                                 (times 'microsec *batch-size*))
       (unless *ctx*
         (setf *ctx* (cffi:foreign-alloc 'batch-context-handle)
-              (mem-ref *ctx* 'batch-context-handle) (null-pointer)))
+              (cffi:mem-ref *ctx* 'batch-context-handle) (cffi:null-pointer)))
       (dotimes (i count)
         (when *stop-now*
           (setf *stop-now* nil)
-          (test-reset)
-          (return-from test-read))
+          (return))
         (let ((n (try #'batch-read-changed-records2
                       store (storage-get-value-size store)
                       ids values revs times *batch-size*
                       *rdwr-timeout* *orphan-timeout* *ctx*)))
-          (when (> n 0)
-            (dotimes (j n)
-              (test-examine (mem-aref ids 'identifier j)
-                            (mem-aref values '(:struct datum) j)
-                            (mem-aref revs 'revision j)
-                            (mem-aref times 'microsec j)))))))))
+          (dotimes (j n)
+            (test-examine (cffi:mem-aref ids 'identifier j)
+                          (cffi:mem-aref values '(:struct datum) j)
+                          (cffi:mem-aref revs 'revision j)
+                          (cffi:mem-aref times 'microsec j)))
+          (force-output))))))
 
 (defun test-populate (ids values count)
   (dotimes (i count)
-    (setf (getf (mem-aref values '(:struct datum) i) 'xyz) (incf *xyz*)
-          (mem-aref ids 'identifier i) (if *at-random*
-                                           (random *max-id*)
-                                           (mod *xyz* *max-id*)))))
+    (setf (getf (cffi:mem-aref values '(:struct datum) i) 'xyz) (incf *xyz*)
+          (cffi:mem-aref ids 'identifier i) (if *at-random*
+                                                (random *max-id*)
+                                                (mod *xyz* *max-id*)))))
 
 (defun test-write (&optional (count 1))
   (with-create-storage (store *mmap-file* :persist t :max-id *max-id*
                                           :value-size 8 :q-capacity 256
                                           :desc "TEST")
-    (with-toucher (touch *touch-period*)
-      (try #'toucher-add-storage touch store)
+    (with-toucher (touch store *touch-period*)
       (cffi:with-foreign-objects ((ids 'identifier *batch-size*)
                                   (values '(:struct datum) *batch-size*))
         (dotimes (i count)
           (when *stop-now*
             (setf *stop-now* nil *xyz* 0)
-            (return-from test-write))
+            (return))
           (test-populate ids values *batch-size*)
           (try #'batch-write-records store (storage-get-value-size store)
                ids values *batch-size*)

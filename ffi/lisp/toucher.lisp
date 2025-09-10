@@ -16,14 +16,15 @@
   (touch toucher-handle)
   (store storage-handle))
 
-(defmacro with-toucher ((toucher-var touch-period-usec) &body body)
+(defmacro with-toucher ((toucher-var store touch-period-usec) &body body)
   (let ((ptouch (gensym)))
     `(let ((,ptouch (cffi:foreign-alloc 'toucher-handle)))
        (unwind-protect
             (progn
               (try #'toucher-create ,ptouch ,touch-period-usec)
               (unwind-protect
-                   (let ((,toucher-var (mem-ref ,ptouch 'toucher-handle)))
+                   (let ((,toucher-var (cffi:mem-ref ,ptouch 'toucher-handle)))
+                     (try #'toucher-add-storage ,toucher-var store)
                      ,@body)
                 (try #'toucher-destroy ,ptouch)))
          (cffi:foreign-free ,ptouch)))))

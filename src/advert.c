@@ -93,10 +93,10 @@ static status make_json_map(advert_handle advert)
 static status make_json_notice(sender_handle sender, char **pjson)
 {
     char buf[1024];
+    const char *desc = storage_get_description(sender_get_storage(sender));
+
     int n = sprintf(buf, "{\"port\":%hu, \"description\":\"%s\"}",
-		    sender_get_listen_port(sender),
-		    escape_quotes(storage_get_description
-				  (sender_get_storage(sender))));
+		    sender_get_listen_port(sender), escape_quotes(desc));
     if (n < 0)
 	return error_errno("make_json_notice: sprintf");
 

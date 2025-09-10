@@ -17,4 +17,4 @@
    (:file "toucher" :depends-on ("storage"))
    (:file "batch" :depends-on ("storage"))
    (:file "datum")
-   (:file "test" :depends-on ("datum" "toucher"))))
+   (:file "test" :depends-on ("batch" "datum" "toucher"))))

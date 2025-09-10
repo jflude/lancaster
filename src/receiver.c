@@ -655,8 +655,7 @@ status receiver_run(receiver_handle recv)
     while (!recv->is_stopping) {
 	microsec now, mc_hb_usec;
 #if defined(DEBUG_PROTOCOL)
-	fprintf(recv->debug_file,
-		"%s ======================================\n",
+	fprintf(recv->debug_file, "%s ======================================\n",
 		debug_time());
 #endif
 	if (FAILED(st = poller_events(recv->poller, 10)) ||

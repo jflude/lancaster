@@ -105,7 +105,7 @@
                                   value-size
                                   (property-size 0)
                                   (q-capacity 0)
-                                  (desc (null-pointer)))
+                                  (desc (cffi:null-pointer)))
                                &body body)
   (let ((pstore (gensym)))
     `(let ((,pstore (cffi:foreign-alloc 'storage-handle)))
@@ -115,7 +115,7 @@
                    ,open-flags ,mode-flags ,persist ,base-id ,max-id
                    ,value-size ,property-size ,q-capacity ,desc)
               (unwind-protect
-                   (let ((,store-var (mem-ref ,pstore 'storage-handle)))
+                   (let ((,store-var (cffi:mem-ref ,pstore 'storage-handle)))
                      ,@body)
                 (try #'storage-destroy ,pstore)))
          (cffi:foreign-free ,pstore)))))
@@ -128,7 +128,7 @@
             (progn
               (try #'storage-open ,pstore ,mmap-file ,open-flags)
               (unwind-protect
-                   (let ((,store-var (mem-ref ,pstore 'storage-handle)))
+                   (let ((,store-var (cffi:mem-ref ,pstore 'storage-handle)))
                      ,@body)
                 (try #'storage-destroy ,pstore)))
          (cffi:foreign-free ,pstore)))))
@@ -140,6 +140,6 @@
        (unwind-protect
             (progn
               (try #'storage-get-record ,store ,id ,prec)
-              (let ((,record-var (mem-ref ,prec 'record-handle)))
+              (let ((,record-var (cffi:mem-ref ,prec 'record-handle)))
                 ,@body))
          (cffi:foreign-free ,prec)))))

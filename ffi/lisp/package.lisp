@@ -16,7 +16,7 @@
            #:storage-set-description #:storage-get-array #:storage-delete
            #:storage-get-property-ref #:record-get-value-ref
            #:with-create-storage #:with-open-storage #:with-record
-           #:toucher-create #:toucher-destroy #:toucher-handle
+           #:toucher-handle #:toucher-create #:toucher-destroy
            #:toucher-add-storage #:with-toucher #:batch-read-records
            #:batch-write-records #:batch-read-changed-records))
 
